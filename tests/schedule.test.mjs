@@ -64,3 +64,27 @@ test('everyone on leave leaves the day empty without breaking the next day', () 
   assert.equal(days[0].duties.length, 0);
   assert.deepEqual(names(days[1]), ['Alice', 'Ben', 'Chloe']);
 });
+
+test('only active, approved people are on the rota', async () => {
+  const { onRota } = await import('../src/schedule.js');
+  assert.equal(onRota({ active: true, approved: true }), true);
+  assert.equal(onRota({ active: true }), true);                    // from before approval existed
+  assert.equal(onRota({ active: true, approved: false }), false);  // waiting for approval
+  assert.equal(onRota({ active: false, approved: true }), false);
+});
+
+test('the public calendar shares names and roles only, within its date window', async () => {
+  const { publicCalendar } = await import('../src/schedule.js');
+  const leaves = [{ user_id: 'b', start_date: '2026-10-20', end_date: '2026-10-20', note: 'private' }];
+  const out = publicCalendar({ ...base, leaves, from: '2026-10-19', to: '2026-10-25', today: '2026-10-20' });
+  const json = JSON.stringify(out);
+  assert.ok(!json.includes('"b"') && !json.includes('private') && !json.includes('user_id'), 'no ids, notes or leave rows');
+  assert.deepEqual(out.people, ['Alice', 'Ben', 'Chloe']);
+  assert.deepEqual(out.days[1].duties, [{ role: 'Primary', name: 'Chloe' }, { role: 'Secondary 1', name: 'Alice' }]);
+  assert.equal(out.days[5].kind, 'weekend');
+  // Window: at most 90 days back, 180 ahead and 62 days long.
+  const far = publicCalendar({ ...base, from: '2027-06-01', to: '2027-06-30', today: '2026-10-20' });
+  assert.equal(far.days.length, 0);
+  const long = publicCalendar({ ...base, from: '2026-10-19', to: '2027-03-01', today: '2026-10-20' });
+  assert.equal(long.to, '2026-12-20');
+});

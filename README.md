@@ -21,14 +21,19 @@ The rules are in `src/schedule.js`, with tests in `tests/schedule.test.mjs`.
 ## Set up Supabase (about 10 minutes)
 
 1. Create a free account at [supabase.com](https://supabase.com) and a **New project**. Pick the Singapore region if it's offered.
-2. Open **SQL Editor > New query**, paste the whole of `supabase/schema.sql`, and click **Run**. This creates the tables, the security rules and the 2026–2027 Singapore public holidays.
+2. Open **SQL Editor > New query**, paste the whole of `supabase/schema.sql`, and click **Run**. This creates the tables, the security rules and the 2026–2027 Singapore public holidays. Then do the same with `supabase/003_private_data.sql`.
 3. Open **Project Settings > API** and copy the **Project URL** and the **anon public** key into `config.js`.
 4. Open **Authentication > URL Configuration** and set **Site URL** to where the app will live, for example `https://<your-github-name>.github.io/duty-roster/`. Confirmation emails link back to this address.
-5. Open the app and **create an account**. The first person to sign up becomes the admin. Everyone else then creates their own account and appears in the rotation order.
+5. Open the app and **create an account**. The first person to sign up becomes the admin. Everyone else then creates their own account and waits in **Team & settings > Waiting for approval** until an admin approves them and they join the rotation.
 
-The anon key is safe to publish. The database's row level security only lets signed-in people read the roster, lets each person change only their own leave and name, and keeps the order, holidays and settings for admins.
+The anon key is safe to publish. The database's security rules:
 
-By default Supabase asks new users to confirm their email. To skip that for a small team, turn off **Confirm email** under **Authentication > Providers > Email**.
+- Only **approved members** can read the team list and leave dates. New sign-ups see nothing until an admin approves them.
+- **Emails** are visible only to the person themselves and admins. **Leave notes** are visible only to their owner and admins.
+- Each person can change only their own leave and name. The order, approvals, holidays and settings are for admins.
+- The **public calendar** (off by default for new installs) gets only each day's names and roles, for about 3 months back to 6 months ahead. It never receives leave dates, notes, emails or account IDs.
+
+Keep **Confirm email** turned on under **Authentication > Providers > Email**, so people can only sign up with an address they control.
 
 ## Put it online with GitHub Pages
 

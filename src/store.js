@@ -2,7 +2,7 @@
 // - SupabaseStore: real logins and a shared Postgres database.
 // - DemoStore: everything in this browser's localStorage, for trying the app without Supabase.
 import { SG_HOLIDAYS } from './holidays-sg.js';
-import { toISO } from './schedule.js';
+import { toISO, onRota, publicCalendar } from './schedule.js';
 
 function check({ data, error }) {
   if (error) throw new Error(error.message);
@@ -42,16 +42,26 @@ export class SupabaseStore {
   async signOut() { await this.sb.auth.signOut(); }
   async load() {
     const uid = await this.userId();
-    const [profiles, leaves, holidays, settings] = await Promise.all([
-      this.sb.from('profiles').select('*').order('rota_order'),
-      this.sb.from('leaves').select('*').order('start_date'),
+    // Emails and leave notes aren't readable from the tables (see 003_private_data.sql). They come from
+    // member_emails() and leave_notes(), which return only your own, or everyone's if you're an admin.
+    const [profiles, leaves, holidays, settings, emails, notes] = await Promise.all([
+      this.sb.from('profiles').select('id, display_name, rota_order, active, is_admin, approved, created_at')
+        .order('rota_order').order('created_at').order('id'),
+      this.sb.from('leaves').select('id, user_id, start_date, end_date').order('start_date'),
       this.sb.from('holidays').select('*').order('date'),
-      this.sb.from('settings').select('*').eq('id', 1).single()
+      this.sb.from('settings').select('*').eq('id', 1).single(),
+      this.sb.rpc('member_emails'),
+      this.sb.rpc('leave_notes')
     ]).then(rs => rs.map(check));
+    const emailOf = Object.fromEntries(emails.map(e => [e.id, e.email]));
+    const noteOf = Object.fromEntries(notes.map(n => [n.id, n.note]));
+    profiles.forEach(p => { p.email = emailOf[p.id] || null; });
+    leaves.forEach(l => { l.note = noteOf[l.id] || null; });
     return { me: profiles.find(p => p.id === uid) || null, profiles, leaves, holidays, settings };
   }
-  /** Read-only roster data for the public calendar. Works without signing in. Null when switched off. */
-  async loadPublic() { return check(await this.sb.rpc('public_roster')); }
+  /** The public calendar for a date range: names and roles only. Works without signing in. Null when switched off. */
+  async loadPublic(from, to) { return check(await this.sb.rpc('public_calendar', { p_from: from, p_to: to })); }
+  async deleteProfile(id) { check(await this.sb.from('profiles').delete().eq('id', id)); }
   async addLeave(row) { check(await this.sb.from('leaves').insert(row)); }
   async deleteLeave(id) { check(await this.sb.from('leaves').delete().eq('id', id)); }
   async updateProfile(id, patch) { check(await this.sb.from('profiles').update(patch).eq('id', id)); }
@@ -96,7 +106,8 @@ export class DemoStore {
   async signUp(email, _password, name) {
     if (this.db.profiles.some(x => x.email.toLowerCase() === email.toLowerCase())) throw new Error('That email already has an account.');
     const id = 'demo-' + Date.now();
-    this.db.profiles.push({ id, email, display_name: name || email.split('@')[0], rota_order: Math.max(-1, ...this.db.profiles.map(p => p.rota_order)) + 1, active: true, is_admin: false });
+    // Like the real database: new sign-ups wait for an admin to approve them.
+    this.db.profiles.push({ id, email, display_name: name || email.split('@')[0], rota_order: Math.max(-1, ...this.db.profiles.map(p => p.rota_order)) + 1, active: true, is_admin: false, approved: false });
     this.db.session = id; this.write(); this.emit();
     return { needsConfirmation: false };
   }
@@ -108,15 +119,19 @@ export class DemoStore {
       leaves: clone(this.db.leaves).sort((a, b) => a.start_date.localeCompare(b.start_date)),
       holidays: clone(this.db.holidays).sort((a, b) => a.date.localeCompare(b.date)), settings: clone(this.db.settings) };
   }
-  async loadPublic() {
+  async loadPublic(from, to) {
     const s = this.db.settings;
     if (s.public_calendar === false) return null;
-    const active = this.db.profiles.filter(p => p.active).sort((a, b) => a.rota_order - b.rota_order);
-    return {
-      members: active.map(p => ({ id: p.id, display_name: p.display_name, rota_order: p.rota_order })),
-      leaves: this.db.leaves.map(l => ({ user_id: l.user_id, start_date: l.start_date, end_date: l.end_date })),
-      holidays: this.db.holidays.slice(), rota_start: s.rota_start
-    };
+    const members = this.db.profiles.filter(onRota).sort((a, b) => a.rota_order - b.rota_order)
+      .map(p => ({ id: p.id, name: p.display_name }));
+    return publicCalendar({ members, leaves: this.db.leaves, anchor: s.rota_start, from, to, today: toISO(new Date()),
+      holidays: Object.fromEntries(this.db.holidays.map(h => [h.date, h.name])) });
+  }
+  async deleteProfile(id) {
+    if (!this.me().is_admin) throw new Error('Only admins can remove people.');
+    this.db.profiles = this.db.profiles.filter(p => p.id !== id);
+    this.db.leaves = this.db.leaves.filter(l => l.user_id !== id);
+    this.write();
   }
   me() { return this.db.profiles.find(p => p.id === this.db.session); }
   async addLeave(row) {

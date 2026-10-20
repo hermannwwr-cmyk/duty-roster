@@ -1,4 +1,4 @@
-import { buildSchedule, toISO, fromISO } from './schedule.js';
+import { buildSchedule, toISO, fromISO, onRota } from './schedule.js';
 import { createStore } from './connect.js';
 
 const store = await createStore();
@@ -26,7 +26,7 @@ async function act(fn, done) {
 function scheduleFor(from, to) {
   const d = state.data;
   return buildSchedule({
-    members: d.profiles.filter(p => p.active).map(p => ({ id: p.id, name: p.display_name })),
+    members: d.profiles.filter(onRota).map(p => ({ id: p.id, name: p.display_name })),
     leaves: d.leaves,
     holidays: Object.fromEntries(d.holidays.map(h => [h.date, h.name])),
     anchor: d.settings.rota_start,
@@ -42,6 +42,12 @@ async function refresh() {
     state.data = await store.load();
     if (!state.data.me) {
       root.innerHTML = '<div class="auth"><div class="panel"><h2>Your profile isn’t ready</h2><p class="muted">You’re signed in, but the database has no profile for you. Check that <code>supabase/schema.sql</code> ran in full, then sign in again.</p><button class="btn" id="out">Sign out</button></div></div>';
+      document.getElementById('out').onclick = () => store.signOut();
+      return;
+    }
+    if (state.data.me.approved === false) {
+      root.innerHTML = '<div class="auth"><div class="panel"><h2>Waiting for approval</h2><p class="muted">Thanks for signing up, ' + esc(state.data.me.display_name) + '. An admin needs to approve your account before you can see the roster. Check back later.</p><div class="form"><button class="btn" id="check">Check again</button><button class="btn" id="out">Sign out</button></div></div></div>';
+      document.getElementById('check').onclick = () => refresh();
       document.getElementById('out').onclick = () => store.signOut();
       return;
     }
@@ -190,12 +196,13 @@ function renderLeave() {
     <h2>Add leave</h2>
     <p class="muted">You’ll be left out of the roster on these days, and everyone else moves up.</p>
     <form class="form" id="leave-form">
-      ${me.is_admin ? `<label class="field">Person<select id="l-who">${profiles.filter(p => p.active).map(p => `<option value="${p.id}"${p.id === me.id ? ' selected' : ''}>${esc(p.display_name)}</option>`).join('')}</select></label>` : ''}
+      ${me.is_admin ? `<label class="field">Person<select id="l-who">${profiles.filter(onRota).map(p => `<option value="${p.id}"${p.id === me.id ? ' selected' : ''}>${esc(p.display_name)}</option>`).join('')}</select></label>` : ''}
       <label class="field">From<input type="date" id="l-start" required value="${t}"></label>
       <label class="field">To<input type="date" id="l-end" required value="${t}"></label>
-      <label class="field grow">Note (optional)<input id="l-note" maxlength="120" placeholder="e.g. Annual leave"></label>
+      <label class="field grow">Note (optional)<input id="l-note" maxlength="120" placeholder="e.g. Annual leave" aria-describedby="l-note-hint"></label>
       <button class="btn primary" type="submit">Add leave</button>
     </form>
+    <p class="muted" id="l-note-hint">Only you and admins can see the note. Please don’t include medical details. Teammates see only the dates.</p>
   </section>
   <section class="panel"><h2>Your upcoming leave</h2>
     <div class="list">${mine.map(leaveItem).join('') || '<p class="muted">You have no leave booked.</p>'}</div></section>
@@ -217,23 +224,31 @@ function renderTeam() {
   const admin = me.is_admin;
   const view = document.getElementById('view');
   const t = today();
-  const sorted = profiles.slice().sort((a, b) => a.rota_order - b.rota_order);
+  const sorted = profiles.filter(p => p.approved !== false).sort((a, b) => a.rota_order - b.rota_order);
+  const pending = profiles.filter(p => p.approved === false);
   const upcomingHol = holidays.filter(h => h.date >= t.slice(0, 4) + '-01-01');
   view.innerHTML = `
+  ${admin ? `<section class="panel">
+    <h2>Waiting for approval</h2>
+    <p class="muted">People who have signed up but can’t see the roster yet. Approve your teammates to add them to the end of the rotation. Remove anyone you don’t recognise.</p>
+    <div class="list">${pending.map(p => `<div class="item"><div class="main"><b>${esc(p.display_name)}</b><div class="muted">${esc(p.email || '')}</div></div>
+      <button class="btn small primary" data-approve="${p.id}">Approve</button>
+      <button class="btn small danger" data-remove="${p.id}" data-who="${esc(p.display_name)}">Remove</button></div>`).join('') || '<p class="muted">No one is waiting.</p>'}</div>
+  </section>` : ''}
   <section class="panel">
     <h2>Rotation order</h2>
     <p class="muted">Each working day the next person in this order becomes Primary, and everyone else follows. ${admin ? 'Use the arrows to change the order. Untick Active to leave someone out of the roster.' : 'Only admins can change the order.'}</p>
     <div class="list">${sorted.map((p, i) => `<div class="item">
       <span class="order">${i + 1}.</span>
       <div class="main">${admin || p.id === me.id ? `<input class="name-input" data-name="${p.id}" value="${esc(p.display_name)}" aria-label="Name">` : `<b>${esc(p.display_name)}</b>`}
-        <div class="muted">${esc(p.email)}</div></div>
+        ${p.email ? `<div class="muted">${esc(p.email)}</div>` : ''}</div>
       ${p.is_admin ? '<span class="tag">Admin</span>' : ''}${!p.active ? '<span class="tag leave">Inactive</span>' : ''}
       ${admin ? `<label class="check"><input type="checkbox" data-active="${p.id}"${p.active ? ' checked' : ''}> Active</label>
         <label class="check"><input type="checkbox" data-admin="${p.id}"${p.is_admin ? ' checked' : ''}${p.id === me.id ? ' disabled title="You can’t remove your own admin access"' : ''}> Admin</label>
         <button class="btn small" data-up="${i}" aria-label="Move ${esc(p.display_name)} up"${i === 0 ? ' disabled' : ''}>↑</button>
         <button class="btn small" data-down="${i}" aria-label="Move ${esc(p.display_name)} down"${i === sorted.length - 1 ? ' disabled' : ''}>↓</button>` : ''}
     </div>`).join('')}</div>
-    <p class="muted">New people appear here when they create an account. The first person to sign up is the admin.</p>
+    <p class="muted">${admin ? 'New people appear under Waiting for approval when they create an account, and join the end of the rotation once approved.' : 'New people join the end of the rotation once an admin approves them.'} Only admins see everyone’s email.</p>
   </section>
   <section class="panel">
     <h2>Rotation start</h2>
@@ -243,7 +258,7 @@ function renderTeam() {
   </section>
   <section class="panel">
     <h2>Public calendar</h2>
-    <p class="muted">A read-only month calendar that anyone with the link can open without an account. It shows names and duties only, not emails or leave notes.</p>
+    <p class="muted">A read-only month calendar that anyone with the link can open without an account. It shows each working day’s duty list (names and roles) from about 3 months ago to 6 months ahead. It doesn’t share emails, leave dates or notes, though someone missing from a day’s list may be away.</p>
     <p><a href="calendar.html">${esc(new URL('calendar.html', location.href).href)}</a></p>
     ${admin ? `<label class="check"><input type="checkbox" id="pub-cal"${settings.public_calendar !== false ? ' checked' : ''}> Anyone with the link can view the calendar</label>`
       : `<p>${settings.public_calendar !== false ? 'The public calendar is on.' : 'The public calendar is off.'}</p>`}
@@ -259,6 +274,13 @@ function renderTeam() {
     const v = inp.value.trim();
     if (!v) { toast('Name can’t be empty.'); return; }
     act(() => store.updateProfile(inp.dataset.name, { display_name: v }), 'Name saved.');
+  });
+  // Approved people join the end of the rotation.
+  const nextOrder = Math.max(-1, ...sorted.map(p => p.rota_order)) + 1;
+  view.querySelectorAll('[data-approve]').forEach(b => b.onclick = () => act(() => store.updateProfile(b.dataset.approve, { approved: true, rota_order: nextOrder }), 'Approved. They’re now at the end of the rotation.'));
+  view.querySelectorAll('[data-remove]').forEach(b => b.onclick = () => {
+    if (!window.confirm('Remove ' + b.dataset.who + '? Their profile is deleted and they won’t see the roster.')) return;
+    act(() => store.deleteProfile(b.dataset.remove), 'Removed.');
   });
   view.querySelectorAll('[data-active]').forEach(c => c.onchange = () => act(() => store.updateProfile(c.dataset.active, { active: c.checked }), c.checked ? 'Back on the roster.' : 'Left out of the roster.'));
   view.querySelectorAll('[data-admin]').forEach(c => c.onchange = () => act(() => store.updateProfile(c.dataset.admin, { is_admin: c.checked }), 'Admin access updated.'));

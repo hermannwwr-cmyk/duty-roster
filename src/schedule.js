@@ -36,6 +36,30 @@ export function roleName(i) {
   return i === 0 ? 'Primary' : 'Secondary ' + i;
 }
 
+/** People who take part in the rotation: active and approved (profiles from before approval existed count as approved). */
+export function onRota(profile) {
+  return profile.active && profile.approved !== false;
+}
+
+/**
+ * The public calendar's view of the roster: names and roles only, no leave and no ids.
+ * Mirrors public_calendar() in supabase/003_private_data.sql, including its date window
+ * (90 days back to 180 days ahead, at most 62 days per request). Keep the two in step.
+ */
+export function publicCalendar({ members, leaves, holidays, anchor, from, to, today }) {
+  const winFrom = from > addDays(today, -90) ? from : addDays(today, -90);
+  let winTo = to < addDays(today, 180) ? to : addDays(today, 180);
+  if (winTo > addDays(winFrom, 62)) winTo = addDays(winFrom, 62);
+  const days = winTo < winFrom ? [] : buildSchedule({ members, leaves, holidays, anchor, from: winFrom, to: winTo });
+  return {
+    rota_start: anchor, from: winFrom, to: winTo,
+    people: members.map(m => m.name),
+    days: days.map(d => d.kind === 'work'
+      ? { date: d.date, kind: d.kind, duties: d.duties.map(x => ({ role: x.role, name: x.member.name })) }
+      : d.kind === 'holiday' ? { date: d.date, kind: d.kind, holiday: d.holiday } : { date: d.date, kind: d.kind })
+  };
+}
+
 /** Is `member` on leave on `iso`? Leaves are inclusive date ranges. */
 function onLeave(leaves, memberId, iso) {
   return leaves.some(l => l.user_id === memberId && l.start_date <= iso && iso <= l.end_date);
