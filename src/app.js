@@ -1,14 +1,7 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js';
-import { buildSchedule, toISO, fromISO, addDays } from './schedule.js';
-import { SupabaseStore, DemoStore } from './store.js';
+import { buildSchedule, toISO, fromISO } from './schedule.js';
+import { createStore } from './connect.js';
 
-let store;
-if (SUPABASE_URL && SUPABASE_ANON_KEY) {
-  const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm');
-  store = new SupabaseStore(createClient, SUPABASE_URL, SUPABASE_ANON_KEY);
-} else {
-  store = new DemoStore();
-}
+const store = await createStore();
 
 const root = document.getElementById('root');
 const state = { data: null, tab: 'roster', month: toISO(new Date()).slice(0, 7), authMode: 'signin', authError: '', authNote: '' };
@@ -66,7 +59,8 @@ function renderAuth() {
   const signup = state.authMode === 'signup';
   root.innerHTML = `
   <div class="auth">
-    <div><h1>Duty Roster</h1><p class="muted">Daily duty rotation. Sign in to see your duties and add your leave.</p></div>
+    <div><h1>Duty Roster</h1><p class="muted">Daily duty rotation. Sign in to see your duties and add your leave.</p>
+      <p><a href="calendar.html">View the duty calendar without signing in →</a></p></div>
     <div class="panel">
       <div class="switch" role="group" aria-label="Account">
         <button type="button" data-mode="signin" aria-pressed="${!signup}">Sign in</button>
@@ -107,6 +101,7 @@ function renderApp() {
   <header class="top"><div class="wrap">
     <span class="brand">Duty Roster</span>
     <span class="who">Signed in as <b>${esc(me.display_name)}</b>${me.is_admin ? ' · admin' : ''}</span>
+    <a class="btn small" href="calendar.html">Calendar</a>
     <button class="btn small" id="signout">Sign out</button>
     <nav class="tabs" role="tablist">${tabs.map(([id, label]) => `<button role="tab" data-tab="${id}" aria-selected="${state.tab === id}">${label}</button>`).join('')}</nav>
   </div></header>
@@ -247,6 +242,13 @@ function renderTeam() {
       : `<p><b>${fmtDay(settings.rota_start, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</b></p>`}
   </section>
   <section class="panel">
+    <h2>Public calendar</h2>
+    <p class="muted">A read-only month calendar that anyone with the link can open without an account. It shows names and duties only, not emails or leave notes.</p>
+    <p><a href="calendar.html">${esc(new URL('calendar.html', location.href).href)}</a></p>
+    ${admin ? `<label class="check"><input type="checkbox" id="pub-cal"${settings.public_calendar !== false ? ' checked' : ''}> Anyone with the link can view the calendar</label>`
+      : `<p>${settings.public_calendar !== false ? 'The public calendar is on.' : 'The public calendar is off.'}</p>`}
+  </section>
+  <section class="panel">
     <h2>Public holidays</h2>
     <p class="muted">No duty on these days. Singapore holidays for 2026 and 2027 are included${admin ? '. Add later years when they’re announced.' : '.'}</p>
     ${admin ? `<form class="form" id="hol-form"><label class="field">Date<input type="date" id="h-date" required></label><label class="field grow">Name<input id="h-name" required maxlength="60" placeholder="e.g. Polling Day"></label><button class="btn primary" type="submit">Add holiday</button></form>` : ''}
@@ -269,6 +271,8 @@ function renderTeam() {
   view.querySelectorAll('[data-down]').forEach(b => b.onclick = () => act(() => move(+b.dataset.down, +b.dataset.down + 1), 'Order updated.'));
   const sf = document.getElementById('start-form');
   if (sf) sf.onsubmit = e => { e.preventDefault(); act(() => store.updateSettings({ rota_start: document.getElementById('s-start').value }), 'Rotation start saved.'); };
+  const pc = document.getElementById('pub-cal');
+  if (pc) pc.onchange = () => act(() => store.updateSettings({ public_calendar: pc.checked }), pc.checked ? 'Public calendar switched on.' : 'Public calendar switched off.');
   const hf = document.getElementById('hol-form');
   if (hf) hf.onsubmit = e => { e.preventDefault(); act(() => store.addHoliday(document.getElementById('h-date').value, document.getElementById('h-name').value.trim()), 'Holiday added.'); };
   view.querySelectorAll('[data-hdel]').forEach(b => b.onclick = () => act(() => store.deleteHoliday(b.dataset.hdel), 'Holiday removed.'));

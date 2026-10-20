@@ -42,6 +42,8 @@ export class SupabaseStore {
     ]).then(rs => rs.map(check));
     return { me: profiles.find(p => p.id === uid) || null, profiles, leaves, holidays, settings };
   }
+  /** Read-only roster data for the public calendar. Works without signing in. Null when switched off. */
+  async loadPublic() { return check(await this.sb.rpc('public_roster')); }
   async addLeave(row) { check(await this.sb.from('leaves').insert(row)); }
   async deleteLeave(id) { check(await this.sb.from('leaves').delete().eq('id', id)); }
   async updateProfile(id, patch) { check(await this.sb.from('profiles').update(patch).eq('id', id)); }
@@ -97,6 +99,16 @@ export class DemoStore {
     return { me: profiles.find(p => p.id === this.db.session) || null, profiles,
       leaves: clone(this.db.leaves).sort((a, b) => a.start_date.localeCompare(b.start_date)),
       holidays: clone(this.db.holidays).sort((a, b) => a.date.localeCompare(b.date)), settings: clone(this.db.settings) };
+  }
+  async loadPublic() {
+    const s = this.db.settings;
+    if (s.public_calendar === false) return null;
+    const active = this.db.profiles.filter(p => p.active).sort((a, b) => a.rota_order - b.rota_order);
+    return {
+      members: active.map(p => ({ id: p.id, display_name: p.display_name, rota_order: p.rota_order })),
+      leaves: this.db.leaves.map(l => ({ user_id: l.user_id, start_date: l.start_date, end_date: l.end_date })),
+      holidays: this.db.holidays.slice(), rota_start: s.rota_start
+    };
   }
   me() { return this.db.profiles.find(p => p.id === this.db.session); }
   async addLeave(row) {

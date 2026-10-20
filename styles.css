@@ -116,3 +116,33 @@ label.field input, label.field select { font-weight: 400; color: var(--ink); bac
 .people { display: grid; gap: .4rem; }
 
 .toast { position: fixed; left: 50%; bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: .6rem 1rem; border-radius: 8px; font-size: .95rem; max-width: calc(100% - 32px); z-index: 10; }
+
+/* Public month calendar (calendar.html) */
+.cal-top .brand { margin-right: auto; }
+.cal-top { padding-block: .8rem !important; }
+a.btn { text-decoration: none; color: inherit; display: inline-block; }
+label.field.inline { display: flex; align-items: center; gap: .5rem; }
+.cal { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)) repeat(2, minmax(0, .45fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.dow { font-size: .76rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--soft); padding: .4rem .5rem; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.cell { min-height: 6.5rem; padding: .35rem .45rem .5rem; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); display: grid; align-content: start; gap: .25rem; min-width: 0; }
+.cell .num { font: 500 .85rem var(--mono); color: var(--soft); }
+.cell .dow-inline { display: none; }
+.cell.is-today { background: var(--accent-soft); }
+.cell.is-today .num { color: var(--accent); font-weight: 700; }
+.cell.weekend { background: var(--bg); }
+.cell.out { opacity: .45; }
+.cell.holiday { background: var(--holiday-soft); }
+.cell .hol { color: var(--holiday); font-weight: 600; font-size: .88rem; line-height: 1.25; }
+.duty { list-style: none; margin: 0; padding: 0; display: grid; gap: .1rem; font-size: .85rem; line-height: 1.3; }
+.duty li { display: flex; gap: .3rem; min-width: 0; overflow-wrap: anywhere; color: var(--soft); }
+.duty li .r { font: 500 .7rem var(--mono); min-width: 1.6rem; padding-top: .1rem; }
+.duty li.p { color: var(--ink); font-weight: 700; }
+.duty li.p .r { color: var(--primary); }
+.duty li.hl { background: var(--accent); color: var(--accent-ink); border-radius: 4px; padding: 0 .25rem; font-weight: 700; }
+.duty li.hl .r { color: inherit; }
+@media (max-width: 760px) {
+  .cal { grid-template-columns: minmax(0, 1fr); border-left: 0; }
+  .dow, .cell.weekend, .cell.out { display: none; }
+  .cell { min-height: 0; border-right: 0; grid-template-columns: 6.5rem minmax(0, 1fr); align-items: start; padding: .55rem .2rem; }
+  .cell .dow-inline { display: inline; }
+}
