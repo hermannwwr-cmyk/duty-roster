@@ -14,6 +14,13 @@
   <a class="btn small" href="./">Sign in to add leave</a>
 </div></header>
 <main class="wrap" id="view"><p class="loading">Loading the calendar…</p></main>
+<script>
+// If the app script fails to load (for example a half-updated cache), say so instead of loading forever.
+setTimeout(function () {
+  var el = document.querySelector(".loading");
+  if (el) el.innerHTML = "This is taking too long. <button class=\"btn small\" onclick=\"location.reload()\">Reload the page</button> If it keeps happening, press Ctrl+F5.";
+}, 12000);
+</script>
 <script type="module" src="src/calendar.js"></script>
 </body>
 </html>
