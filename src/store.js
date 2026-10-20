@@ -18,7 +18,15 @@ export class SupabaseStore {
     const { data } = await this.sb.auth.getSession();
     return data.session ? data.session.user.id : null;
   }
-  onAuthChange(cb) { this.sb.auth.onAuthStateChange(() => cb()); }
+  onAuthChange(cb) {
+    // Supabase runs this callback while holding its auth lock. Calling back into Supabase from
+    // inside it (as refresh() does) deadlocks, so defer the work until the lock is released.
+    // INITIAL_SESSION and TOKEN_REFRESHED need no re-render: the app loads the session itself.
+    this.sb.auth.onAuthStateChange(event => {
+      if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') return;
+      setTimeout(cb, 0);
+    });
+  }
   async signIn(email, password) {
     const { error } = await this.sb.auth.signInWithPassword({ email, password });
     if (error) throw new Error(error.message);
