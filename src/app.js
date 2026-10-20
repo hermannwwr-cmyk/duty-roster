@@ -1,37 +1,78 @@
-import { buildSchedule, toISO, fromISO, onRota } from './schedule.js';
+import { buildSchedule, checkpointFor, toISO, fromISO, addDays, todaySG, onRota } from './schedule.js';
 import { createStore } from './connect.js';
 
 const store = await createStore();
 
 const root = document.getElementById('root');
-const state = { data: null, tab: 'roster', month: toISO(new Date()).slice(0, 7), authMode: 'signin', authError: '', authNote: '' };
+const state = { data: null, tab: 'roster', month: todaySG().slice(0, 7), authMode: 'signin', authError: '', authNote: '' };
 
 /* ---------- Helpers ---------- */
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const today = () => toISO(new Date());
+const today = todaySG;
 function fmtDay(iso, opts) { return fromISO(iso).toLocaleDateString('en-SG', opts || { weekday: 'short', day: 'numeric', month: 'short' }); }
 function fmtRange(a, b) { return a === b ? fmtDay(a) : fmtDay(a) + ' – ' + fmtDay(b); }
 function shortRole(role) { return role === 'Primary' ? 'P' : 'S' + role.split(' ')[1]; }
 let toastTimer;
+/** Shows a short message and announces it to screen readers through the always-present #announce region. */
 function toast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.hidden = false; clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { t.hidden = true; }, 3500);
+  const a = document.getElementById('announce');
+  a.textContent = '';
+  setTimeout(() => { a.textContent = msg; }, 50);
 }
+
+/* Keyboard focus survives re-rendering (GitHub issue #12): remember the focused control by its id or
+   data attribute, and afterwards focus the same control again, or the view's heading if it's gone. */
+function focusKey(el) {
+  if (!el || el === document.body || !root.contains(el)) return null;
+  if (el.id) return '#' + CSS.escape(el.id);
+  const attr = [...el.attributes].find(a => a.name.startsWith('data-'));
+  return attr ? '[' + attr.name + '="' + CSS.escape(attr.value) + '"]' : null;
+}
+function restoreFocus(key) {
+  if (!key) return;
+  const el = root.querySelector(key);
+  const target = el && !el.disabled ? el : root.querySelector('#view h2');
+  if (target) target.focus({ preventScroll: true });
+}
+
+/** Runs a change, then reloads. The control that started it is disabled meanwhile, so double clicks don't repeat it. */
 async function act(fn, done) {
-  try { await fn(); if (done) toast(done); await refresh(); }
+  const el = document.activeElement, key = focusKey(el);
+  const busy = el && root.contains(el) && 'disabled' in el ? el : null;
+  if (busy) { busy.disabled = true; busy.setAttribute('aria-busy', 'true'); }
+  try { await fn(); if (done) toast(done); }
   catch (e) { toast(e.message || 'Something went wrong. Try again.'); }
+  finally { await refresh(); restoreFocus(key); }
+}
+
+/* ---------- Rotation history (GitHub issue #7) ---------- */
+const byRota = (a, b) => (a.rota_order - b.rota_order) || String(a.created_at || '').localeCompare(String(b.created_at || '')) || String(a.id).localeCompare(String(b.id));
+function rotaParams(d) {
+  return {
+    members: d.profiles.filter(onRota).sort(byRota).map(p => ({ id: p.id, name: p.display_name })),
+    people: d.profiles.map(p => ({ id: p.id, name: p.display_name })),
+    checkpoints: d.checkpoints || [],
+    leaves: d.leaves,
+    holidays: Object.fromEntries(d.holidays.map(h => [h.date, h.name])),
+    anchor: d.settings.rota_start
+  };
+}
+/** After a change to who is on the rotation or their order, save it from today so earlier days keep their duties. */
+async function recordRotaChange() {
+  const d = await store.load();
+  const order = d.profiles.filter(onRota).sort(byRota).map(p => p.id);
+  const t = today();
+  const cps = (d.checkpoints || []).slice().sort((a, b) => a.effective_date.localeCompare(b.effective_date));
+  const inEffect = cps.filter(c => c.effective_date <= t).pop() || cps[0];
+  if (inEffect && inEffect.member_order.join() === order.join()) return;
+  await store.saveCheckpoint(checkpointFor(rotaParams(d), t, order));
 }
 
 function scheduleFor(from, to) {
-  const d = state.data;
-  return buildSchedule({
-    members: d.profiles.filter(onRota).map(p => ({ id: p.id, name: p.display_name })),
-    leaves: d.leaves,
-    holidays: Object.fromEntries(d.holidays.map(h => [h.date, h.name])),
-    anchor: d.settings.rota_start,
-    from, to
-  });
+  return buildSchedule({ ...rotaParams(state.data), from, to });
 }
 
 /* ---------- Boot ---------- */
@@ -51,7 +92,10 @@ async function refresh() {
       document.getElementById('out').onclick = () => store.signOut();
       return;
     }
-    renderApp();
+    // Keep the header (and whatever has focus in it) unless who is signed in has changed.
+    const view = root.querySelector('#view');
+    if (view && view.dataset.user === userKey(state.data.me)) renderView();
+    else renderApp();
   } catch (e) {
     root.innerHTML = '<div class="auth"><div class="panel"><h2>Can’t reach the database</h2><p class="error">' + esc(e.message) + '</p><p class="muted">Check the values in <code>config.js</code> and that <code>supabase/schema.sql</code> has been run.</p></div></div>';
   }
@@ -73,11 +117,11 @@ function renderAuth() {
         <button type="button" data-mode="signup" aria-pressed="${signup}">Create account</button>
       </div>
       <form id="auth-form">
-        ${signup ? '<label class="field">Your name<input id="f-name" required autocomplete="name"></label>' : ''}
-        <label class="field">Email<input id="f-email" type="email" required autocomplete="email"></label>
-        <label class="field">Password<input id="f-pass" type="password" ${demo ? '' : 'required minlength="6"'} autocomplete="${signup ? 'new-password' : 'current-password'}"></label>
-        ${state.authError ? '<p class="error">' + esc(state.authError) + '</p>' : ''}
-        ${state.authNote ? '<p class="muted">' + esc(state.authNote) + '</p>' : ''}
+        ${signup ? `<label class="field">Your name<input id="f-name" required autocomplete="name" value="${esc(state.authName || '')}"></label>` : ''}
+        <label class="field">Email<input id="f-email" type="email" required autocomplete="email" value="${esc(state.authEmail || '')}"${state.authError ? ' aria-describedby="auth-error"' : ''}></label>
+        <label class="field">Password<input id="f-pass" type="password" ${demo ? '' : 'required minlength="6"'} autocomplete="${signup ? 'new-password' : 'current-password'}"${state.authError ? ' aria-describedby="auth-error"' : ''}></label>
+        ${state.authError ? '<p class="error" id="auth-error" role="alert" tabindex="-1">' + esc(state.authError) + '</p>' : ''}
+        ${state.authNote ? '<p class="muted" role="status">' + esc(state.authNote) + '</p>' : ''}
         <button class="btn primary" type="submit">${signup ? 'Create account' : 'Sign in'}</button>
       </form>
     </div>
@@ -89,13 +133,19 @@ function renderAuth() {
   document.getElementById('auth-form').onsubmit = async e => {
     e.preventDefault();
     const email = document.getElementById('f-email').value.trim(), pass = document.getElementById('f-pass').value;
+    // Keep what was typed if the form has to be shown again with an error.
+    state.authEmail = email;
+    state.authName = signup ? document.getElementById('f-name').value.trim() : state.authName;
     state.authError = state.authNote = '';
     try {
       if (signup) {
         const r = await store.signUp(email, pass, document.getElementById('f-name').value.trim());
         if (r.needsConfirmation) { state.authMode = 'signin'; state.authNote = 'Check your email and click the confirmation link, then sign in.'; renderAuth(); }
       } else await store.signIn(email, pass);
-    } catch (err) { state.authError = err.message; renderAuth(); }
+    } catch (err) {
+      state.authError = err.message; renderAuth();
+      document.getElementById('auth-error').focus();
+    }
   };
 }
 
@@ -109,15 +159,25 @@ function renderApp() {
     <span class="who">Signed in as <b>${esc(me.display_name)}</b>${me.is_admin ? ' · admin' : ''}</span>
     <a class="btn small" href="calendar.html">Calendar</a>
     <button class="btn small" id="signout">Sign out</button>
-    <nav class="tabs" role="tablist">${tabs.map(([id, label]) => `<button role="tab" data-tab="${id}" aria-selected="${state.tab === id}">${label}</button>`).join('')}</nav>
+    <nav class="tabs" aria-label="Sections">${tabs.map(([id, label]) => `<button type="button" data-tab="${id}"${state.tab === id ? ' aria-current="page"' : ''}>${label}</button>`).join('')}</nav>
   </div></header>
   ${store.mode === 'demo' ? '<div class="demo"><div class="wrap"><span><b>Demo mode.</b> Data is saved in this browser only. Add your Supabase details to <code>config.js</code> to share it with the team.</span><button class="btn link" id="reset-demo">Reset demo data</button></div></div>' : ''}
-  <main class="wrap" id="view"></main>`;
+  <main class="wrap" id="view" data-user="${esc(userKey(me))}"></main>`;
   document.getElementById('signout').onclick = () => store.signOut();
   const reset = document.getElementById('reset-demo');
   if (reset) reset.onclick = () => store.reset();
-  root.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { state.tab = b.dataset.tab; renderApp(); });
+  root.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
+    state.tab = b.dataset.tab;
+    root.querySelectorAll('[data-tab]').forEach(x => { if (x === b) x.setAttribute('aria-current', 'page'); else x.removeAttribute('aria-current'); });
+    renderView();
+  });
+  renderView();
+}
+function userKey(me) { return me.id + '|' + me.display_name + '|' + me.is_admin; }
+/** Redraws only the current section. Headings can take focus, as the fallback when a focused control disappears. */
+function renderView() {
   ({ roster: renderRoster, leave: renderLeave, team: renderTeam })[state.tab]();
+  root.querySelectorAll('#view h2').forEach(h => h.setAttribute('tabindex', '-1'));
 }
 
 /* ---------- Roster ---------- */
@@ -173,10 +233,11 @@ function renderRoster() {
         <span class="chips">${d.duties.map(x => chip(x, me.id)).join('')}${d.onLeave.map(x => `<span class="chip away"><span class="r">LEAVE</span>${esc(x.name)}</span>`).join('')}</span></div>`;
     }).join('') || '<p class="muted">No working days to show this month.</p>'}</div>
   </section>`;
-  const shift = n => { const d = new Date(y, m - 1 + n, 1, 12); state.month = toISO(d).slice(0, 7); renderRoster(); };
-  document.getElementById('prev').onclick = () => shift(-1);
-  document.getElementById('next').onclick = () => shift(1);
-  document.getElementById('this').onclick = () => { state.month = today().slice(0, 7); renderRoster(); };
+  // Changing month keeps focus on the button that was pressed.
+  const go = month => { const key = focusKey(document.activeElement); state.month = month; renderView(); restoreFocus(key); };
+  document.getElementById('prev').onclick = () => go(toISO(new Date(y, m - 2, 1, 12)).slice(0, 7));
+  document.getElementById('next').onclick = () => go(toISO(new Date(y, m, 1, 12)).slice(0, 7));
+  document.getElementById('this').onclick = () => go(today().slice(0, 7));
 }
 
 /* ---------- Leave ---------- */
@@ -190,15 +251,18 @@ function renderLeave() {
   const leaveItem = l => `<div class="item"><div class="main"><span class="when">${fmtRange(l.start_date, l.end_date)}</span>
       ${l.user_id !== me.id ? ` · <b>${esc(name(l.user_id))}</b>` : ''}${l.note ? `<div class="muted">${esc(l.note)}</div>` : ''}</div>
       ${l.start_date <= t ? '<span class="tag leave">On leave now</span>' : ''}
-      ${l.user_id === me.id || me.is_admin ? `<button class="btn small danger" data-del="${l.id}">Remove</button>` : ''}</div>`;
+      ${l.user_id !== me.id && !me.is_admin ? ''
+        // Leave that has begun is part of past duties, so it can be ended early but not removed (issue #7).
+        : l.start_date < t ? `<button class="btn small" data-end="${l.id}">End early (back today)</button>`
+        : `<button class="btn small danger" data-del="${l.id}">Remove</button>`}</div>`;
   view.innerHTML = `
   <section class="panel">
     <h2>Add leave</h2>
     <p class="muted">You’ll be left out of the roster on these days, and everyone else moves up.</p>
     <form class="form" id="leave-form">
       ${me.is_admin ? `<label class="field">Person<select id="l-who">${profiles.filter(onRota).map(p => `<option value="${p.id}"${p.id === me.id ? ' selected' : ''}>${esc(p.display_name)}</option>`).join('')}</select></label>` : ''}
-      <label class="field">From<input type="date" id="l-start" required value="${t}"></label>
-      <label class="field">To<input type="date" id="l-end" required value="${t}"></label>
+      <label class="field">From<input type="date" id="l-start" required value="${t}"${me.is_admin ? '' : ` min="${t}"`}></label>
+      <label class="field">To<input type="date" id="l-end" required value="${t}" min="${t}"></label>
       <label class="field grow">Note (optional)<input id="l-note" maxlength="120" placeholder="e.g. Annual leave" aria-describedby="l-note-hint"></label>
       <button class="btn primary" type="submit">Add leave</button>
     </form>
@@ -216,6 +280,8 @@ function renderLeave() {
     act(() => store.addLeave({ user_id: who ? who.value : me.id, start_date: start, end_date: end, note: document.getElementById('l-note').value.trim() || null }), 'Leave added. The roster has been updated.');
   };
   view.querySelectorAll('[data-del]').forEach(b => b.onclick = () => act(() => store.deleteLeave(Number(b.dataset.del)), 'Leave removed.'));
+  view.querySelectorAll('[data-end]').forEach(b => b.onclick = () => act(() => store.updateLeave(Number(b.dataset.end), { end_date: addDays(t, -1) }), 'Leave ended. You’re back on the roster from today.'));
+  document.getElementById('l-start').onchange = e => { document.getElementById('l-end').min = e.target.value; };
 }
 
 /* ---------- Team & settings ---------- */
@@ -245,8 +311,8 @@ function renderTeam() {
       ${p.is_admin ? '<span class="tag">Admin</span>' : ''}${!p.active ? '<span class="tag leave">Inactive</span>' : ''}
       ${admin ? `<label class="check"><input type="checkbox" data-active="${p.id}"${p.active ? ' checked' : ''}> Active</label>
         <label class="check"><input type="checkbox" data-admin="${p.id}"${p.is_admin ? ' checked' : ''}${p.id === me.id ? ' disabled title="You can’t remove your own admin access"' : ''}> Admin</label>
-        <button class="btn small" data-up="${i}" aria-label="Move ${esc(p.display_name)} up"${i === 0 ? ' disabled' : ''}>↑</button>
-        <button class="btn small" data-down="${i}" aria-label="Move ${esc(p.display_name)} down"${i === sorted.length - 1 ? ' disabled' : ''}>↓</button>` : ''}
+        <button class="btn small" data-up="${p.id}" aria-label="Move ${esc(p.display_name)} up"${i === 0 ? ' disabled' : ''}>↑</button>
+        <button class="btn small" data-down="${p.id}" aria-label="Move ${esc(p.display_name)} down"${i === sorted.length - 1 ? ' disabled' : ''}>↓</button>` : ''}
     </div>`).join('')}</div>
     <p class="muted">${admin ? 'New people appear under Waiting for approval when they create an account, and join the end of the rotation once approved.' : 'New people join the end of the rotation once an admin approves them.'} Only admins see everyone’s email.</p>
   </section>
@@ -277,22 +343,37 @@ function renderTeam() {
   });
   // Approved people join the end of the rotation.
   const nextOrder = Math.max(-1, ...sorted.map(p => p.rota_order)) + 1;
-  view.querySelectorAll('[data-approve]').forEach(b => b.onclick = () => act(() => store.updateProfile(b.dataset.approve, { approved: true, rota_order: nextOrder }), 'Approved. They’re now at the end of the rotation.'));
+  // Changes to who is on the rotation, or their order, take effect from today; earlier days keep their duties.
+  view.querySelectorAll('[data-approve]').forEach(b => b.onclick = () => act(async () => {
+    await store.updateProfile(b.dataset.approve, { approved: true, rota_order: nextOrder });
+    await recordRotaChange();
+  }, 'Approved. They’re at the end of the rotation from today.'));
   view.querySelectorAll('[data-remove]').forEach(b => b.onclick = () => {
     if (!window.confirm('Remove ' + b.dataset.who + '? Their profile is deleted and they won’t see the roster.')) return;
     act(() => store.deleteProfile(b.dataset.remove), 'Removed.');
   });
-  view.querySelectorAll('[data-active]').forEach(c => c.onchange = () => act(() => store.updateProfile(c.dataset.active, { active: c.checked }), c.checked ? 'Back on the roster.' : 'Left out of the roster.'));
+  view.querySelectorAll('[data-active]').forEach(c => c.onchange = () => act(async () => {
+    await store.updateProfile(c.dataset.active, { active: c.checked });
+    await recordRotaChange();
+  }, c.checked ? 'Back on the roster from today.' : 'Left out of the roster from today.'));
   view.querySelectorAll('[data-admin]').forEach(c => c.onchange = () => act(() => store.updateProfile(c.dataset.admin, { is_admin: c.checked }), 'Admin access updated.'));
-  const move = async (i, j) => {
-    const list = sorted.slice();
+  const move = async (id, by) => {
+    const list = sorted.slice(), i = list.findIndex(p => p.id === id), j = i + by;
+    if (i < 0 || j < 0 || j >= list.length) return;
     [list[i], list[j]] = [list[j], list[i]];
     for (let k = 0; k < list.length; k++) if (list[k].rota_order !== k) await store.updateProfile(list[k].id, { rota_order: k });
+    await recordRotaChange();
   };
-  view.querySelectorAll('[data-up]').forEach(b => b.onclick = () => act(() => move(+b.dataset.up, +b.dataset.up - 1), 'Order updated.'));
-  view.querySelectorAll('[data-down]').forEach(b => b.onclick = () => act(() => move(+b.dataset.down, +b.dataset.down + 1), 'Order updated.'));
+  // The arrows are keyed by person, so focus follows the person being moved.
+  view.querySelectorAll('[data-up]').forEach(b => b.onclick = () => act(() => move(b.dataset.up, -1), 'Order updated from today.'));
+  view.querySelectorAll('[data-down]').forEach(b => b.onclick = () => act(() => move(b.dataset.down, 1), 'Order updated from today.'));
   const sf = document.getElementById('start-form');
-  if (sf) sf.onsubmit = e => { e.preventDefault(); act(() => store.updateSettings({ rota_start: document.getElementById('s-start').value }), 'Rotation start saved.'); };
+  if (sf) sf.onsubmit = e => {
+    e.preventDefault();
+    const start = document.getElementById('s-start').value;
+    if (!window.confirm('Restart the rotation on ' + fmtDay(start, { day: 'numeric', month: 'long', year: 'numeric' }) + '? Person 1 will be Primary on the first working day, and all earlier duty history is recalculated.')) return;
+    act(() => store.resetRotation(start, sorted.filter(onRota).map(p => p.id)), 'Rotation restarted.');
+  };
   const pc = document.getElementById('pub-cal');
   if (pc) pc.onchange = () => act(() => store.updateSettings({ public_calendar: pc.checked }), pc.checked ? 'Public calendar switched on.' : 'Public calendar switched off.');
   const hf = document.getElementById('hol-form');

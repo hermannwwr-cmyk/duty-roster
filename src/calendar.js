@@ -1,7 +1,7 @@
 // Public, read-only month calendar. No sign-in needed.
 // The database works out each day's duty list (public_calendar() in supabase/003_private_data.sql) and
 // returns only names and roles, so no leave data or account ids reach this page.
-import { toISO, fromISO, addDays } from './schedule.js';
+import { toISO, fromISO, addDays, todaySG } from './schedule.js';
 import { createStore } from './connect.js';
 
 const view = document.getElementById('view');
@@ -9,7 +9,7 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&a
 const shortRole = r => r === 'Primary' ? 'P' : 'S' + r.split(' ')[1];
 const longDate = iso => fromISO(iso).toLocaleDateString('en-SG', { day: 'numeric', month: 'long', year: 'numeric' });
 const HL_KEY = 'duty-calendar-highlight';
-const state = { month: toISO(new Date()).slice(0, 7), highlight: '' };
+const state = { month: todaySG().slice(0, 7), highlight: '' };
 try { state.highlight = localStorage.getItem(HL_KEY) || ''; } catch (e) { /* storage blocked: no remembered highlight */ }
 
 const cache = {};
@@ -46,7 +46,7 @@ function render(data) {
   const people = data.people;
   if (state.highlight && !people.includes(state.highlight)) state.highlight = '';
   const hl = state.highlight;
-  const t = toISO(new Date());
+  const t = todaySG();
   const monthName = fromISO(g.first).toLocaleDateString('en-SG', { month: 'long', year: 'numeric' });
 
   const cells = [];
@@ -59,7 +59,7 @@ function render(data) {
     const label = `<span class="num"><span class="dow-inline">${dt.toLocaleDateString('en-SG', { weekday: 'short' })} </span>${dt.getDate()}</span>`;
     let body = '';
     if (kind === 'holiday') body = `<span class="hol">${esc(d.holiday)}</span>`;
-    else if (kind === 'work') body = '<ol class="duty">' + d.duties.map(x => `<li class="${x.role === 'Primary' ? 'p' : ''}${hl && x.name === hl ? ' hl' : ''}"><span class="r">${shortRole(x.role)}</span>${esc(x.name)}</li>`).join('') + '</ol>';
+    else if (kind === 'work') body = '<ol class="duty">' + d.duties.map(x => `<li data-name="${esc(x.name)}" class="${x.role === 'Primary' ? 'p' : ''}${hl && x.name === hl ? ' hl' : ''}"><span class="r">${shortRole(x.role)}</span>${esc(x.name)}</li>`).join('') + '</ol>';
     cells.push(`<div class="${cls}">${label}${body}</div>`);
   }
 
@@ -88,17 +88,17 @@ function render(data) {
     </div>
   </section>`;
 
-  const go = n => {
-    const [y, m] = state.month.split('-').map(Number);
-    show(toISO(new Date(y, m - 1 + n, 1, 12)).slice(0, 7)).catch(showError);
-  };
-  document.getElementById('prev').onclick = () => go(-1);
-  document.getElementById('next').onclick = () => go(1);
-  document.getElementById('this').onclick = () => show(t.slice(0, 7)).catch(showError);
+  // Changing month redraws the page; put focus back on the button that was pressed (issue #12).
+  const go = (month, id) => show(month).then(() => { const b = document.getElementById(id); if (b) b.focus({ preventScroll: true }); }).catch(showError);
+  const [y, m] = state.month.split('-').map(Number);
+  document.getElementById('prev').onclick = () => go(toISO(new Date(y, m - 2, 1, 12)).slice(0, 7), 'prev');
+  document.getElementById('next').onclick = () => go(toISO(new Date(y, m, 1, 12)).slice(0, 7), 'next');
+  document.getElementById('this').onclick = () => go(t.slice(0, 7), 'this');
+  // Highlighting only restyles the names, so the menu keeps focus while you arrow through it.
   document.getElementById('hl').onchange = e => {
     state.highlight = e.target.value;
     try { localStorage.setItem(HL_KEY, state.highlight); } catch (err) { /* not remembered */ }
-    render(data);
+    view.querySelectorAll('.duty li').forEach(li => li.classList.toggle('hl', !!state.highlight && li.dataset.name === state.highlight));
   };
 }
 

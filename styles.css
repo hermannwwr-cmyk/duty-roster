@@ -37,7 +37,7 @@ p { margin: 0; }
 .who b { color: var(--ink); }
 .tabs { display: flex; gap: .2rem; width: 100%; overflow-x: auto; }
 .tabs button { background: none; border: 0; border-bottom: 3px solid transparent; padding: .55rem .9rem; font-weight: 600; color: var(--soft); white-space: nowrap; }
-.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.tabs button[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); }
 .demo { background: var(--accent-soft); color: var(--ink); font-size: .92rem; }
 .demo .wrap { padding-block: .5rem; display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: center; }
 
@@ -146,3 +146,9 @@ label.field.inline { display: flex; align-items: center; gap: .5rem; }
   .cell { min-height: 0; border-right: 0; grid-template-columns: 6.5rem minmax(0, 1fr); align-items: start; padding: .55rem .2rem; }
   .cell .dow-inline { display: inline; }
 }
+
+/* Text only for screen readers (announcements) */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+/* Headings take focus as a fallback after re-rendering; don't draw a ring on them. */
+h2[tabindex="-1"]:focus { outline: none; }
+.btn[aria-busy="true"] { opacity: .6; cursor: progress; }

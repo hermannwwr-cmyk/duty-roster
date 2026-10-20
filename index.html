@@ -10,7 +10,8 @@
 </head>
 <body>
 <div id="root"><p class="loading">Loading the roster…</p></div>
-<div id="toast" class="toast" role="status" hidden></div>
+<div id="toast" class="toast" aria-hidden="true" hidden></div>
+<div id="announce" class="sr-only" role="status" aria-live="polite"></div>
 <script>
 // If the app script fails to load (for example a half-updated cache), say so instead of loading forever.
 setTimeout(function () {

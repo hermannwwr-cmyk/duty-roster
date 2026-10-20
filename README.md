@@ -14,14 +14,16 @@ A web app for a daily duty rotation. Everyone takes turns as Primary, Secondary 
 - The next working day, the person after today's Primary becomes Primary.
 - Anyone on leave is left out for the day and the others move up. If it was their turn as Primary, they skip it rather than someone doing Primary twice in a row.
 - The rotation counts from the **rotation start** date set by an admin.
-- The roster is worked out from these rules every time it's shown. Adding leave, changing the order or adding a holiday updates every day from then on.
+- Past duties stay as they were. Approving, deactivating or reordering people takes effect from today: the app saves the rotation as it stands from that date, and earlier days keep the rotation they had.
+- Leave can be added from today onwards. Leave that has already begun can be ended early but not deleted. Admins can record past leave.
+- Changing the rotation start restarts the rotation and recalculates all earlier days, so the app asks first.
 
 The rules are in `src/schedule.js`, with tests in `tests/schedule.test.mjs`.
 
 ## Set up Supabase (about 10 minutes)
 
 1. Create a free account at [supabase.com](https://supabase.com) and a **New project**. Pick the Singapore region if it's offered.
-2. Open **SQL Editor > New query**, paste the whole of `supabase/schema.sql`, and click **Run**. This creates the tables, the security rules and the 2026–2027 Singapore public holidays. Then do the same with `supabase/003_private_data.sql`.
+2. Open **SQL Editor > New query**, paste the whole of `supabase/schema.sql`, and click **Run**. This creates the tables, the security rules and the 2026–2027 Singapore public holidays. Then do the same with `supabase/003_private_data.sql` and `supabase/004_stable_history.sql`, in that order.
 3. Open **Project Settings > API** and copy the **Project URL** and the **anon public** key into `config.js`.
 4. Open **Authentication > URL Configuration** and set **Site URL** to where the app will live, for example `https://<your-github-name>.github.io/duty-roster/`. Confirmation emails link back to this address.
 5. Open the app and **create an account**. The first person to sign up becomes the admin. Everyone else then creates their own account and waits in **Team & settings > Waiting for approval** until an admin approves them and they join the rotation.

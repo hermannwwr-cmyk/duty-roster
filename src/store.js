@@ -2,7 +2,7 @@
 // - SupabaseStore: real logins and a shared Postgres database.
 // - DemoStore: everything in this browser's localStorage, for trying the app without Supabase.
 import { SG_HOLIDAYS } from './holidays-sg.js';
-import { toISO, onRota, publicCalendar } from './schedule.js';
+import { toISO, addDays, todaySG, onRota, publicCalendar } from './schedule.js';
 
 function check({ data, error }) {
   if (error) throw new Error(error.message);
@@ -44,12 +44,13 @@ export class SupabaseStore {
     const uid = await this.userId();
     // Emails and leave notes aren't readable from the tables (see 003_private_data.sql). They come from
     // member_emails() and leave_notes(), which return only your own, or everyone's if you're an admin.
-    const [profiles, leaves, holidays, settings, emails, notes] = await Promise.all([
+    const [profiles, leaves, holidays, settings, checkpoints, emails, notes] = await Promise.all([
       this.sb.from('profiles').select('id, display_name, rota_order, active, is_admin, approved, created_at')
         .order('rota_order').order('created_at').order('id'),
       this.sb.from('leaves').select('id, user_id, start_date, end_date').order('start_date'),
       this.sb.from('holidays').select('*').order('date'),
       this.sb.from('settings').select('*').eq('id', 1).single(),
+      this.sb.from('rota_checkpoints').select('effective_date, member_order, next_primary').order('effective_date'),
       this.sb.rpc('member_emails'),
       this.sb.rpc('leave_notes')
     ]).then(rs => rs.map(check));
@@ -57,7 +58,7 @@ export class SupabaseStore {
     const noteOf = Object.fromEntries(notes.map(n => [n.id, n.note]));
     profiles.forEach(p => { p.email = emailOf[p.id] || null; });
     leaves.forEach(l => { l.note = noteOf[l.id] || null; });
-    return { me: profiles.find(p => p.id === uid) || null, profiles, leaves, holidays, settings };
+    return { me: profiles.find(p => p.id === uid) || null, profiles, leaves, holidays, settings, checkpoints };
   }
   /** The public calendar for a date range: names and roles only. Works without signing in. Null when switched off. */
   async loadPublic(from, to) { return check(await this.sb.rpc('public_calendar', { p_from: from, p_to: to })); }
@@ -68,6 +69,15 @@ export class SupabaseStore {
   async addHoliday(date, name) { check(await this.sb.from('holidays').upsert({ date, name })); }
   async deleteHoliday(date) { check(await this.sb.from('holidays').delete().eq('date', date)); }
   async updateSettings(patch) { check(await this.sb.from('settings').update(patch).eq('id', 1)); }
+  async updateLeave(id, patch) { check(await this.sb.from('leaves').update(patch).eq('id', id)); }
+  /** Save the rotation from a date onwards (see checkpointFor in schedule.js). Replaces any checkpoint on that date. */
+  async saveCheckpoint(cp) { check(await this.sb.from('rota_checkpoints').upsert(cp)); }
+  /** Restart the rotation on `start`: clears all history and begins with order[0]. */
+  async resetRotation(start, order) {
+    check(await this.sb.from('rota_checkpoints').delete().gte('effective_date', '1900-01-01'));
+    check(await this.sb.from('rota_checkpoints').insert({ effective_date: start, member_order: order, next_primary: order[0] || null }));
+    await this.updateSettings({ rota_start: start });
+  }
 }
 
 const DEMO_KEY = 'duty-roster-demo';
@@ -82,12 +92,13 @@ export class DemoStore {
   read() { try { return JSON.parse(localStorage.getItem(DEMO_KEY)); } catch (e) { return null; } }
   write() { try { localStorage.setItem(DEMO_KEY, JSON.stringify(this.db)); } catch (e) { /* private mode: keep in memory */ } }
   seed() {
-    const today = toISO(new Date());
+    const today = todaySG();
     const profiles = DEMO_PEOPLE.map((name, i) => ({
       id: 'demo-' + i, email: name.split(' ')[0].toLowerCase() + '@example.com', display_name: name,
       rota_order: i, active: true, is_admin: i === 0
     }));
-    const db = { profiles, leaves: [], holidays: SG_HOLIDAYS.slice(), settings: { id: 1, rota_start: today }, session: null, nextId: 1 };
+    const db = { profiles, leaves: [], holidays: SG_HOLIDAYS.slice(), settings: { id: 1, rota_start: today }, session: null, nextId: 1,
+      checkpoints: [{ effective_date: today, member_order: profiles.map(p => p.id), next_primary: profiles[0].id }] };
     // One example leave so the effect is visible straight away.
     const d = new Date(); d.setDate(d.getDate() + 1);
     db.leaves.push({ id: db.nextId++, user_id: 'demo-1', start_date: toISO(d), end_date: toISO(d), note: 'Example: medical appointment' });
@@ -117,14 +128,16 @@ export class DemoStore {
     const profiles = clone(this.db.profiles).sort((a, b) => a.rota_order - b.rota_order);
     return { me: profiles.find(p => p.id === this.db.session) || null, profiles,
       leaves: clone(this.db.leaves).sort((a, b) => a.start_date.localeCompare(b.start_date)),
-      holidays: clone(this.db.holidays).sort((a, b) => a.date.localeCompare(b.date)), settings: clone(this.db.settings) };
+      holidays: clone(this.db.holidays).sort((a, b) => a.date.localeCompare(b.date)), settings: clone(this.db.settings),
+      checkpoints: clone(this.checkpoints()) };
   }
   async loadPublic(from, to) {
     const s = this.db.settings;
     if (s.public_calendar === false) return null;
     const members = this.db.profiles.filter(onRota).sort((a, b) => a.rota_order - b.rota_order)
       .map(p => ({ id: p.id, name: p.display_name }));
-    return publicCalendar({ members, leaves: this.db.leaves, anchor: s.rota_start, from, to, today: toISO(new Date()),
+    const people = this.db.profiles.map(p => ({ id: p.id, name: p.display_name }));
+    return publicCalendar({ members, people, checkpoints: this.checkpoints(), leaves: this.db.leaves, anchor: s.rota_start, from, to, today: todaySG(),
       holidays: Object.fromEntries(this.db.holidays.map(h => [h.date, h.name])) });
   }
   async deleteProfile(id) {
@@ -134,13 +147,49 @@ export class DemoStore {
     this.write();
   }
   me() { return this.db.profiles.find(p => p.id === this.db.session); }
+  /** Demo data saved before checkpoints existed gets one, built from the current rotation. */
+  checkpoints() {
+    if (!this.db.checkpoints) {
+      const order = this.db.profiles.filter(onRota).sort((a, b) => a.rota_order - b.rota_order).map(p => p.id);
+      this.db.checkpoints = [{ effective_date: this.db.settings.rota_start, member_order: order, next_primary: order[0] || null }];
+      this.write();
+    }
+    return this.db.checkpoints;
+  }
+  async saveCheckpoint(cp) {
+    if (!this.me().is_admin) throw new Error('Only admins can change the rotation.');
+    this.db.checkpoints = this.checkpoints().filter(c => c.effective_date !== cp.effective_date).concat(cp); this.write();
+  }
+  async resetRotation(start, order) {
+    if (!this.me().is_admin) throw new Error('Only admins can change the rotation.');
+    this.db.checkpoints = [{ effective_date: start, member_order: order, next_primary: order[0] || null }];
+    this.db.settings.rota_start = start; this.write();
+  }
+  // Mirrors enforce_leave_rules() in supabase/004_stable_history.sql: non-admins can't backdate leave.
+  leaveRule(op, row, old) {
+    if (this.me().is_admin) return;
+    const today = todaySG();
+    if (op === 'add' && row.start_date < today) throw new Error('Leave can only be added from today onwards. Ask an admin to record past leave.');
+    if (op === 'delete' && old.start_date < today) throw new Error('Leave that has begun can’t be deleted. End it early instead.');
+    if (op === 'update' && row.end_date < addDays(today, -1)) throw new Error('Leave can only be shortened to end yesterday at the earliest.');
+  }
   async addLeave(row) {
     if (row.end_date < row.start_date) throw new Error('The end date is before the start date.');
     const me = this.me();
     if (row.user_id !== me.id && !me.is_admin) throw new Error('Only admins can add leave for other people.');
+    this.leaveRule('add', row);
     this.db.leaves.push({ ...row, id: this.db.nextId++ }); this.write();
   }
-  async deleteLeave(id) { this.db.leaves = this.db.leaves.filter(l => l.id !== id); this.write(); }
+  async deleteLeave(id) {
+    const old = this.db.leaves.find(l => l.id === id);
+    if (old) this.leaveRule('delete', null, old);
+    this.db.leaves = this.db.leaves.filter(l => l.id !== id); this.write();
+  }
+  async updateLeave(id, patch) {
+    const l = this.db.leaves.find(x => x.id === id);
+    this.leaveRule('update', { ...l, ...patch }, l);
+    Object.assign(l, patch); this.write();
+  }
   async updateProfile(id, patch) {
     const me = this.me(), p = this.db.profiles.find(x => x.id === id);
     if (!me.is_admin) { if (id !== me.id) throw new Error('Only admins can change other people.'); patch = { display_name: patch.display_name }; }

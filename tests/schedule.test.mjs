@@ -88,3 +88,42 @@ test('the public calendar shares names and roles only, within its date window', 
   const long = publicCalendar({ ...base, from: '2026-10-19', to: '2027-03-01', today: '2026-10-20' });
   assert.equal(long.to, '2026-12-20');
 });
+
+test('issue #7: past duties stay put when people join, leave or are reordered', async () => {
+  const { checkpointFor } = await import('../src/schedule.js');
+  const P = ['m0', 'm1', 'm2', 'm3', 'm4', 'm5'].map(id => ({ id, name: id }));
+  const ids = n => P.slice(0, n).map(p => p.id);
+  const prim = days => days.filter(d => d.kind === 'work').map(d => d.duties[0].member.id).join(' ');
+  const p = { people: P, leaves: [], holidays: {}, anchor: '2026-10-05', checkpoints: [{ effective_date: '2026-10-05', member_order: ids(5), next_primary: 'm0' }] };
+  const week1 = { from: '2026-10-05', to: '2026-10-09' };
+  const before = prim(buildSchedule({ ...p, ...week1 }));
+  assert.equal(before, 'm0 m1 m2 m3 m4');
+
+  // Mon 12 Oct: m5 joins. Last week must not change; this week continues where it left off.
+  const cp1 = checkpointFor(p, '2026-10-12', ids(6));
+  assert.deepEqual(cp1, { effective_date: '2026-10-12', member_order: ids(6), next_primary: 'm0' });
+  const p1 = { ...p, checkpoints: [...p.checkpoints, cp1] };
+  assert.equal(prim(buildSchedule({ ...p1, ...week1 })), before);
+  assert.equal(prim(buildSchedule({ ...p1, from: '2026-10-12', to: '2026-10-16' })), 'm0 m1 m2 m3 m4');
+  assert.equal(prim(buildSchedule({ ...p1, from: '2026-10-19', to: '2026-10-19' })), 'm5');
+
+  // Wed 14 Oct: m2 (due that day) is deactivated. Mon/Tue keep their duties; m3 takes over.
+  const p1b = { ...p1 };
+  const cp2 = checkpointFor(p1b, '2026-10-14', ids(6).filter(i => i !== 'm2'));
+  assert.equal(cp2.next_primary, 'm3');
+  const p2 = { ...p1, checkpoints: [...p1.checkpoints, cp2] };
+  assert.equal(prim(buildSchedule({ ...p2, from: '2026-10-12', to: '2026-10-16' })), 'm0 m1 m3 m4 m5');
+  assert.equal(prim(buildSchedule({ ...p2, ...week1 })), before);
+  // The removed person still shows on the days they actually did.
+  assert.equal(prim(buildSchedule({ ...p2, from: '2026-10-07', to: '2026-10-07' })), 'm2');
+
+  // A second change on the same day replaces that day's checkpoint, based on the pre-change state.
+  const again = checkpointFor(p2, '2026-10-14', ['m5', 'm4', 'm3', 'm1', 'm0']);
+  assert.equal(again.next_primary, 'm3');
+});
+
+test('changing the rotation before it starts just updates the first checkpoint', async () => {
+  const { checkpointFor } = await import('../src/schedule.js');
+  const p = { leaves: [], holidays: {}, checkpoints: [{ effective_date: '2026-11-02', member_order: ['a', 'b'], next_primary: 'a' }] };
+  assert.deepEqual(checkpointFor(p, '2026-10-20', ['b', 'a', 'c']), { effective_date: '2026-11-02', member_order: ['b', 'a', 'c'], next_primary: 'b' });
+});
