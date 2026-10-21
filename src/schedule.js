@@ -158,3 +158,21 @@ export function publicCalendar({ members, leaves, holidays, anchor, checkpoints,
 export function todaySG() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Singapore', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 }
+
+/**
+ * The roster message for sharing (WhatsApp and the phone's share menu): names and roles only.
+ * `day` is { date, duties: [{ role, name }] }. Leave is deliberately not included.
+ */
+export function rosterMessage(day, calendarUrl) {
+  const when = fromISO(day.date).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' });
+  const lines = ['Duty roster · ' + when];
+  if (day.duties.length) day.duties.forEach(d => lines.push(d.role + ': ' + d.name));
+  else lines.push('No one is available for duty.');
+  if (calendarUrl) lines.push('Calendar: ' + calendarUrl);
+  return lines.join('\n');
+}
+
+/** A link that opens WhatsApp with `text` ready to send; the person picks the chat or group. */
+export function whatsappLink(text) {
+  return 'https://wa.me/?text=' + encodeURIComponent(text);
+}

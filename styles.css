@@ -119,6 +119,7 @@ label.field input, label.field select { font-weight: 400; color: var(--ink); bac
 
 /* Public month calendar (calendar.html) */
 .cal-top .brand { margin-right: auto; }
+.cal-top { flex-wrap: wrap; gap: .5rem; }
 .cal-top { padding-block: .8rem !important; }
 a.btn { text-decoration: none; color: inherit; display: inline-block; }
 label.field.inline { display: flex; align-items: center; gap: .5rem; }
@@ -152,3 +153,8 @@ label.field.inline { display: flex; align-items: center; gap: .5rem; }
 /* Headings take focus as a fallback after re-rendering; don't draw a ring on them. */
 h2[tabindex="-1"]:focus { outline: none; }
 .btn[aria-busy="true"] { opacity: .6; cursor: progress; }
+
+/* One-tap share on WhatsApp */
+.today .share { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .5rem; }
+.btn.wa { background: #1f8f4e; border-color: #1f8f4e; color: #ffffff; }
+.btn.wa:hover { background: #18733f; }

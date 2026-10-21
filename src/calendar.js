@@ -1,7 +1,7 @@
 // Public, read-only month calendar. No sign-in needed.
 // The database works out each day's duty list (public_calendar() in supabase/003_private_data.sql) and
 // returns only names and roles, so no leave data or account ids reach this page.
-import { toISO, fromISO, addDays, todaySG } from './schedule.js';
+import { toISO, fromISO, addDays, todaySG, rosterMessage, whatsappLink } from './schedule.js';
 import { createStore } from './connect.js';
 
 const view = document.getElementById('view');
@@ -102,9 +102,25 @@ function render(data) {
   };
 }
 
+/** Adds a one-tap "Share on WhatsApp" button for the next working day's roster to the header. */
+async function addShareButton() {
+  const t = todaySG();
+  const data = await store.loadPublic(t, addDays(t, 21));
+  const day = data && data.days.find(d => d.kind === 'work');
+  if (!day) return;
+  const text = rosterMessage(day, location.href.split('#')[0].split('?')[0]);
+  const label = day.date === t ? 'today’s' : fromISO(day.date).toLocaleDateString('en-SG', { weekday: 'long' }) + '’s';
+  const a = document.createElement('a');
+  a.className = 'btn small wa'; a.href = whatsappLink(text); a.target = '_blank'; a.rel = 'noopener';
+  a.textContent = 'Share ' + label + ' roster on WhatsApp';
+  const signIn = document.querySelector('.cal-top a');
+  signIn.parentNode.insertBefore(a, signIn);
+}
+
 try {
   store = await createStore();
   await show(state.month);
+  addShareButton().catch(() => { /* sharing is optional */ });
 } catch (e) {
   showError(e);
 }

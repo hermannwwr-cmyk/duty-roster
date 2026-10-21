@@ -127,3 +127,12 @@ test('changing the rotation before it starts just updates the first checkpoint',
   const p = { leaves: [], holidays: {}, checkpoints: [{ effective_date: '2026-11-02', member_order: ['a', 'b'], next_primary: 'a' }] };
   assert.deepEqual(checkpointFor(p, '2026-10-20', ['b', 'a', 'c']), { effective_date: '2026-11-02', member_order: ['b', 'a', 'c'], next_primary: 'b' });
 });
+
+test('the share message lists roles and names only, and the WhatsApp link carries it', async () => {
+  const { rosterMessage, whatsappLink } = await import('../src/schedule.js');
+  const day = { date: '2026-10-21', duties: [{ role: 'Primary', name: 'Hermann Woon' }, { role: 'Secondary 1', name: 'Jia An' }] };
+  const text = rosterMessage(day, 'https://example.org/calendar.html');
+  assert.equal(text, 'Duty roster · Wed, 21 Oct\nPrimary: Hermann Woon\nSecondary 1: Jia An\nCalendar: https://example.org/calendar.html');
+  assert.equal(whatsappLink('A & B\nC'), 'https://wa.me/?text=A%20%26%20B%0AC');
+  assert.match(rosterMessage({ date: '2026-10-21', duties: [] }), /No one is available/);
+});

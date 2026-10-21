@@ -1,4 +1,4 @@
-import { buildSchedule, checkpointFor, toISO, fromISO, addDays, todaySG, onRota } from './schedule.js';
+import { buildSchedule, checkpointFor, toISO, fromISO, addDays, todaySG, onRota, rosterMessage, whatsappLink } from './schedule.js';
 import { createStore } from './connect.js';
 
 const store = await createStore();
@@ -200,6 +200,18 @@ function renderRoster() {
     todayChips = `<p class="muted">${td.kind === 'holiday' ? 'Public holiday: ' + esc(td.holiday) : td.kind === 'weekend' ? 'It’s the weekend.' : 'The rotation starts on ' + fmtDay(settings.rota_start) + '.'}</p>`;
   }
 
+  // Share the next working day's roster (today if it's a working day) on WhatsApp in one tap.
+  const shareDay = scheduleFor(t, addDays(t, 21)).find(d => d.kind === 'work');
+  let shareHtml = '';
+  if (shareDay) {
+    const text = rosterMessage({ date: shareDay.date, duties: shareDay.duties.map(d => ({ role: d.role, name: d.member.name })) },
+      new URL('calendar.html', location.href).href);
+    const label = shareDay.date === t ? 'today’s' : fmtDay(shareDay.date, { weekday: 'long' }) + '’s';
+    shareHtml = `<div class="share"><a class="btn wa" id="share-wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">Share ${label} roster on WhatsApp</a>
+      ${navigator.share ? '<button class="btn" type="button" id="share-other">Share another way</button>' : ''}</div>`;
+    state.shareText = text;
+  }
+
   const [y, m] = state.month.split('-').map(Number);
   const first = state.month + '-01', last = toISO(new Date(y, m, 0, 12));
   const days = scheduleFor(first, last).filter(d => d.kind === 'work' || d.kind === 'holiday');
@@ -210,6 +222,7 @@ function renderRoster() {
   <section class="panel today" aria-label="Today">
     <div class="mine"><span class="label">Your duty today · ${fmtDay(t)}</span><span class="role">${esc(mineToday)}</span></div>
     <div>${todayChips}</div>
+    ${shareHtml}
   </section>
   <section class="panel">
     <div class="row-head">
@@ -233,6 +246,8 @@ function renderRoster() {
         <span class="chips">${d.duties.map(x => chip(x, me.id)).join('')}${d.onLeave.map(x => `<span class="chip away"><span class="r">LEAVE</span>${esc(x.name)}</span>`).join('')}</span></div>`;
     }).join('') || '<p class="muted">No working days to show this month.</p>'}</div>
   </section>`;
+  const other = document.getElementById('share-other');
+  if (other) other.onclick = () => navigator.share({ text: state.shareText }).catch(() => {});
   // Changing month keeps focus on the button that was pressed.
   const go = month => { const key = focusKey(document.activeElement); state.month = month; renderView(); restoreFocus(key); };
   document.getElementById('prev').onclick = () => go(toISO(new Date(y, m - 2, 1, 12)).slice(0, 7));
