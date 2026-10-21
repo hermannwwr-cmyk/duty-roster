@@ -1,10 +1,11 @@
 // Public, read-only month calendar. No sign-in needed.
 // The database works out each day's duty list (public_calendar() in supabase/003_private_data.sql) and
 // returns only names and roles, so no leave data or account ids reach this page.
-import { toISO, fromISO, addDays, todaySG, rosterMessage, whatsappLink, WHATSAPP_ICON, initials, avatarColor } from './schedule.js';
+import { toISO, fromISO, addDays, todaySG, rosterMessage, whatsappLink, WHATSAPP_ICON } from './schedule.js';
 import { createStore } from './connect.js';
 import { ENGINEER_SVG } from './engineer.js';
 import { keepFresh } from './live.js';
+import { faceSvg } from './faces.js';
 
 const view = document.getElementById('view');
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -115,7 +116,7 @@ async function renderToday() {
   const td = data.days.find(d => d.date === t);
   const day = data.days.find(d => d.kind === 'work');
   const fmt = iso => fromISO(iso).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' });
-  const list = d => `<dl class="summary">${d.duties.map(x => `<div class="${x.role === 'Primary' ? 'p' : ''}"><dt>${esc(x.role)}</dt><dd><span class="av" style="--av:${avatarColor(x.name)}" aria-hidden="true">${esc(initials(x.name))}</span>${esc(x.name)}</dd></div>`).join('')}</dl>`
+  const list = d => `<dl class="summary">${d.duties.map(x => `<div class="${x.role === 'Primary' ? 'p' : ''}"><dt>${esc(x.role)}</dt><dd><span class="av face-av">${faceSvg(x.name)}</span>${esc(x.name)}</dd></div>`).join('')}</dl>`
     + (d.duties.length ? '' : '<p class="muted">No one is available for duty.</p>');
   let body;
   if (td && td.kind === 'work') body = list(td);
