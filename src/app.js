@@ -320,21 +320,8 @@ function renderLeave() {
 }
 
 /* ---------- Team & settings ---------- */
-/** Admins approve who gets the 9am email (supabase/009_daily_email.sql). */
-function emailPanel(subs) {
-  const head = '<h2>Daily 9am email</h2><p class="muted">People ask for the 2FA Login summary from the public calendar page. Each address gets the email at 9am on working days once you approve it.</p>';
-  if (!subs) return `<section class="panel">${head}<p class="muted">To turn this on, run <code>supabase/009_daily_email.sql</code> in Supabase.</p></section>`;
-  const item = x => `<div class="item"><div class="main">${esc(x.email)}<div class="muted">Asked ${fmtDay(x.created_at.slice(0, 10), { day: 'numeric', month: 'short', year: 'numeric' })}</div></div>
-    ${x.approved ? '' : `<button class="btn small primary" data-email-ok="${x.id}">Approve</button>`}
-    <button class="btn small danger" data-email-del="${x.id}" data-who="${esc(x.email)}">Remove</button></div>`;
-  const waiting = subs.filter(x => !x.approved), approved = subs.filter(x => x.approved);
-  return `<section class="panel">${head}
-    <h3>Waiting for approval</h3><div class="list">${waiting.map(item).join('') || '<p class="muted">No one is waiting.</p>'}</div>
-    <h3>Getting the email</h3><div class="list">${approved.map(item).join('') || '<p class="muted">No one yet.</p>'}</div></section>`;
-}
-
 function renderTeam() {
-  const { me, profiles, holidays, settings, subscriptions } = state.data;
+  const { me, profiles, holidays, settings } = state.data;
   const admin = me.is_admin;
   const view = document.getElementById('view');
   const t = today();
@@ -377,7 +364,6 @@ function renderTeam() {
     ${admin ? `<label class="check"><input type="checkbox" id="pub-cal"${settings.public_calendar !== false ? ' checked' : ''}> Anyone with the link can view the calendar</label>`
       : `<p>${settings.public_calendar !== false ? 'The public calendar is on.' : 'The public calendar is off.'}</p>`}
   </section>
-  ${admin ? emailPanel(subscriptions) : ''}
   <section class="panel">
     <h2>Public holidays</h2>
     <p class="muted">No duty on these days. Singapore holidays for 2026 and 2027 are included${admin ? '. Add later years when they’re announced.' : '.'}</p>
@@ -428,10 +414,5 @@ function renderTeam() {
   if (pc) pc.onchange = () => act(() => store.updateSettings({ public_calendar: pc.checked }), pc.checked ? 'Public calendar switched on.' : 'Public calendar switched off.');
   const hf = document.getElementById('hol-form');
   if (hf) hf.onsubmit = e => { e.preventDefault(); act(() => store.addHoliday(document.getElementById('h-date').value, document.getElementById('h-name').value.trim()), 'Holiday added.'); };
-  view.querySelectorAll('[data-email-ok]').forEach(b => b.onclick = () => act(() => store.approveEmail(Number(b.dataset.emailOk)), 'Approved. They’ll get the email from the next working day at 9am.'));
-  view.querySelectorAll('[data-email-del]').forEach(b => b.onclick = () => {
-    if (!window.confirm('Remove ' + b.dataset.who + ' from the daily email?')) return;
-    act(() => store.deleteEmail(Number(b.dataset.emailDel)), 'Removed from the daily email.');
-  });
   view.querySelectorAll('[data-hdel]').forEach(b => b.onclick = () => act(() => store.deleteHoliday(b.dataset.hdel), 'Holiday removed.'));
 }

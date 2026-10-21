@@ -123,52 +123,13 @@ async function renderToday() {
     const text = rosterMessage(day, location.href.split('#')[0].split('?')[0]);
     share = `<div class="share"><a class="btn wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">Request for OTP on WhatsApp</a></div>`;
   }
-  document.getElementById('today').innerHTML = `<section class="panel" aria-labelledby="today-h"><h2 id="today-h">2FA Login · ${fmt(t)}</h2>${body}${share}</section>
-  <section class="panel">
-    <h2>Get this by email every morning</h2>
-    <p class="muted">The 2FA Login summary at 9am on working days. An admin approves each address first. Every email has a link to unsubscribe.</p>
-    <form class="form" id="email-form">
-      <label class="field grow">Your email<input type="email" id="email" required maxlength="254" autocomplete="email" aria-describedby="email-msg"></label>
-      <button class="btn primary" type="submit">Request daily email</button>
-    </form>
-    <p id="email-msg" role="status"></p>
-  </section>`;
-  const form = document.getElementById('email-form');
-  form.onsubmit = async e => {
-    e.preventDefault();
-    const btn = form.querySelector('button'), msg = document.getElementById('email-msg');
-    btn.disabled = true; msg.className = ''; msg.textContent = 'Sending…';
-    try {
-      await store.requestEmail(document.getElementById('email').value);
-      msg.textContent = 'Thanks. Your request is waiting for an admin to approve it. The emails start after that.';
-      form.reset();
-    } catch (err) {
-      msg.className = 'error';
-      msg.textContent = /request_email_subscription|schema cache/.test(err.message) ? 'Email requests aren’t set up yet. Please ask an admin.' : err.message;
-    } finally { btn.disabled = false; }
-  };
-}
-
-/** The unsubscribe link in each email opens this page with ?unsubscribe=<token>. */
-async function handleUnsubscribe() {
-  const token = new URLSearchParams(location.search).get('unsubscribe');
-  if (!token) return;
-  history.replaceState(null, '', location.pathname);
-  const box = document.createElement('div');
-  box.className = 'wrap'; box.id = 'unsub';
-  box.innerHTML = '<section class="panel" role="status"><p>Unsubscribing…</p></section>';
-  document.getElementById('today').before(box);
-  let text;
-  try { text = await store.unsubscribeEmail(token) ? 'You’re unsubscribed. You won’t get the daily email any more.' : 'This address was already unsubscribed.'; }
-  catch (e) { text = 'Couldn’t unsubscribe: ' + e.message; }
-  box.querySelector('section').innerHTML = '<p>' + esc(text) + '</p>';
+  document.getElementById('today').innerHTML = `<section class="panel" aria-labelledby="today-h"><h2 id="today-h">2FA Login · ${fmt(t)}</h2>${body}${share}</section>`;
 }
 
 try {
   store = await createStore();
   await show(state.month);
   renderToday().catch(() => { /* the month calendar below still shows today */ });
-  handleUnsubscribe();
 } catch (e) {
   showError(e);
 }

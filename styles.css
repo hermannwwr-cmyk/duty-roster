@@ -173,6 +173,3 @@ h2[tabindex="-1"]:focus { outline: none; }
 #today .panel { gap: .6rem; }
 #today h2 { margin: 0; }
 #today .share { display: flex; flex-wrap: wrap; gap: .5rem; }
-#today { display: grid; gap: 1.2rem; }
-#unsub { margin-top: 1.2rem; }
-#email-msg:empty { display: none; }
