@@ -145,3 +145,11 @@ test('initials and avatar colours', async () => {
   assert.equal(avatarColor('Alice Tan'), avatarColor('Alice Tan'));
   assert.match(avatarColor('Ben Lim'), /^#[0-9a-f]{6}$/);
 });
+
+test('time until midnight in Singapore', async () => {
+  const { msUntilSgMidnight } = await import('../src/live.js');
+  const hour = 60 * 60 * 1000;
+  assert.equal(msUntilSgMidnight(Date.parse('2026-10-21T15:00:00Z')), 1 * hour);   // 11pm in Singapore
+  assert.equal(msUntilSgMidnight(Date.parse('2026-10-21T16:00:00Z')), 24 * hour);  // exactly midnight
+  assert.equal(msUntilSgMidnight(Date.parse('2026-10-21T01:30:00Z')), 14.5 * hour); // 9:30am
+});

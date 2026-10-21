@@ -143,6 +143,8 @@ export class DemoStore {
   }
   async signOut() { this.db.session = null; this.write(); this.emit(); }
   async load() {
+    // Pick up changes made in another tab, like the real database would.
+    this.db = this.read() || this.db;
     const clone = x => JSON.parse(JSON.stringify(x));
     const profiles = clone(this.db.profiles).sort((a, b) => a.rota_order - b.rota_order);
     return { me: profiles.find(p => p.id === this.db.session) || null, profiles,

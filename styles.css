@@ -208,3 +208,6 @@ h2[tabindex="-1"]:focus { outline: none; }
 @keyframes eng-breathe { 50% { transform: translateY(-1px); } }
 @keyframes eng-pulse { 0% { transform: scale(.6); opacity: .5; } 100% { transform: scale(1.5); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .engineer * { animation: none !important; } }
+
+/* "A new version is available" notice (src/live.js) */
+.update-bar { position: fixed; left: 50%; bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 20; display: flex; align-items: center; gap: .8rem; width: max-content; max-width: calc(100% - 32px); padding: .6rem .7rem .6rem 1rem; border-radius: 12px; background: #1a2342; color: var(--ink); box-shadow: 0 0 0 1px #ffffff1a, 0 12px 32px #00000080; font-size: .95rem; }

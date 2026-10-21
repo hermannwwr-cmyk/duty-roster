@@ -1,5 +1,6 @@
 import { buildSchedule, checkpointFor, toISO, fromISO, addDays, todaySG, onRota, rosterMessage, whatsappLink, WHATSAPP_ICON, initials, avatarColor } from './schedule.js';
 import { createStore } from './connect.js';
+import { keepFresh } from './live.js';
 
 const root = document.getElementById('root');
 let store;
@@ -116,6 +117,22 @@ async function refresh() {
 store.onAuthChange(refresh);
 refresh();
 
+/* ---------- Staying up to date ---------- */
+// Typing in a form marks it unsaved; background refreshes wait until it's saved or the view is redrawn.
+let unsaved = false;
+root.addEventListener('input', () => { unsaved = true; });
+const typing = () => unsaved || /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement && document.activeElement.tagName);
+let lastDay = today();
+keepFresh(async () => {
+  // Follow the calendar into a new month if the page was showing the month that just ended.
+  const t = today();
+  if (t !== lastDay && state.month === lastDay.slice(0, 7)) state.month = t.slice(0, 7);
+  lastDay = t;
+  const key = focusKey(document.activeElement);
+  await refresh();
+  if (key) restoreFocus(key);
+}, () => state.data !== null && !typing());
+
 /* ---------- Sign in ---------- */
 function renderAuth() {
   const demo = store.mode === 'demo';
@@ -189,6 +206,7 @@ function renderApp() {
 function userKey(me) { return me.id + '|' + me.display_name + '|' + me.is_admin; }
 /** Redraws only the current section. Headings can take focus, as the fallback when a focused control disappears. */
 function renderView() {
+  unsaved = false;
   ({ roster: renderRoster, leave: renderLeave, team: renderTeam })[state.tab]();
   root.querySelectorAll('#view h2').forEach(h => h.setAttribute('tabindex', '-1'));
 }

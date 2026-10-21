@@ -4,6 +4,7 @@
 import { toISO, fromISO, addDays, todaySG, rosterMessage, whatsappLink, WHATSAPP_ICON, initials, avatarColor } from './schedule.js';
 import { createStore } from './connect.js';
 import { ENGINEER_SVG } from './engineer.js';
+import { keepFresh } from './live.js';
 
 const view = document.getElementById('view');
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -148,6 +149,13 @@ try {
   store = await createStore();
   await show(state.month);
   renderToday().catch(() => { /* the month calendar below still shows today */ });
+  // Fresh duties when you come back to the page, every few minutes, and at midnight for the new day's card.
+  keepFresh(async () => {
+    Object.keys(cache).forEach(k => delete cache[k]);
+    await renderToday();
+    // Leave the month alone while someone is using its controls; it updates next time.
+    if (!view.contains(document.activeElement)) await show(state.month);
+  });
 } catch (e) {
   showError(e);
 }
