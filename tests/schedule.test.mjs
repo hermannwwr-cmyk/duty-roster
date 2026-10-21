@@ -153,3 +153,16 @@ test('time until midnight in Singapore', async () => {
   assert.equal(msUntilSgMidnight(Date.parse('2026-10-21T16:00:00Z')), 24 * hour);  // exactly midnight
   assert.equal(msUntilSgMidnight(Date.parse('2026-10-21T01:30:00Z')), 14.5 * hour); // 9:30am
 });
+
+test('the engineer scene follows the time of day in Singapore', async () => {
+  const { periodAt, engineerScene } = await import('../src/engineer.js');
+  const at = sgTime => periodAt(new Date('2026-10-21T' + sgTime + ':00+08:00'));
+  assert.equal(at('05:59'), 'sleeping');
+  assert.equal(at('06:00'), 'morning');
+  assert.equal(at('12:00'), 'lunch');
+  assert.equal(at('14:00'), 'afternoon');
+  assert.equal(at('17:30'), 'evening');
+  assert.equal(at('19:00'), 'afterwork');
+  assert.equal(at('23:00'), 'sleeping');
+  for (const p of ['morning', 'lunch', 'afternoon', 'evening', 'afterwork', 'sleeping']) assert.match(engineerScene(p).svg, /^<svg[^>]*aria-label="[^"]+"/);
+});

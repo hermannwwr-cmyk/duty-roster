@@ -228,3 +228,38 @@ h2[tabindex="-1"]:focus { outline: none; }
 .face-av { background: none; overflow: hidden; }
 .face-av .face { display: block; width: 100%; height: 100%; border-radius: 50%; }
 .summary .p .face-av { background: none; }
+
+/* Time-of-day scenes (src/engineer.js) */
+.hero-caption { margin-top: .2rem; color: var(--soft); font-size: .85rem; text-align: center; }
+.engineer .rise { animation: eng-rise 8s ease-in-out infinite alternate; }
+.engineer .set { animation: eng-rise 8s ease-in-out infinite alternate-reverse; }
+.engineer .drift { animation: eng-drift 9s ease-in-out infinite alternate; }
+.engineer .twinkle { animation: eng-blink 2.4s ease-in-out infinite; }
+.engineer .arm.fast { animation-duration: .2s; }
+.engineer .eat { animation: eng-eat 1.6s ease-in-out infinite; transform-origin: 88px 92px; }
+.engineer .chew { animation: eng-chew .4s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
+.engineer .bar { animation: eng-bar 1.8s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: bottom; }
+.engineer .progress { animation: eng-progress 4s ease-in-out infinite; transform-box: fill-box; transform-origin: left; }
+.engineer .stretch { animation: eng-stretch 3s ease-in-out infinite; transform-origin: 90px 88px; }
+.engineer .stretch.late { animation-delay: .15s; transform-origin: 94px 88px; }
+.engineer .yawn { animation: eng-yawn 3s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.engineer .lamp-glow { animation: eng-glow 4s ease-in-out infinite; }
+.engineer .phone { animation: eng-glow 2.2s ease-in-out infinite; }
+.engineer .tap { animation: eng-tap .9s ease-in-out infinite; }
+.engineer .blanket { animation: eng-breathe-slow 4.5s ease-in-out infinite; transform-box: fill-box; transform-origin: bottom; }
+.engineer .zzz text { animation: eng-zzz 3.6s ease-in infinite; opacity: 0; }
+.engineer .zzz text:nth-child(2) { animation-delay: 1.2s; }
+.engineer .zzz text:nth-child(3) { animation-delay: 2.4s; }
+.engineer .phone-glow { animation: eng-glow 3s ease-in-out infinite; }
+@keyframes eng-rise { from { transform: translateY(10px); } to { transform: translateY(-6px); } }
+@keyframes eng-drift { to { transform: translateX(-14px); } }
+@keyframes eng-eat { 0%, 100% { transform: rotate(0deg); } 45%, 55% { transform: rotate(-20deg); } }
+@keyframes eng-chew { to { transform: scaleY(.4); } }
+@keyframes eng-bar { 0% { transform: scaleY(.25); } 100% { transform: scaleY(1); } }
+@keyframes eng-progress { 0% { transform: scaleX(.05); } 85%, 100% { transform: scaleX(1); } }
+@keyframes eng-stretch { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-7deg); } }
+@keyframes eng-yawn { 0%, 100% { transform: scale(.5); } 50% { transform: scale(1.15); } }
+@keyframes eng-glow { 50% { opacity: .45; } }
+@keyframes eng-tap { 50% { transform: translateY(-1.5px); } }
+@keyframes eng-breathe-slow { 50% { transform: scaleY(1.06); } }
+@keyframes eng-zzz { 0% { opacity: 0; transform: translate(0, 6px); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(10px, -14px); } }

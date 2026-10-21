@@ -3,7 +3,7 @@
 // returns only names and roles, so no leave data or account ids reach this page.
 import { toISO, fromISO, addDays, todaySG, rosterMessage, whatsappLink, WHATSAPP_ICON } from './schedule.js';
 import { createStore } from './connect.js';
-import { ENGINEER_SVG } from './engineer.js';
+import { engineerScene } from './engineer.js';
 import { keepFresh } from './live.js';
 import { faceSvg } from './faces.js';
 
@@ -129,7 +129,9 @@ async function renderToday() {
     const text = rosterMessage(day, location.href.split('#')[0].split('?')[0]);
     share = `<div class="share"><a class="btn wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">${WHATSAPP_ICON}Request for OTP on WhatsApp</a></div>`;
   }
-  document.getElementById('today').innerHTML = `<div class="hero">${ENGINEER_SVG}</div><section class="panel" aria-labelledby="today-h"><h2 id="today-h">2FA Login · ${fmt(t)}</h2>${body}${share}</section>`;
+  // The scene follows the time of day in Singapore; ?scene=lunch (etc.) shows a particular one.
+  const scene = engineerScene(new URLSearchParams(location.search).get('scene') || undefined);
+  document.getElementById('today').innerHTML = `<div class="hero">${scene.svg}<p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div><section class="panel" aria-labelledby="today-h"><h2 id="today-h">2FA Login · ${fmt(t)}</h2>${body}${share}</section>`;
 }
 
 /* Two tabs: today's 2FA Login card and the month calendar. The address remembers which (#calendar). */
