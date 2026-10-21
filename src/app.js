@@ -1,9 +1,15 @@
 import { buildSchedule, checkpointFor, toISO, fromISO, addDays, todaySG, onRota, rosterMessage, whatsappLink } from './schedule.js';
 import { createStore } from './connect.js';
 
-const store = await createStore();
-
 const root = document.getElementById('root');
+let store;
+try { store = await createStore(); }
+catch (e) {
+  root.innerHTML = '<div class="auth"><div class="panel"><h2>Can’t load the app</h2><p class="muted">Part of the app couldn’t be downloaded. Check your internet connection, then <button class="btn small" type="button" id="reload">reload the page</button></p></div></div>';
+  document.getElementById('reload').onclick = () => location.reload();
+  throw e;
+}
+
 const state = { data: null, tab: 'roster', month: todaySG().slice(0, 7), authMode: 'signin', authError: '', authNote: '' };
 
 /* ---------- Helpers ---------- */
@@ -76,11 +82,17 @@ function scheduleFor(from, to) {
 }
 
 /* ---------- Boot ---------- */
+// Only the latest refresh draws, so a slow load can't draw the roster over the sign-in screen after signing out.
+let refreshes = 0;
 async function refresh() {
+  const run = ++refreshes;
   try {
     const uid = await store.userId();
+    if (run !== refreshes) return;
     if (!uid) { state.data = null; renderAuth(); return; }
-    state.data = await store.load();
+    const data = await store.load();
+    if (run !== refreshes) return;
+    state.data = data;
     if (!state.data.me) {
       root.innerHTML = '<div class="auth"><div class="panel"><h2>Your profile isn’t ready</h2><p class="muted">You’re signed in, but the database has no profile for you. Check that <code>supabase/schema.sql</code> ran in full, then sign in again.</p><button class="btn" id="out">Sign out</button></div></div>';
       document.getElementById('out').onclick = () => store.signOut();
@@ -97,6 +109,7 @@ async function refresh() {
     if (view && view.dataset.user === userKey(state.data.me)) renderView();
     else renderApp();
   } catch (e) {
+    if (run !== refreshes) return;
     root.innerHTML = '<div class="auth"><div class="panel"><h2>Can’t reach the database</h2><p class="error">' + esc(e.message) + '</p><p class="muted">Check the values in <code>config.js</code> and that <code>supabase/schema.sql</code> has been run.</p></div></div>';
   }
 }
@@ -336,7 +349,7 @@ function renderTeam() {
   const admin = me.is_admin;
   const view = document.getElementById('view');
   const t = today();
-  const sorted = profiles.filter(p => p.approved !== false).sort((a, b) => a.rota_order - b.rota_order);
+  const sorted = profiles.filter(p => p.approved !== false).sort(byRota);
   const pending = profiles.filter(p => p.approved === false);
   const upcomingHol = holidays.filter(h => h.date >= t.slice(0, 4) + '-01-01');
   view.innerHTML = `
@@ -352,7 +365,7 @@ function renderTeam() {
     <p class="muted">Each working day the next person in this order becomes Primary, and everyone else follows. ${admin ? 'Use the arrows to change the order. Untick Active to leave someone out of the roster.' : 'Only admins can change the order.'}</p>
     <div class="list">${sorted.map((p, i) => `<div class="item">
       <span class="order">${i + 1}.</span>
-      <div class="main">${admin || p.id === me.id ? `<input class="name-input" data-name="${p.id}" value="${esc(p.display_name)}" aria-label="Name">` : `<b>${esc(p.display_name)}</b>`}
+      <div class="main">${admin || p.id === me.id ? `<input class="name-input" data-name="${p.id}" value="${esc(p.display_name)}" maxlength="60" aria-label="Name">` : `<b>${esc(p.display_name)}</b>`}
         ${p.email ? `<div class="muted">${esc(p.email)}</div>` : ''}</div>
       ${p.is_admin ? '<span class="tag">Admin</span>' : ''}${!p.active ? '<span class="tag leave">Inactive</span>' : ''}
       ${admin ? `<label class="check"><input type="checkbox" data-active="${p.id}"${p.active ? ' checked' : ''}> Active</label>
@@ -403,11 +416,12 @@ function renderTeam() {
     await recordRotaChange();
   }, c.checked ? 'Back on the roster from today.' : 'Left out of the roster from today.'));
   view.querySelectorAll('[data-admin]').forEach(c => c.onchange = () => act(() => store.updateProfile(c.dataset.admin, { is_admin: c.checked }), 'Admin access updated.'));
+  // The whole new order is saved in one step, so a failure can't leave two people in the same place (issue #9).
   const move = async (id, by) => {
     const list = sorted.slice(), i = list.findIndex(p => p.id === id), j = i + by;
     if (i < 0 || j < 0 || j >= list.length) return;
     [list[i], list[j]] = [list[j], list[i]];
-    for (let k = 0; k < list.length; k++) if (list[k].rota_order !== k) await store.updateProfile(list[k].id, { rota_order: k });
+    await store.setRotaOrder(list.map(p => p.id));
     await recordRotaChange();
   };
   // The arrows are keyed by person, so focus follows the person being moved.

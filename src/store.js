@@ -2,12 +2,19 @@
 // - SupabaseStore: real logins and a shared Postgres database.
 // - DemoStore: everything in this browser's localStorage, for trying the app without Supabase.
 import { SG_HOLIDAYS } from './holidays-sg.js';
-import { toISO, addDays, todaySG, onRota, publicCalendar } from './schedule.js';
+import { toISO, fromISO, addDays, todaySG, onRota, publicCalendar } from './schedule.js';
 
 function check({ data, error }) {
   if (error) throw new Error(error.message);
   return data;
 }
+/** For writes ending in .select(): the database skips rows you aren't allowed to change without an error, so no rows back means it didn't happen. */
+function changed(res) {
+  const rows = check(res);
+  if (!rows || !rows.length) throw new Error('That change wasn’t saved. You may not have permission, or it was already removed. The page has been refreshed.');
+  return rows;
+}
+const PROFILE_COLUMNS = 'id, display_name, rota_order, active, is_admin, approved';
 
 export class SupabaseStore {
   constructor(createClient, url, key) {
@@ -63,7 +70,7 @@ export class SupabaseStore {
   }
   /** The public calendar for a date range: names and roles only. Works without signing in. Null when switched off. */
   async loadPublic(from, to) { return check(await this.sb.rpc('public_calendar', { p_from: from, p_to: to })); }
-  async deleteProfile(id) { check(await this.sb.from('profiles').delete().eq('id', id)); }
+  async deleteProfile(id) { changed(await this.sb.from('profiles').delete().eq('id', id).select('id')); }
   /** Your personal calendar subscription link (see supabase/005_calendar_feed.sql). */
   async calendarFeed() { return this.feedUrl(check(await this.sb.rpc('my_calendar_token'))); }
   /** Makes a new link; the old one stops working. */
@@ -73,12 +80,24 @@ export class SupabaseStore {
     return this.url + '/rest/v1/rpc/duty_calendar?token=' + token + '&apikey=' + this.key;
   }
   async addLeave(row) { check(await this.sb.from('leaves').insert(row)); }
-  async deleteLeave(id) { check(await this.sb.from('leaves').delete().eq('id', id)); }
-  async updateProfile(id, patch) { check(await this.sb.from('profiles').update(patch).eq('id', id)); }
+  async deleteLeave(id) { changed(await this.sb.from('leaves').delete().eq('id', id).select('id')); }
+  async updateProfile(id, patch) {
+    const [row] = changed(await this.sb.from('profiles').update(patch).eq('id', id).select(PROFILE_COLUMNS));
+    // protect_profile_fields() quietly keeps fields only admins may change, for example when admin access was removed in another tab.
+    if (Object.keys(patch).some(k => k in row && row[k] !== patch[k])) throw new Error('Only admins can make that change. The page has been refreshed.');
+  }
+  /** Saves the whole rotation order in one step (set_rota_order in supabase/006_hardening.sql). */
+  async setRotaOrder(ids) {
+    const { error } = await this.sb.rpc('set_rota_order', { ids });
+    if (!error) return;
+    // Databases without update 6: save one person at a time, as before.
+    if (error.code !== 'PGRST202') throw new Error(error.message);
+    for (let k = 0; k < ids.length; k++) await this.updateProfile(ids[k], { rota_order: k });
+  }
   async addHoliday(date, name) { check(await this.sb.from('holidays').upsert({ date, name })); }
-  async deleteHoliday(date) { check(await this.sb.from('holidays').delete().eq('date', date)); }
-  async updateSettings(patch) { check(await this.sb.from('settings').update(patch).eq('id', 1)); }
-  async updateLeave(id, patch) { check(await this.sb.from('leaves').update(patch).eq('id', id)); }
+  async deleteHoliday(date) { changed(await this.sb.from('holidays').delete().eq('date', date).select('date')); }
+  async updateSettings(patch) { changed(await this.sb.from('settings').update(patch).eq('id', 1).select('id')); }
+  async updateLeave(id, patch) { changed(await this.sb.from('leaves').update(patch).eq('id', id).select('id')); }
   /** Save the rotation from a date onwards (see checkpointFor in schedule.js). Replaces any checkpoint on that date. */
   async saveCheckpoint(cp) { check(await this.sb.from('rota_checkpoints').upsert(cp)); }
   /** Restart the rotation on `start`: clears all history and begins with order[0]. */
@@ -149,8 +168,10 @@ export class DemoStore {
     return publicCalendar({ members, people, checkpoints: this.checkpoints(), leaves: this.db.leaves, anchor: s.rota_start, from, to, today: todaySG(),
       holidays: Object.fromEntries(this.db.holidays.map(h => [h.date, h.name])) });
   }
+  /** Same rules as the database's row level security. */
+  requireAdmin(what) { if (!this.me().is_admin) throw new Error('Only admins can ' + what + '.'); }
   async deleteProfile(id) {
-    if (!this.me().is_admin) throw new Error('Only admins can remove people.');
+    this.requireAdmin('remove people');
     this.db.profiles = this.db.profiles.filter(p => p.id !== id);
     this.db.leaves = this.db.leaves.filter(l => l.user_id !== id);
     this.write();
@@ -168,11 +189,11 @@ export class DemoStore {
     return this.db.checkpoints;
   }
   async saveCheckpoint(cp) {
-    if (!this.me().is_admin) throw new Error('Only admins can change the rotation.');
+    this.requireAdmin('change the rotation');
     this.db.checkpoints = this.checkpoints().filter(c => c.effective_date !== cp.effective_date).concat(cp); this.write();
   }
   async resetRotation(start, order) {
-    if (!this.me().is_admin) throw new Error('Only admins can change the rotation.');
+    this.requireAdmin('change the rotation');
     this.db.checkpoints = [{ effective_date: start, member_order: order, next_primary: order[0] || null }];
     this.db.settings.rota_start = start; this.write();
   }
@@ -183,6 +204,9 @@ export class DemoStore {
     if (op === 'add' && row.start_date < today) throw new Error('Leave can only be added from today onwards. Ask an admin to record past leave.');
     if (op === 'delete' && old.start_date < today) throw new Error('Leave that has begun can’t be deleted. End it early instead.');
     if (op === 'update' && row.end_date < addDays(today, -1)) throw new Error('Leave can only be shortened to end yesterday at the earliest.');
+    // Mirrors supabase/006_hardening.sql.
+    if (op === 'add' && fromISO(row.end_date) - fromISO(row.start_date) >= 180 * 864e5) throw new Error('Leave can be at most 180 days at a time. Ask an admin to record longer leave.');
+    if (op === 'add' && row.start_date > addDays(today, 365)) throw new Error('Leave can be booked up to a year ahead.');
   }
   async addLeave(row) {
     if (row.end_date < row.start_date) throw new Error('The end date is before the start date.');
@@ -193,7 +217,9 @@ export class DemoStore {
   }
   async deleteLeave(id) {
     const old = this.db.leaves.find(l => l.id === id);
-    if (old) this.leaveRule('delete', null, old);
+    if (!old) throw new Error('That leave was already removed.');
+    if (old.user_id !== this.me().id) this.requireAdmin('remove other people’s leave');
+    this.leaveRule('delete', null, old);
     this.db.leaves = this.db.leaves.filter(l => l.id !== id); this.write();
   }
   async updateLeave(id, patch) {
@@ -207,7 +233,13 @@ export class DemoStore {
     Object.keys(patch).forEach(k => { if (patch[k] !== undefined) p[k] = patch[k]; });
     this.write();
   }
-  async addHoliday(date, name) { this.db.holidays = this.db.holidays.filter(h => h.date !== date).concat({ date, name }); this.write(); }
-  async deleteHoliday(date) { this.db.holidays = this.db.holidays.filter(h => h.date !== date); this.write(); }
-  async updateSettings(patch) { Object.assign(this.db.settings, patch); this.write(); }
+  async setRotaOrder(ids) {
+    this.requireAdmin('change the rotation order');
+    const rest = this.db.profiles.filter(p => !ids.includes(p.id)).sort((a, b) => a.rota_order - b.rota_order);
+    ids.map(id => this.db.profiles.find(p => p.id === id)).filter(Boolean).concat(rest).forEach((p, k) => { p.rota_order = k; });
+    this.write();
+  }
+  async addHoliday(date, name) { this.requireAdmin('change holidays'); this.db.holidays = this.db.holidays.filter(h => h.date !== date).concat({ date, name }); this.write(); }
+  async deleteHoliday(date) { this.requireAdmin('change holidays'); this.db.holidays = this.db.holidays.filter(h => h.date !== date); this.write(); }
+  async updateSettings(patch) { this.requireAdmin('change settings'); Object.assign(this.db.settings, patch); this.write(); }
 }
