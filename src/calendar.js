@@ -60,11 +60,19 @@ function render(data) {
     cells.push(`<div class="${cls}">${label}${body}</div>`);
   }
 
-  // The legend lists only what this month shows: as many roles as its busiest day, and holidays if any.
+  // The legend, in two groups, lists only what this month shows: its roles (as many as the busiest
+  // day) and the kinds of day it highlights.
   const monthDays = data.days.filter(d => d.date.slice(0, 7) === state.month);
   const roles = Math.max(0, ...monthDays.filter(d => d.kind === 'work').map(d => d.duties.length));
-  const legend = Array.from({ length: roles }, (_, i) => `<li><span class="r${i ? '' : ' p'}">${i ? 'S' + i : 'P'}</span>${i ? 'Secondary ' + i : 'Primary'}</li>`)
-    .concat(monthDays.some(d => d.kind === 'holiday') ? ['<li><span class="swatch"></span>Public holiday</li>'] : []).join('');
+  const roleItems = [];
+  if (roles >= 1) roleItems.push('<li><span class="r p">P</span>Primary</li>');
+  if (roles === 2) roleItems.push('<li><span class="r">S1</span>Secondary</li>');
+  if (roles > 2) roleItems.push(`<li><span class="r">S1–S${roles - 1}</span>Secondaries, in backup order</li>`);
+  const dayItems = [];
+  if (t >= g.start && t <= g.end) dayItems.push('<li><span class="swatch today"></span>Today</li>');
+  if (monthDays.some(d => d.kind === 'holiday')) dayItems.push('<li><span class="swatch holiday"></span>Public holiday</li>');
+  const group = (label, items) => items.length ? `<div class="legend-group"><span class="legend-label">${label}</span><ul>${items.join('')}</ul></div>` : '';
+  const legend = group('Roles', roleItems) + group('Days', dayItems);
 
   view.innerHTML = `
   <section class="panel">
@@ -76,7 +84,7 @@ function render(data) {
         <button class="btn small" id="this">This month</button>
       </div>
     </div>
-    ${legend ? `<ul class="legend" aria-label="Legend">${legend}</ul>` : ''}
+    ${legend ? `<div class="legend" role="group" aria-label="Legend">${legend}</div>` : ''}
     <div class="cal">
       ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map(d => `<div class="dow">${d}</div>`).join('')}
       ${cells.join('')}
