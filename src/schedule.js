@@ -169,7 +169,7 @@ export function rosterMessage(day, calendarUrl) {
   if (day.duties.length) {
     day.duties.forEach(d => lines.push(d.role + ': ' + d.name));
     // The Primary handles OTP login requests that day.
-    lines.push('', 'For OTP login for ______, please request from ' + day.duties[0].name + ' (Primary).');
+    lines.push('', 'Hi ' + day.duties[0].name + ' (Primary), may we have OTP login for ...');
   } else lines.push('No one is available for duty.');
   if (calendarUrl) lines.push('Calendar: ' + calendarUrl);
   return lines.join('\n');
