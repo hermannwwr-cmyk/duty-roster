@@ -263,3 +263,4 @@ h2[tabindex="-1"]:focus { outline: none; }
 @keyframes eng-tap { 50% { transform: translateY(-1.5px); } }
 @keyframes eng-breathe-slow { 50% { transform: scaleY(1.06); } }
 @keyframes eng-zzz { 0% { opacity: 0; transform: translate(0, 6px); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(10px, -14px); } }
+.engineer .standby { animation: eng-glow 3s ease-in-out infinite; }

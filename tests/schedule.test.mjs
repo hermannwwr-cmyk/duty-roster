@@ -156,7 +156,7 @@ test('time until midnight in Singapore', async () => {
 
 test('the engineer scene follows the time of day in Singapore', async () => {
   const { periodAt, engineerScene } = await import('../src/engineer.js');
-  const at = sgTime => periodAt(new Date('2026-10-21T' + sgTime + ':00+08:00'));
+  const at = sgTime => periodAt(new Date('2026-10-21T' + sgTime + ':00+08:00'));   // a Wednesday
   assert.equal(at('05:59'), 'sleeping');
   assert.equal(at('06:00'), 'morning');
   assert.equal(at('12:00'), 'lunch');
@@ -164,5 +164,10 @@ test('the engineer scene follows the time of day in Singapore', async () => {
   assert.equal(at('17:30'), 'evening');
   assert.equal(at('19:00'), 'afterwork');
   assert.equal(at('23:00'), 'sleeping');
-  for (const p of ['morning', 'lunch', 'afternoon', 'evening', 'afterwork', 'sleeping']) assert.match(engineerScene(p).svg, /^<svg[^>]*aria-label="[^"]+"/);
+  // Saturday and Sunday in Singapore are the weekend at any hour, even when it's still Friday in UTC.
+  assert.equal(periodAt(new Date('2026-10-24T01:00:00+08:00')), 'weekend');
+  assert.equal(periodAt(new Date('2026-10-25T23:30:00+08:00')), 'weekend');
+  assert.equal(periodAt(new Date('2026-10-26T06:00:00+08:00')), 'morning');
+  assert.equal(periodAt(new Date('2026-10-24T12:30:00+08:00'), { weekdays: false }), 'lunch');
+  for (const p of ['morning', 'lunch', 'afternoon', 'evening', 'afterwork', 'sleeping', 'weekend']) assert.match(engineerScene(p).svg, /^<svg[^>]*aria-label="[^"]+"/);
 });

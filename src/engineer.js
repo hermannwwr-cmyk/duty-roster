@@ -2,11 +2,15 @@
 // Six scenes, picked by the time in Singapore. Plain SVG and CSS (see .engineer in styles.css);
 // everything holds still for people who turn off animations.
 
-/** The part of the day in Singapore: morning, lunch, afternoon, evening, afterwork or sleeping. */
-export function periodAt(now = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Singapore', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now);
-  const get = t => Number(parts.find(p => p.type === t).value);
-  const m = get('hour') * 60 + get('minute');
+/**
+ * What the scene shows now in Singapore: 'weekend' on Saturdays and Sundays, otherwise the part of
+ * the day (morning, lunch, afternoon, evening, afterwork or sleeping). `weekdays: false` ignores the day.
+ */
+export function periodAt(now = new Date(), { weekdays = true } = {}) {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Singapore', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now);
+  const get = t => parts.find(p => p.type === t).value;
+  if (weekdays && (get('weekday') === 'Sat' || get('weekday') === 'Sun')) return 'weekend';
+  const m = Number(get('hour')) * 60 + Number(get('minute'));
   if (m >= 23 * 60 || m < 6 * 60) return 'sleeping';
   if (m < 12 * 60) return 'morning';
   if (m < 14 * 60) return 'lunch';
@@ -219,13 +223,29 @@ function sleeping() {
   <rect x="245" y="123" width="16" height="5" rx="1.5" fill="#111827"/><rect class="phone" x="246.5" y="124" width="13" height="3" rx="1" fill="#c7d2fe"/>`;
 }
 
+/* ---------- Weekend: nobody in, room lights off ---------- */
+
+function weekend() {
+  // The window still follows the time of day; the room itself is dark.
+  const outside = periodAt(new Date(), { weekdays: false });
+  const daytime = ['morning', 'lunch', 'afternoon'].includes(outside);
+  const screen = '<circle class="standby" cx="224" cy="99" r="1.4" fill="#34d399"/>';
+  return floor + desk({ screen, steam: false }) + `
+  <rect x="0" y="0" width="360" height="172" fill="#05070f" opacity=".55"/>
+  ${sky(outside)}
+  <path d="M16 58h58l40 102H24z" fill="${daytime ? '#fde68a' : '#c7d2fe'}" opacity="${daytime ? '.07' : '.05'}"/>
+  <rect x="106" y="62" width="10" height="16" rx="2" fill="#1c2748" stroke="#2a3560"/><rect x="109.5" y="70" width="3" height="5" rx="1" fill="#3b4a80"/>
+  ${rack(true)}`;
+}
+
 const SCENES = {
   morning: [morning, 'Good morning! Coffee first, then the servers.'],
   lunch: [lunch, 'Lunch break. Back at 2pm.'],
   afternoon: [afternoon, 'Afternoon: deep in the dashboards.'],
   evening: [evening, 'Wrapping up for the day.'],
   afterwork: [afterwork, 'Off duty, still on call.'],
-  sleeping: [sleeping, 'Sleeping. Phone on loud, just in case.']
+  sleeping: [sleeping, 'Sleeping. Phone on loud, just in case.'],
+  weekend: [weekend, 'Weekend: lights off. The servers keep watch.']
 };
 
 /** The illustration and its caption for a part of the day (default: now in Singapore). */
