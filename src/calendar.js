@@ -55,9 +55,9 @@ function render(data) {
   for (let date = g.start; date <= g.end; date = addDays(date, 1)) {
     const d = byDate[date];
     const dt = fromISO(date);
-    const weekend = dt.getDay() === 0 || dt.getDay() === 6;
+    if (dt.getDay() === 0 || dt.getDay() === 6) continue;  // weekends have no duty, so they get no column
     const kind = d ? d.kind : 'unavailable';
-    const cls = ['cell', date.slice(0, 7) !== state.month ? 'out' : '', weekend ? 'weekend' : '', kind === 'holiday' ? 'holiday' : '', date === t ? 'is-today' : ''].filter(Boolean).join(' ');
+    const cls = ['cell', date.slice(0, 7) !== state.month ? 'out' : '', kind === 'holiday' ? 'holiday' : '', date === t ? 'is-today' : ''].filter(Boolean).join(' ');
     const label = `<span class="num"><span class="dow-inline">${dt.toLocaleDateString('en-SG', { weekday: 'short' })} </span>${dt.getDate()}</span>`;
     let body = '';
     if (kind === 'holiday') body = `<span class="hol">${esc(d.holiday)}</span>`;
@@ -87,7 +87,7 @@ function render(data) {
     <p class="muted swipe-hint">Swipe sideways to see the whole week, or turn your phone sideways.</p>
     <div class="cal-scroll" tabindex="0" aria-label="Month calendar">
     <div class="cal">
-        ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => `<div class="dow">${d}</div>`).join('')}
+        ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map(d => `<div class="dow">${d}</div>`).join('')}
         ${cells.join('')}
       </div>
     </div>

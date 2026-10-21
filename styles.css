@@ -118,7 +118,7 @@ label.field input, label.field select { font-weight: 400; color: var(--ink); bac
 .cal-top { padding-block: .8rem 0 !important; }
 a.btn { text-decoration: none; color: inherit; display: inline-block; }
 label.field.inline { display: flex; align-items: center; gap: .5rem; }
-.cal { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)) repeat(2, minmax(0, .45fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.cal { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
 .dow { font-size: .76rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--soft); padding: .4rem .5rem; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .cell { min-height: 6.5rem; padding: .35rem .45rem .5rem; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); display: grid; align-content: start; gap: .25rem; min-width: 0; }
 .cell .num { font: 500 .85rem var(--mono); color: var(--soft); }
@@ -136,13 +136,13 @@ label.field.inline { display: flex; align-items: center; gap: .5rem; }
 .duty li.p .r { color: var(--primary); }
 .duty li.hl { background: var(--accent); color: var(--accent-ink); border-radius: 4px; padding: 0 .25rem; font-weight: 700; }
 .duty li.hl .r { color: inherit; }
-/* The month stays a Monday-to-Sunday grid on phones: swipe sideways when it's upright, and it fits when turned sideways. */
+/* The month stays a Monday-to-Friday grid on phones: swipe sideways when it's upright, and it fits when turned sideways. */
 .cal-scroll { overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; border-radius: 4px; }
 .cal-scroll:focus-visible { outline-offset: 4px; }
 .cal-scroll .cell { scroll-snap-align: start; }
 .swipe-hint { display: none; }
 @media (max-width: 760px) {
-  .cal { min-width: 40rem; }
+  .cal { min-width: 34rem; }
   .cell { min-height: 5.5rem; padding: .3rem .35rem .4rem; }
   .duty { font-size: .78rem; }
   .duty li .r { min-width: 1.35rem; }
