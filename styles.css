@@ -184,3 +184,15 @@ h2[tabindex="-1"]:focus { outline: none; }
 .today .btn.wa, #today .btn.wa { padding: .7rem 1.3rem; font-size: 1.05rem; }
 @media (max-width: 640px) { .today .btn.wa, #today .btn.wa { flex: 1 1 100%; text-align: center; } }
 .today { align-items: start; }
+/* Every role gets its own block; the Primary's stays the largest. */
+.summary { gap: .35rem; }
+.summary > div { grid-template-columns: minmax(0, 1fr); gap: .05rem; padding: .55rem .95rem; border: 0; border-radius: 8px; background: var(--accent-soft); }
+.summary > div dt { font: 700 .72rem var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.summary > div dd { font-size: 1.2rem; font-weight: 600; line-height: 1.2; }
+.summary .p { margin-bottom: 0; padding: .75rem .95rem; background: var(--primary-soft); }
+.summary .p dt { color: var(--primary); }
+.summary .p dd { font-size: 1.65rem; font-weight: 700; }
+.summary .away { background: var(--leave-soft); }
+.summary .away dt, .summary .away dd { color: var(--leave); }
+@media (min-width: 641px) { .summary { grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); } .summary .p { grid-column: 1 / -1; } }
+.summary .me { box-shadow: inset 0 0 0 2px var(--accent); }
