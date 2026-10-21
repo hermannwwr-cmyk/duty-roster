@@ -84,12 +84,16 @@ function render(data) {
       </label>
     </div>
     <p class="muted">Daily duty for working days. P is Primary, S1 is Secondary 1, and so on. Weekends and public holidays have no duty.${notes.length ? ' ' + notes.join(' ') : ''}</p>
+    <p class="muted swipe-hint">Swipe sideways to see the whole week, or turn your phone sideways.</p>
+    <div class="cal-scroll" tabindex="0" aria-label="Month calendar">
     <div class="cal">
-      ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => `<div class="dow">${d}</div>`).join('')}
-      ${cells.join('')}
+        ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => `<div class="dow">${d}</div>`).join('')}
+        ${cells.join('')}
+      </div>
     </div>
   </section>`;
 
+  scrollToToday();
   // Changing month redraws the page; put focus back on the button that was pressed (issue #12).
   const go = (month, id) => show(month).then(() => { const b = document.getElementById(id); if (b) b.focus({ preventScroll: true }); }).catch(showError);
   const [y, m] = state.month.split('-').map(Number);
@@ -131,10 +135,17 @@ async function renderToday() {
   document.getElementById('today').innerHTML = `<div class="hero">${ENGINEER_SVG}</div><section class="panel" aria-labelledby="today-h"><h2 id="today-h">2FA Login · ${fmt(t)}</h2>${body}${share}</section>`;
 }
 
+/** On a narrow screen the week is wider than the page: bring today's column into view. */
+function scrollToToday() {
+  const cell = view.querySelector('.cell.is-today'), scroller = view.querySelector('.cal-scroll');
+  if (cell && scroller && scroller.scrollWidth > scroller.clientWidth) scroller.scrollLeft = cell.offsetLeft - 8;
+}
+
 /* Two tabs: today's 2FA Login card and the month calendar. The address remembers which (#calendar). */
 function setTab(tab) {
   document.getElementById('today').hidden = tab !== 'today';
   view.hidden = tab !== 'calendar';
+  if (tab === 'calendar') scrollToToday();
   document.querySelectorAll('[data-tab]').forEach(b => {
     if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   });
