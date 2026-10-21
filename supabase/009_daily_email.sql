@@ -6,6 +6,19 @@
 -- account (scripts/daily-email.gs) asks this database for the day's email and sends it from your
 -- Gmail to every approved address, with a link to unsubscribe. No email service or domain needed.
 
+-- ---------- Tidy up an earlier draft of this file ----------
+-- An earlier version sent through Resend from a 9am pg_cron job. Remove what it left behind, if anything.
+do $$ begin
+  if exists (select 1 from pg_namespace where nspname = 'cron') then
+    perform cron.unschedule(jobid) from cron.job where jobname = 'daily-2fa-login-email';
+  end if;
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'email_config' and column_name = 'from_addr') then
+    drop table public.email_config;
+  end if;
+end $$;
+drop function if exists public.send_daily_email();
+
 -- ---------- Subscriptions ----------
 
 create table if not exists public.email_subscriptions (
