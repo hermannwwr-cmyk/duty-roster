@@ -158,9 +158,10 @@ h2[tabindex="-1"]:focus { outline: none; }
 #today .panel { gap: 1rem; padding-top: 0; overflow: hidden; box-shadow: 0 0 0 1px #ffffff14, 0 16px 40px #00000080; }
 #today h2 { font-size: 1.35rem; }
 .share { display: flex; flex-wrap: wrap; gap: .5rem; }
-.btn.wa { background: #16a34a; border-color: #16a34a; color: #ffffff; border-radius: 12px; padding: .8rem 1.3rem; font-size: 1.05rem; box-shadow: 0 6px 18px #16a34a40; }
+.btn.wa { display: inline-flex; align-items: center; justify-content: center; gap: .55rem; white-space: nowrap; background: #16a34a; border-color: #16a34a; color: #ffffff; border-radius: 12px; padding: .8rem 1.3rem; font-size: 1.05rem; box-shadow: 0 6px 18px #16a34a40; }
+.wa-icon { flex: none; width: 1.4em; height: 1.4em; }
 .btn.wa:hover { background: #15803d; }
-@media (max-width: 640px) { .btn.wa { flex: 1 1 100%; text-align: center; } }
+@media (max-width: 640px) { .btn.wa { flex: 1 1 100%; padding-inline: .9rem; } }
 
 .summary { display: grid; gap: .5rem; margin: 0; }
 .summary > div { display: flex; align-items: center; gap: .8rem; padding: .6rem .8rem; border-radius: 12px; background: #18213a; }

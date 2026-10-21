@@ -1,7 +1,7 @@
 // Public, read-only month calendar. No sign-in needed.
 // The database works out each day's duty list (public_calendar() in supabase/003_private_data.sql) and
 // returns only names and roles, so no leave data or account ids reach this page.
-import { toISO, fromISO, addDays, todaySG, rosterMessage, whatsappLink, initials, avatarColor } from './schedule.js';
+import { toISO, fromISO, addDays, todaySG, rosterMessage, whatsappLink, WHATSAPP_ICON, initials, avatarColor } from './schedule.js';
 import { createStore } from './connect.js';
 
 const view = document.getElementById('view');
@@ -121,7 +121,7 @@ async function renderToday() {
   let share = '';
   if (day) {
     const text = rosterMessage(day, location.href.split('#')[0].split('?')[0]);
-    share = `<div class="share"><a class="btn wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">Request for OTP on WhatsApp</a></div>`;
+    share = `<div class="share"><a class="btn wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">${WHATSAPP_ICON}Request for OTP on WhatsApp</a></div>`;
   }
   document.getElementById('today').innerHTML = `<section class="panel" aria-labelledby="today-h"><h2 id="today-h">2FA Login · ${fmt(t)}</h2>${body}${share}</section>`;
 }

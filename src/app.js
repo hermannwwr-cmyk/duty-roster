@@ -1,4 +1,4 @@
-import { buildSchedule, checkpointFor, toISO, fromISO, addDays, todaySG, onRota, rosterMessage, whatsappLink, initials, avatarColor } from './schedule.js';
+import { buildSchedule, checkpointFor, toISO, fromISO, addDays, todaySG, onRota, rosterMessage, whatsappLink, WHATSAPP_ICON, initials, avatarColor } from './schedule.js';
 import { createStore } from './connect.js';
 
 const root = document.getElementById('root');
@@ -228,7 +228,7 @@ function renderRoster() {
   if (shareDay) {
     const text = rosterMessage({ date: shareDay.date, duties: shareDay.duties.map(d => ({ role: d.role, name: d.member.name })) },
       new URL('calendar.html', location.href).href);
-    shareHtml = `<div class="share"><a class="btn wa" id="share-wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">Request for OTP on WhatsApp</a>
+    shareHtml = `<div class="share"><a class="btn wa" id="share-wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">${WHATSAPP_ICON}Request for OTP on WhatsApp</a>
       ${navigator.share ? '<button class="btn" type="button" id="share-other">Share another way</button>' : ''}</div>`;
     state.shareText = text;
   }
