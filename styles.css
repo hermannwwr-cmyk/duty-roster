@@ -115,7 +115,7 @@ label.field input, label.field select { font-weight: 400; color: var(--ink); bac
 /* Public month calendar (calendar.html) */
 .cal-top .brand { margin-right: auto; }
 .cal-top { flex-wrap: wrap; gap: .5rem; }
-.cal-top { padding-block: .8rem !important; }
+.cal-top { padding-block: .8rem 0 !important; }
 a.btn { text-decoration: none; color: inherit; display: inline-block; }
 label.field.inline { display: flex; align-items: center; gap: .5rem; }
 .cal { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)) repeat(2, minmax(0, .45fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
@@ -154,7 +154,7 @@ h2[tabindex="-1"]:focus { outline: none; }
 .today .mine, #today .panel > h2 { margin: 0 -1.2rem; padding: 1.1rem 1.2rem 1rem; background: var(--band); color: #ffffff; }
 .today .label { color: #ddd6fe; }
 .today .role { font-size: 1.6rem; }
-#today { margin-top: 1.2rem; }
+#today { margin-top: 1.4rem; padding-bottom: 3rem; }
 #today .panel { gap: 1rem; padding-top: 0; overflow: hidden; box-shadow: 0 0 0 1px #ffffff14, 0 16px 40px #00000080; }
 #today h2 { font-size: 1.35rem; }
 .share { display: flex; flex-wrap: wrap; gap: .5rem; }

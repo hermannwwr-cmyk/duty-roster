@@ -10,27 +10,31 @@
 <script type="importmap">
 {
   "imports": {
-    "./config.js": "./config.js?v=202610211409",
-    "./src/app.js": "./src/app.js?v=202610211409",
-    "./src/calendar.js": "./src/calendar.js?v=202610211409",
-    "./src/connect.js": "./src/connect.js?v=202610211409",
-    "./src/holidays-sg.js": "./src/holidays-sg.js?v=202610211409",
-    "./src/schedule.js": "./src/schedule.js?v=202610211409",
-    "./src/store.js": "./src/store.js?v=202610211409"
+    "./config.js": "./config.js?v=202610211416",
+    "./src/app.js": "./src/app.js?v=202610211416",
+    "./src/calendar.js": "./src/calendar.js?v=202610211416",
+    "./src/connect.js": "./src/connect.js?v=202610211416",
+    "./src/holidays-sg.js": "./src/holidays-sg.js?v=202610211416",
+    "./src/schedule.js": "./src/schedule.js?v=202610211416",
+    "./src/store.js": "./src/store.js?v=202610211416"
   }
 }
 </script>
-<link rel="stylesheet" href="styles.css?v=202610211409">
-<script type="module" src="src/calendar.js?v=202610211409"></script>
+<link rel="stylesheet" href="styles.css?v=202610211416">
+<script type="module" src="src/calendar.js?v=202610211416"></script>
 <!-- version:end -->
 </head>
 <body>
 <header class="top"><div class="wrap cal-top">
   <span class="brand">2FA Login Request · Calendar</span>
   <a class="btn small" href="./">Sign in to add leave</a>
+  <nav class="tabs" aria-label="Sections">
+    <button type="button" data-tab="today" aria-current="page">2FA Login</button>
+    <button type="button" data-tab="calendar">Calendar</button>
+  </nav>
 </div></header>
-<div class="wrap" id="today"></div>
-<main class="wrap" id="view"><p class="loading">Loading the calendar…</p></main>
+<div class="wrap" id="today"><p class="loading">Loading today’s 2FA Login…</p></div>
+<main class="wrap" id="view" hidden><p class="loading">Loading the calendar…</p></main>
 <script>
 // If the app script fails to load (for example a half-updated cache), say so instead of loading forever.
 setTimeout(function () {

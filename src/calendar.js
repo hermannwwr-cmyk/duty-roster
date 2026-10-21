@@ -106,7 +106,10 @@ function render(data) {
 async function renderToday() {
   const t = todaySG();
   const data = await store.loadPublic(t, addDays(t, 21));
-  if (!data) return;
+  if (!data) {
+    document.getElementById('today').innerHTML = '<section class="panel"><h2>The public calendar is switched off</h2><p class="muted">Sign in to see the duty roster, or ask an admin to switch the public calendar on.</p></section>';
+    return;
+  }
   const td = data.days.find(d => d.date === t);
   const day = data.days.find(d => d.kind === 'work');
   const fmt = iso => fromISO(iso).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -125,6 +128,20 @@ async function renderToday() {
   }
   document.getElementById('today').innerHTML = `<section class="panel" aria-labelledby="today-h"><h2 id="today-h">2FA Login · ${fmt(t)}</h2>${body}${share}</section>`;
 }
+
+/* Two tabs: today's 2FA Login card and the month calendar. The address remembers which (#calendar). */
+function setTab(tab) {
+  document.getElementById('today').hidden = tab !== 'today';
+  view.hidden = tab !== 'calendar';
+  document.querySelectorAll('[data-tab]').forEach(b => {
+    if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
+}
+document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
+  history.replaceState(null, '', b.dataset.tab === 'calendar' ? '#calendar' : location.pathname + location.search);
+  setTab(b.dataset.tab);
+});
+setTab(location.hash === '#calendar' ? 'calendar' : 'today');
 
 try {
   store = await createStore();
