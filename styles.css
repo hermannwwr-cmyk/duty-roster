@@ -162,7 +162,7 @@ h2[tabindex="-1"]:focus { outline: none; }
 .wa-icon { flex: none; width: 1.4em; height: 1.4em; }
 .btn.wa:hover { background: #15803d; }
 /* A soft green glow that breathes, so the button draws the eye. Steady for people who turn off animations. */
-.btn.wa { animation: wa-glow 2.4s ease-in-out infinite; }
+.btn.wa { animation: wa-glow 1.2s ease-in-out infinite; }
 @keyframes wa-glow {
   0%, 100% { box-shadow: 0 0 10px #22c55e59, 0 0 22px #22c55e26; }
   50% { box-shadow: 0 0 18px #22c55ebf, 0 0 42px #22c55e73, 0 0 64px #22c55e33; }
