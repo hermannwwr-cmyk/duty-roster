@@ -116,14 +116,14 @@ async function renderToday() {
   if (td && td.kind === 'work') body = list(td);
   else {
     const why = !td ? '' : td.kind === 'holiday' ? 'Public holiday: ' + esc(td.holiday) + '.' : td.kind === 'weekend' ? 'It’s the weekend.' : 'The rotation hasn’t started yet.';
-    body = (why ? `<p class="muted">${why}</p>` : '') + (day ? `<p class="summary-next">Next duty day · ${fmt(day.date)}</p>` + list(day) : '');
+    body = `<p class="muted">No duty today.${why ? ' ' + why : ''}</p>` + (day ? `<p class="summary-next">Next duty day · ${fmt(day.date)}</p>` + list(day) : '');
   }
   let share = '';
   if (day) {
     const text = rosterMessage(day, location.href.split('#')[0].split('?')[0]);
     share = `<div class="share"><a class="btn wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">Request for OTP on WhatsApp</a></div>`;
   }
-  document.getElementById('today').innerHTML = `<section class="panel" aria-labelledby="today-h"><h2 id="today-h">${td && td.kind === 'work' ? 'On duty today' : 'No duty today'} · ${fmt(t)}</h2>${body}${share}</section>`;
+  document.getElementById('today').innerHTML = `<section class="panel" aria-labelledby="today-h"><h2 id="today-h">2FA Login · ${fmt(t)}</h2>${body}${share}</section>`;
 }
 
 try {
