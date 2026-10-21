@@ -10,10 +10,7 @@ import { faceSvg } from './faces.js';
 const view = document.getElementById('view');
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const shortRole = r => r === 'Primary' ? 'P' : 'S' + r.split(' ')[1];
-const longDate = iso => fromISO(iso).toLocaleDateString('en-SG', { day: 'numeric', month: 'long', year: 'numeric' });
-const HL_KEY = 'duty-calendar-highlight';
-const state = { month: todaySG().slice(0, 7), highlight: '' };
-try { state.highlight = localStorage.getItem(HL_KEY) || ''; } catch (e) { /* storage blocked: no remembered highlight */ }
+const state = { month: todaySG().slice(0, 7) };
 
 const cache = {};
 let store;
@@ -46,9 +43,6 @@ async function show(month) {
 function render(data) {
   const g = gridFor(state.month);
   const byDate = Object.fromEntries(data.days.map(d => [d.date, d]));
-  const people = data.people;
-  if (state.highlight && !people.includes(state.highlight)) state.highlight = '';
-  const hl = state.highlight;
   const t = todaySG();
   const monthName = fromISO(g.first).toLocaleDateString('en-SG', { month: 'long', year: 'numeric' });
 
@@ -62,14 +56,15 @@ function render(data) {
     const label = `<span class="num"><span class="dow-inline">${dt.toLocaleDateString('en-SG', { weekday: 'short' })} </span>${dt.getDate()}</span>`;
     let body = '';
     if (kind === 'holiday') body = `<span class="hol">${esc(d.holiday)}</span>`;
-    else if (kind === 'work') body = '<ol class="duty">' + d.duties.map(x => `<li data-name="${esc(x.name)}" class="${x.role === 'Primary' ? 'p' : ''}${hl && x.name === hl ? ' hl' : ''}"><span class="r">${shortRole(x.role)}</span><span class="n" title="${esc(x.name)}"><span class="full">${esc(x.name)}</span><span class="first">${esc(x.name.trim().split(/\s+/)[0])}</span></span></li>`).join('') + '</ol>';
+    else if (kind === 'work') body = '<ol class="duty">' + d.duties.map(x => `<li class="${x.role === 'Primary' ? 'p' : ''}"><span class="r">${shortRole(x.role)}</span><span class="n" title="${esc(x.name)}"><span class="full">${esc(x.name)}</span><span class="first">${esc(x.name.trim().split(/\s+/)[0])}</span></span></li>`).join('') + '</ol>';
     cells.push(`<div class="${cls}">${label}${body}</div>`);
   }
 
-  const notes = [];
-  if (data.rota_start > g.first && data.rota_start <= g.end) notes.push('The rotation starts on ' + longDate(data.rota_start) + '.');
-  else if (data.rota_start > g.end) notes.push('The rotation starts on ' + longDate(data.rota_start) + '.');
-  if (data.from > g.start || data.to < g.end) notes.push('The public calendar shows ' + longDate(data.from) + ' to ' + longDate(data.to) + ' from this view. Sign in to see further ahead.');
+  // The legend lists only what this month shows: as many roles as its busiest day, and holidays if any.
+  const monthDays = data.days.filter(d => d.date.slice(0, 7) === state.month);
+  const roles = Math.max(0, ...monthDays.filter(d => d.kind === 'work').map(d => d.duties.length));
+  const legend = Array.from({ length: roles }, (_, i) => `<li><span class="r${i ? '' : ' p'}">${i ? 'S' + i : 'P'}</span>${i ? 'Secondary ' + i : 'Primary'}</li>`)
+    .concat(monthDays.some(d => d.kind === 'holiday') ? ['<li><span class="swatch"></span>Public holiday</li>'] : []).join('');
 
   view.innerHTML = `
   <section class="panel">
@@ -80,11 +75,8 @@ function render(data) {
         <button class="btn small" id="next" aria-label="Next month">▶</button>
         <button class="btn small" id="this">This month</button>
       </div>
-      <label class="field inline">Highlight
-        <select id="hl"><option value="">Nobody</option>${people.map(n => `<option value="${esc(n)}"${n === hl ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select>
-      </label>
     </div>
-    <p class="muted">Daily duty for working days. P is Primary, S1 is Secondary 1, and so on. Weekends and public holidays have no duty.${notes.length ? ' ' + notes.join(' ') : ''}</p>
+    ${legend ? `<ul class="legend" aria-label="Legend">${legend}</ul>` : ''}
     <div class="cal">
       ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map(d => `<div class="dow">${d}</div>`).join('')}
       ${cells.join('')}
@@ -97,12 +89,6 @@ function render(data) {
   document.getElementById('prev').onclick = () => go(toISO(new Date(y, m - 2, 1, 12)).slice(0, 7), 'prev');
   document.getElementById('next').onclick = () => go(toISO(new Date(y, m, 1, 12)).slice(0, 7), 'next');
   document.getElementById('this').onclick = () => go(t.slice(0, 7), 'this');
-  // Highlighting only restyles the names, so the menu keeps focus while you arrow through it.
-  document.getElementById('hl').onchange = e => {
-    state.highlight = e.target.value;
-    try { localStorage.setItem(HL_KEY, state.highlight); } catch (err) { /* not remembered */ }
-    view.querySelectorAll('.duty li').forEach(li => li.classList.toggle('hl', !!state.highlight && li.dataset.name === state.highlight));
-  };
 }
 
 /** Today's duty at the top of the page, with a one-tap WhatsApp share. On a weekend or holiday, the next working day. */
