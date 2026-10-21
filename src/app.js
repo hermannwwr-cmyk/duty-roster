@@ -212,8 +212,7 @@ function renderView() {
 }
 
 /* ---------- Roster ---------- */
-// Colours are shared out across everyone on the rotation, the same way as on the public page.
-const avatar = name => `<span class="av" style="--av:${avatarColor(name, state.data.profiles.filter(onRota).map(p => p.display_name))}" aria-hidden="true">${esc(initials(name))}</span>`;
+const avatar = name => `<span class="av" style="--av:${avatarColor(name)}" aria-hidden="true">${esc(initials(name))}</span>`;
 /** Who holds each role on one working day, as a list: Primary, Secondary 1… then anyone on leave. */
 function summary(day, meId) {
   const row = (cls, role, m) => `<div class="${cls}${m.id === meId ? ' me' : ''}"><dt>${role}</dt><dd>${avatar(m.name)}${esc(m.name)}${m.id === meId ? ' (you)' : ''}</dd></div>`;

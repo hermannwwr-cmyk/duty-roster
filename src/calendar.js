@@ -61,7 +61,7 @@ function render(data) {
     const label = `<span class="num"><span class="dow-inline">${dt.toLocaleDateString('en-SG', { weekday: 'short' })} </span>${dt.getDate()}</span>`;
     let body = '';
     if (kind === 'holiday') body = `<span class="hol">${esc(d.holiday)}</span>`;
-    else if (kind === 'work') body = '<ol class="duty">' + d.duties.map(x => `<li data-name="${esc(x.name)}" class="${x.role === 'Primary' ? 'p' : ''}${hl && x.name === hl ? ' hl' : ''}"><span class="r">${shortRole(x.role)}</span><span class="av mini" style="--av:${avatarColor(x.name, data.people)}" title="${esc(x.name)}" aria-hidden="true">${esc(initials(x.name))}</span><span class="n">${esc(x.name)}</span></li>`).join('') + '</ol>';
+    else if (kind === 'work') body = '<ol class="duty">' + d.duties.map(x => `<li data-name="${esc(x.name)}" class="${x.role === 'Primary' ? 'p' : ''}${hl && x.name === hl ? ' hl' : ''}"><span class="r">${shortRole(x.role)}</span><span class="n" title="${esc(x.name)}"><span class="full">${esc(x.name)}</span><span class="first">${esc(x.name.trim().split(/\s+/)[0])}</span></span></li>`).join('') + '</ol>';
     cells.push(`<div class="${cls}">${label}${body}</div>`);
   }
 
@@ -115,7 +115,7 @@ async function renderToday() {
   const td = data.days.find(d => d.date === t);
   const day = data.days.find(d => d.kind === 'work');
   const fmt = iso => fromISO(iso).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' });
-  const list = d => `<dl class="summary">${d.duties.map(x => `<div class="${x.role === 'Primary' ? 'p' : ''}"><dt>${esc(x.role)}</dt><dd><span class="av" style="--av:${avatarColor(x.name, data.people)}" aria-hidden="true">${esc(initials(x.name))}</span>${esc(x.name)}</dd></div>`).join('')}</dl>`
+  const list = d => `<dl class="summary">${d.duties.map(x => `<div class="${x.role === 'Primary' ? 'p' : ''}"><dt>${esc(x.role)}</dt><dd><span class="av" style="--av:${avatarColor(x.name)}" aria-hidden="true">${esc(initials(x.name))}</span>${esc(x.name)}</dd></div>`).join('')}</dl>`
     + (d.duties.length ? '' : '<p class="muted">No one is available for duty.</p>');
   let body;
   if (td && td.kind === 'work') body = list(td);

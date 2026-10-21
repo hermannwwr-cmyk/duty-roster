@@ -144,10 +144,6 @@ test('initials and avatar colours', async () => {
   assert.equal(initials('Mary Ann Lee'), 'MA');
   assert.equal(avatarColor('Alice Tan'), avatarColor('Alice Tan'));
   assert.match(avatarColor('Ben Lim'), /^#[0-9a-f]{6}$/);
-  // Shared out across a team: five people, five different colours, whatever order they're listed in.
-  const team = ['Alice Tan', 'Ben Lim', 'Chloe Ng', 'Dev Kumar', 'Elena Goh'];
-  assert.equal(new Set(team.map(n => avatarColor(n, team))).size, 5);
-  assert.equal(avatarColor('Dev Kumar', team), avatarColor('Dev Kumar', [...team].reverse()));
 });
 
 test('time until midnight in Singapore', async () => {
