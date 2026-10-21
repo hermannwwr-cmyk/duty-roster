@@ -194,6 +194,12 @@ function renderView() {
 }
 
 /* ---------- Roster ---------- */
+/** Who holds each role on one working day, as a list: Primary, Secondary 1… then anyone on leave. */
+function summary(day, meId) {
+  const row = (cls, role, m) => `<div class="${cls}${m.id === meId ? ' me' : ''}"><dt>${role}</dt><dd>${esc(m.name)}${m.id === meId ? ' (you)' : ''}</dd></div>`;
+  return `<dl class="summary">${day.duties.map(d => row(d.role === 'Primary' ? 'p' : '', esc(d.role), d.member)).join('')}${day.onLeave.map(m => row('away', 'On leave', m)).join('')}</dl>`
+    + (day.duties.length ? '' : '<p class="muted">No one is available for duty.</p>');
+}
 function chip(duty, meId) {
   const me = duty.member.id === meId;
   return `<span class="chip${duty.role === 'Primary' ? ' p' : ''}${me ? ' me' : ''}"><span class="r">${shortRole(duty.role)}</span>${esc(duty.member.name)}</span>`;
@@ -204,18 +210,19 @@ function renderRoster() {
   const view = document.getElementById('view');
   const t = today();
   const [td] = scheduleFor(t, t);
-  let mineToday, todayChips;
+  // The next working day's roster (today if it's a working day): summarised here and shared on WhatsApp.
+  const shareDay = scheduleFor(t, addDays(t, 21)).find(d => d.kind === 'work');
+  let mineToday, todaySummary;
   if (td.kind === 'work') {
     const mine = td.duties.find(d => d.member.id === me.id);
     mineToday = mine ? mine.role : td.onLeave.some(m => m.id === me.id) ? 'On leave' : 'No duty';
-    todayChips = `<div class="chips">${td.duties.map(d => chip(d, me.id)).join('')}${td.onLeave.map(m => `<span class="chip away"><span class="r">LEAVE</span>${esc(m.name)}</span>`).join('')}</div>`;
+    todaySummary = summary(td, me.id);
   } else {
     mineToday = 'No duty';
-    todayChips = `<p class="muted">${td.kind === 'holiday' ? 'Public holiday: ' + esc(td.holiday) : td.kind === 'weekend' ? 'It’s the weekend.' : 'The rotation starts on ' + fmtDay(settings.rota_start) + '.'}</p>`;
+    todaySummary = `<p class="muted">${td.kind === 'holiday' ? 'Public holiday: ' + esc(td.holiday) + '.' : td.kind === 'weekend' ? 'It’s the weekend.' : 'The rotation starts on ' + fmtDay(settings.rota_start) + '.'}</p>`
+      + (shareDay ? `<p class="summary-next">Next duty day · ${fmtDay(shareDay.date)}</p>` + summary(shareDay, me.id) : '');
   }
 
-  // Share the next working day's roster (today if it's a working day) on WhatsApp in one tap.
-  const shareDay = scheduleFor(t, addDays(t, 21)).find(d => d.kind === 'work');
   let shareHtml = '';
   if (shareDay) {
     const text = rosterMessage({ date: shareDay.date, duties: shareDay.duties.map(d => ({ role: d.role, name: d.member.name })) },
@@ -235,7 +242,7 @@ function renderRoster() {
   view.innerHTML = `
   <section class="panel today" aria-label="Today">
     <div class="mine"><span class="label">Your duty today · ${fmtDay(t)}</span><span class="role">${esc(mineToday)}</span></div>
-    <div>${todayChips}</div>
+    <div>${todaySummary}</div>
     ${shareHtml}
   </section>
   <section class="panel">

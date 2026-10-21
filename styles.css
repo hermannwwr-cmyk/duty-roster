@@ -158,3 +158,18 @@ h2[tabindex="-1"]:focus { outline: none; }
 .today .share { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .5rem; }
 .btn.wa { background: #1f8f4e; border-color: #1f8f4e; color: #ffffff; }
 .btn.wa:hover { background: #18733f; }
+
+/* Today's summary: one row per role */
+.summary { display: grid; margin: 0; border-top: 1px solid var(--line); }
+.summary > div { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: .75rem; padding: .4rem 0; border-bottom: 1px solid var(--line); }
+.summary dt { font: 500 .8rem var(--mono); color: var(--soft); align-self: center; }
+.summary dd { margin: 0; overflow-wrap: anywhere; }
+.summary .p dt { color: var(--primary); }
+.summary .p dd { font-weight: 700; }
+.summary .away dt, .summary .away dd { color: var(--leave); }
+.summary .me dd { font-weight: 700; }
+.summary-next { margin: .6rem 0 .3rem; font-size: .8rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--soft); }
+#today { margin-top: 1.2rem; }
+#today .panel { gap: .6rem; }
+#today h2 { margin: 0; }
+#today .share { display: flex; flex-wrap: wrap; gap: .5rem; }

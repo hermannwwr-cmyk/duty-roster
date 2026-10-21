@@ -102,25 +102,35 @@ function render(data) {
   };
 }
 
-/** Adds a one-tap "Share on WhatsApp" button for the next working day's roster to the header. */
-async function addShareButton() {
+/** Today's duty at the top of the page, with a one-tap WhatsApp share. On a weekend or holiday, the next working day. */
+async function renderToday() {
   const t = todaySG();
   const data = await store.loadPublic(t, addDays(t, 21));
-  const day = data && data.days.find(d => d.kind === 'work');
-  if (!day) return;
-  const text = rosterMessage(day, location.href.split('#')[0].split('?')[0]);
-  const label = day.date === t ? 'today’s' : fromISO(day.date).toLocaleDateString('en-SG', { weekday: 'long' }) + '’s';
-  const a = document.createElement('a');
-  a.className = 'btn small wa'; a.href = whatsappLink(text); a.target = '_blank'; a.rel = 'noopener';
-  a.textContent = 'Share ' + label + ' roster on WhatsApp';
-  const signIn = document.querySelector('.cal-top a');
-  signIn.parentNode.insertBefore(a, signIn);
+  if (!data) return;
+  const td = data.days.find(d => d.date === t);
+  const day = data.days.find(d => d.kind === 'work');
+  const fmt = iso => fromISO(iso).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' });
+  const list = d => `<dl class="summary">${d.duties.map(x => `<div class="${x.role === 'Primary' ? 'p' : ''}"><dt>${esc(x.role)}</dt><dd>${esc(x.name)}</dd></div>`).join('')}</dl>`
+    + (d.duties.length ? '' : '<p class="muted">No one is available for duty.</p>');
+  let body;
+  if (td && td.kind === 'work') body = list(td);
+  else {
+    const why = !td ? '' : td.kind === 'holiday' ? 'Public holiday: ' + esc(td.holiday) + '.' : td.kind === 'weekend' ? 'It’s the weekend.' : 'The rotation hasn’t started yet.';
+    body = (why ? `<p class="muted">${why}</p>` : '') + (day ? `<p class="summary-next">Next duty day · ${fmt(day.date)}</p>` + list(day) : '');
+  }
+  let share = '';
+  if (day) {
+    const text = rosterMessage(day, location.href.split('#')[0].split('?')[0]);
+    const label = day.date === t ? 'today’s' : fromISO(day.date).toLocaleDateString('en-SG', { weekday: 'long' }) + '’s';
+    share = `<div class="share"><a class="btn wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">Share ${label} roster on WhatsApp</a></div>`;
+  }
+  document.getElementById('today').innerHTML = `<section class="panel" aria-labelledby="today-h"><h2 id="today-h">${td && td.kind === 'work' ? 'On duty today' : 'No duty today'} · ${fmt(t)}</h2>${body}${share}</section>`;
 }
 
 try {
   store = await createStore();
   await show(state.month);
-  addShareButton().catch(() => { /* sharing is optional */ });
+  renderToday().catch(() => { /* the month calendar below still shows today */ });
 } catch (e) {
   showError(e);
 }
