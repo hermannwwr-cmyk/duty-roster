@@ -43,6 +43,10 @@ Keep **Confirm email** turned on under **Authentication > Providers > Email**, s
 2. In the repository open **Settings > Pages**, set **Source** to *Deploy from a branch*, choose `main` and `/ (root)`, and save.
 3. The app is live at `https://<your-github-name>.github.io/<repo-name>/` within a minute or two.
 
+## Publishing updates
+
+Before each commit that changes the site, run `npm run stamp`. It gives every script and stylesheet a new version in its URL, so phones fetch the new files instead of mixing old cached ones with new ones.
+
 ## Run it on your computer
 
 ```bash

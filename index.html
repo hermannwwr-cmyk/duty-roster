@@ -6,7 +6,23 @@
 <title>Duty Roster</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap">
-<link rel="stylesheet" href="styles.css">
+<!-- version:start -->
+<script type="importmap">
+{
+  "imports": {
+    "./config.js": "./config.js?v=202610210150",
+    "./src/app.js": "./src/app.js?v=202610210150",
+    "./src/calendar.js": "./src/calendar.js?v=202610210150",
+    "./src/connect.js": "./src/connect.js?v=202610210150",
+    "./src/holidays-sg.js": "./src/holidays-sg.js?v=202610210150",
+    "./src/schedule.js": "./src/schedule.js?v=202610210150",
+    "./src/store.js": "./src/store.js?v=202610210150"
+  }
+}
+</script>
+<link rel="stylesheet" href="styles.css?v=202610210150">
+<script type="module" src="src/app.js?v=202610210150"></script>
+<!-- version:end -->
 </head>
 <body>
 <div id="root"><p class="loading">Loading the roster…</p></div>
@@ -19,6 +35,5 @@ setTimeout(function () {
   if (el) el.innerHTML = "This is taking too long. <button class=\"btn small\" onclick=\"location.reload()\">Reload the page</button> If it keeps happening, press Ctrl+F5.";
 }, 12000);
 </script>
-<script type="module" src="src/app.js"></script>
 </body>
 </html>
