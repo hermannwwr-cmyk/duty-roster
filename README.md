@@ -39,6 +39,14 @@ The anon key is safe to publish. The database's security rules:
 
 Keep **Confirm email** turned on under **Authentication > Providers > Email**, so people can only sign up with an address they control.
 
+## Daily 9am email (optional)
+
+Anyone can ask for the 2FA Login summary by email from the public calendar page. An admin approves each address under **Team & settings > Daily 9am email**. Approved addresses get the day's roles at 9am Singapore time on working days, with an unsubscribe link in every email. Emails are sent from Supabase through [Resend](https://resend.com), which is free for up to 100 emails a day.
+
+1. Create a Resend account. Under **Domains**, add and verify a domain you own; until you do, Resend only delivers to your own address. Under **API Keys**, create a key.
+2. In Supabase, run `supabase/009_daily_email.sql` in the **SQL Editor**.
+3. Run the three statements at the end of that file, with your API key, your sender address and the app's address filled in. The last one sends today's email straight away, so you can check it arrives.
+
 ## Put it online with GitHub Pages
 
 1. Push this folder to a GitHub repository.

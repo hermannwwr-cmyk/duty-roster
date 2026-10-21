@@ -65,11 +65,23 @@ export class SupabaseStore {
     const noteOf = Object.fromEntries(notes.map(n => [n.id, n.note]));
     profiles.forEach(p => { p.email = emailOf[p.id] || null; });
     leaves.forEach(l => { l.note = noteOf[l.id] || null; });
-    return { me: profiles.find(p => p.id === uid) || null, profiles, leaves, holidays, settings, checkpoints };
+    const me = profiles.find(p => p.id === uid) || null;
+    // Email subscriptions are for admins. Null when supabase/009_daily_email.sql hasn't been run.
+    let subscriptions = null;
+    if (me && me.is_admin) {
+      const { data, error } = await this.sb.from('email_subscriptions').select('id, email, approved, created_at').order('created_at');
+      if (!error) subscriptions = data;
+    }
+    return { me, profiles, leaves, holidays, settings, checkpoints, subscriptions };
   }
   /** The public calendar for a date range: names and roles only. Works without signing in. Null when switched off. */
   async loadPublic(from, to) { return check(await this.sb.rpc('public_calendar', { p_from: from, p_to: to })); }
   async deleteProfile(id) { changed(await this.sb.from('profiles').delete().eq('id', id).select('id')); }
+  /** Daily 9am email (supabase/009_daily_email.sql): anyone can ask, an admin approves. */
+  async requestEmail(email) { check(await this.sb.rpc('request_email_subscription', { p_email: email })); }
+  async unsubscribeEmail(token) { return check(await this.sb.rpc('unsubscribe_email', { p_token: token })); }
+  async approveEmail(id) { changed(await this.sb.from('email_subscriptions').update({ approved: true }).eq('id', id).select('id')); }
+  async deleteEmail(id) { changed(await this.sb.from('email_subscriptions').delete().eq('id', id).select('id')); }
   async addLeave(row) { check(await this.sb.from('leaves').insert(row)); }
   async deleteLeave(id) { changed(await this.sb.from('leaves').delete().eq('id', id).select('id')); }
   async updateProfile(id, patch) {
@@ -148,7 +160,8 @@ export class DemoStore {
     return { me: profiles.find(p => p.id === this.db.session) || null, profiles,
       leaves: clone(this.db.leaves).sort((a, b) => a.start_date.localeCompare(b.start_date)),
       holidays: clone(this.db.holidays).sort((a, b) => a.date.localeCompare(b.date)), settings: clone(this.db.settings),
-      checkpoints: clone(this.checkpoints()) };
+      checkpoints: clone(this.checkpoints()),
+      subscriptions: this.me() && this.me().is_admin ? clone(this.db.subscriptions || []) : null };
   }
   async loadPublic(from, to) {
     const s = this.db.settings;
@@ -168,6 +181,29 @@ export class DemoStore {
     this.write();
   }
   me() { return this.db.profiles.find(p => p.id === this.db.session); }
+  // Demo mode keeps requests but never sends email.
+  async requestEmail(email) {
+    const e = String(email).trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) throw new Error('Please enter a valid email address.');
+    const subs = this.db.subscriptions = this.db.subscriptions || [];
+    if (!subs.some(x => x.email === e)) subs.push({ id: this.db.nextId++, email: e, approved: false, created_at: new Date().toISOString(), token: 'demo-' + Date.now() });
+    this.write();
+  }
+  async unsubscribeEmail(token) {
+    const before = (this.db.subscriptions || []).length;
+    this.db.subscriptions = (this.db.subscriptions || []).filter(x => x.token !== token); this.write();
+    return this.db.subscriptions.length < before;
+  }
+  async approveEmail(id) {
+    this.requireAdmin('approve email requests');
+    const x = (this.db.subscriptions || []).find(y => y.id === id);
+    if (!x) throw new Error('That request was already removed.');
+    x.approved = true; this.write();
+  }
+  async deleteEmail(id) {
+    this.requireAdmin('remove email addresses');
+    this.db.subscriptions = (this.db.subscriptions || []).filter(y => y.id !== id); this.write();
+  }
   /** Demo data saved before checkpoints existed gets one, built from the current rotation. */
   checkpoints() {
     if (!this.db.checkpoints) {
