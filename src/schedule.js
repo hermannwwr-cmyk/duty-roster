@@ -188,10 +188,17 @@ export function initials(name) {
   return String(name).trim().split(/\s+/).filter(Boolean).slice(0, 2).map(w => [...w][0]).join('').toUpperCase();
 }
 
-// Dark enough for white initials (at least 4.5:1).
-const AVATAR_COLORS = ['#be123c', '#b45309', '#047857', '#1d4ed8', '#6d28d9', '#be185d', '#0f766e', '#c2410c'];
-/** The same colour for the same name every time, so people are easy to spot. */
-export function avatarColor(name) {
+// Twelve clearly different colours, each dark enough for white initials (at least 4.5:1).
+const AVATAR_COLORS = ['#be123c', '#1d4ed8', '#047857', '#6d28d9', '#b45309', '#0f766e', '#be185d', '#4338ca', '#4d7c0f', '#a21caf', '#0369a1', '#c2410c'];
+/**
+ * A colour for someone's initials circle. With the team's names, colours go out in alphabetical
+ * order, so nobody shares a colour until there are more than twelve people; every page that passes
+ * the same team gives each person the same colour. Without a team, the colour comes from the name.
+ */
+export function avatarColor(name, team = []) {
+  const names = [...new Set(team)].sort((a, b) => a.localeCompare(b));
+  const i = names.indexOf(name);
+  if (i >= 0) return AVATAR_COLORS[i % AVATAR_COLORS.length];
   let h = 0;
   for (const c of String(name)) h = (h * 31 + c.codePointAt(0)) >>> 0;
   return AVATAR_COLORS[h % AVATAR_COLORS.length];

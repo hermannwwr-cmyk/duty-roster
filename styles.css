@@ -136,7 +136,7 @@ label.field.inline { display: flex; align-items: center; gap: .5rem; }
 .duty li.p .r { color: var(--primary); }
 .duty li.hl { background: var(--accent); color: var(--accent-ink); border-radius: 4px; padding: 0 .25rem; font-weight: 700; }
 .duty li.hl .r { color: inherit; }
-.duty .n .first { display: none; }
+.duty .av.mini { display: none; }
 /* On phones the five weekdays fit across the screen: small type, tight cells, long names end in "…". */
 @media (max-width: 760px) {
   #view .panel { padding-inline: .7rem; }
@@ -149,9 +149,12 @@ label.field.inline { display: flex; align-items: center; gap: .5rem; }
   .duty { font-size: .68rem; line-height: 1.25; gap: .05rem; }
   .duty li { gap: .2rem; overflow-wrap: normal; }
   .duty li .r { min-width: 0; font-size: .58rem; padding-top: .08rem; }
-  .duty li .n { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-  .duty .n .full { display: none; }
-  .duty .n .first { display: inline; }
+  /* Initials circles instead of names; the name stays for screen readers. */
+  .duty li { align-items: center; }
+  .duty .av.mini { display: grid; width: 1.45rem; height: 1.45rem; font-size: .55rem; letter-spacing: 0; }
+  .duty li.p .av.mini { box-shadow: 0 0 0 2px var(--primary); }
+  .duty li .n { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .duty li.hl .av.mini { box-shadow: 0 0 0 2px #ffffff; }
 }
 
 /* Text only for screen readers (announcements) */
