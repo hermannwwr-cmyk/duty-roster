@@ -173,3 +173,14 @@ h2[tabindex="-1"]:focus { outline: none; }
 #today .panel { gap: .6rem; }
 #today h2 { margin: 0; }
 #today .share { display: flex; flex-wrap: wrap; gap: .5rem; }
+
+/* The 2FA Login card stands out: coloured frame, the Primary in large type, a big share button. */
+.panel.today, #today .panel { border: 2px solid var(--primary); box-shadow: 0 8px 24px rgb(24 33 43 / .08); }
+#today h2 { font-size: 1.45rem; }
+.summary { border-top: 0; }
+.summary .p { grid-template-columns: minmax(0, 1fr); gap: .1rem; margin-bottom: .35rem; padding: .75rem .95rem; border: 0; border-radius: 8px; background: var(--primary-soft); }
+.summary .p dt { font: 700 .75rem var(--sans); letter-spacing: .08em; text-transform: uppercase; }
+.summary .p dd { font-size: 1.65rem; line-height: 1.15; }
+.today .btn.wa, #today .btn.wa { padding: .7rem 1.3rem; font-size: 1.05rem; }
+@media (max-width: 640px) { .today .btn.wa, #today .btn.wa { flex: 1 1 100%; text-align: center; } }
+.today { align-items: start; }
