@@ -9,7 +9,7 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&a
 const shortRole = r => r === 'Primary' ? 'P' : 'S' + r.split(' ')[1];
 const longDate = iso => fromISO(iso).toLocaleDateString('en-SG', { day: 'numeric', month: 'long', year: 'numeric' });
 const HL_KEY = 'duty-calendar-highlight';
-const state = { month: todaySG().slice(0, 7), highlight: '' };
+const state = { month: todaySG().slice(0, 7), highlight: '', feedFor: '' };
 try { state.highlight = localStorage.getItem(HL_KEY) || ''; } catch (e) { /* storage blocked: no remembered highlight */ }
 
 const cache = {};
@@ -86,7 +86,20 @@ function render(data) {
       ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => `<div class="dow">${d}</div>`).join('')}
       ${cells.join('')}
     </div>
+  </section>
+  <section class="panel" id="subscribe">
+    <h2>Duties in your phone calendar</h2>
+    <p class="muted">No account needed. Pick your name and subscribe once: your duty days appear in Google Calendar, Apple Calendar, Samsung Calendar or Outlook as all-day events, and update by themselves when the roster changes (Google can take up to a day; iPhone checks every few hours).</p>
+    <div class="form">
+      <label class="field">Whose duties
+        <select id="feed-for"><option value="">Everyone</option>${people.map(n => `<option value="${esc(n)}"${n === state.feedFor ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select>
+      </label>
+    </div>
+    <div class="share" id="feed"></div>
   </section>`;
+  if (state.feedFor && !people.includes(state.feedFor)) state.feedFor = '';
+  renderFeed();
+  document.getElementById('feed-for').onchange = e => { state.feedFor = e.target.value; renderFeed(); };
 
   // Changing month redraws the page; put focus back on the button that was pressed (issue #12).
   const go = (month, id) => show(month).then(() => { const b = document.getElementById(id); if (b) b.focus({ preventScroll: true }); }).catch(showError);
@@ -100,6 +113,28 @@ function render(data) {
     try { localStorage.setItem(HL_KEY, state.highlight); } catch (err) { /* not remembered */ }
     view.querySelectorAll('.duty li').forEach(li => li.classList.toggle('hl', !!state.highlight && li.dataset.name === state.highlight));
   };
+}
+
+/** The subscribe buttons for the chosen person, or for everyone. */
+function renderFeed() {
+  const box = document.getElementById('feed');
+  const url = store.publicFeedUrl(state.feedFor);
+  if (!url) { box.innerHTML = '<p class="muted">Phone calendar links work once the app is connected to Supabase.</p>'; return; }
+  const webcal = url.replace(/^https:/, 'webcal:');
+  box.innerHTML = `<a class="btn primary" href="${esc('https://calendar.google.com/calendar/render?cid=' + encodeURIComponent(webcal))}" target="_blank" rel="noopener">Google Calendar</a>
+    <a class="btn primary" href="${esc(webcal)}">iPhone / Apple Calendar</a>
+    <button class="btn" type="button" id="feed-copy">Copy link (Samsung, Outlook)</button>
+    <p class="muted" style="flex-basis:100%">${state.feedFor ? 'If your name changes on the roster, subscribe again with your new name.' : 'Each working day shows everyone’s roles.'}</p>`;
+  document.getElementById('feed-copy').onclick = () => navigator.clipboard.writeText(url).then(
+    () => toast('Link copied. In your calendar app, choose Add calendar > From URL and paste it.'),
+    () => toast('Couldn’t copy. Long-press the Google or iPhone button to copy its link instead.'));
+}
+
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.hidden = false; clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 3500);
 }
 
 /** Adds a one-tap "Share on WhatsApp" button for the next working day's roster to the header. */

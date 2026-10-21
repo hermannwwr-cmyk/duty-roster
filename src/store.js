@@ -75,6 +75,10 @@ export class SupabaseStore {
   async calendarFeed() { return this.feedUrl(check(await this.sb.rpc('my_calendar_token'))); }
   /** Makes a new link; the old one stops working. */
   async resetCalendarFeed() { return this.feedUrl(check(await this.sb.rpc('reset_calendar_token'))); }
+  /** A calendar subscription link anyone can use, for one person's duties or everyone's (supabase/007_public_feed.sql). */
+  publicFeedUrl(person) {
+    return this.url + '/rest/v1/rpc/public_duty_calendar?' + (person ? 'person=' + encodeURIComponent(person) + '&' : '') + 'apikey=' + this.key;
+  }
   feedUrl(token) {
     if (!token) throw new Error('No calendar link yet. Ask an admin to run supabase/005_calendar_feed.sql.');
     return this.url + '/rest/v1/rpc/duty_calendar?token=' + token + '&apikey=' + this.key;
@@ -179,6 +183,7 @@ export class DemoStore {
   me() { return this.db.profiles.find(p => p.id === this.db.session); }
   async calendarFeed() { throw new Error('Phone calendar links work once the app is connected to Supabase.'); }
   async resetCalendarFeed() { return this.calendarFeed(); }
+  publicFeedUrl() { return null; }
   /** Demo data saved before checkpoints existed gets one, built from the current rotation. */
   checkpoints() {
     if (!this.db.checkpoints) {
