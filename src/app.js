@@ -239,8 +239,8 @@ function renderRoster() {
   const monthName = fromISO(first).toLocaleDateString('en-SG', { month: 'long', year: 'numeric' });
 
   view.innerHTML = `
-  <section class="panel today" aria-label="Today">
-    <div class="mine"><span class="label">Your duty today · ${fmtDay(t)}</span><span class="role">${esc(mineToday)}</span></div>
+  <section class="panel today" aria-label="2FA Login">
+    <div class="mine"><span class="label">2FA Login · ${fmtDay(t)} · Your role</span><span class="role">${esc(mineToday)}</span></div>
     <div>${todaySummary}</div>
     ${shareHtml}
   </section>
