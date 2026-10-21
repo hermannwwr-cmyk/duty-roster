@@ -23,7 +23,7 @@ The rules are in `src/schedule.js`, with tests in `tests/schedule.test.mjs`.
 ## Set up Supabase (about 10 minutes)
 
 1. Create a free account at [supabase.com](https://supabase.com) and a **New project**. Pick the Singapore region if it's offered.
-2. Open **SQL Editor > New query**, paste the whole of `supabase/schema.sql`, and click **Run**. This creates the tables, the security rules and the 2026–2027 Singapore public holidays. Then do the same with `supabase/003_private_data.sql`, `supabase/004_stable_history.sql`, `supabase/005_calendar_feed.sql`, `supabase/006_hardening.sql` and `supabase/007_public_feed.sql`, in that order. If your database is already set up, run just the files you haven't run yet.
+2. Open **SQL Editor > New query**, paste the whole of `supabase/schema.sql`, and click **Run**. This creates the tables, the security rules and the 2026–2027 Singapore public holidays. Then do the same with `supabase/003_private_data.sql`, `supabase/004_stable_history.sql` and `supabase/006_hardening.sql`, in that order. (A database set up with the old calendar sync, files 005 or 007, also needs `supabase/008_remove_calendar_sync.sql`.) If your database is already set up, run just the files you haven't run yet.
 3. Open **Project Settings > API** and copy the **Project URL** and the **anon public** key into `config.js`.
 4. Open **Authentication > URL Configuration** and set **Site URL** to where the app will live, for example `https://<your-github-name>.github.io/duty-roster/`. Confirmation emails link back to this address.
 5. Open the app and **create an account**. The first person to sign up becomes the admin. Everyone else then creates their own account and waits in **Team & settings > Waiting for approval** until an admin approves them and they join the rotation.
@@ -35,7 +35,6 @@ The anon key is safe to publish. The database's security rules:
 - Each person can change only their own leave and name. The order, approvals, holidays and settings are for admins.
 - Without admin access, leave can be at most 180 days at a time and up to a year ahead. Names, holiday names and notes have length limits.
 - To make someone an admin by hand, run `update public.profiles set is_admin = true, approved = true where email = '…';` in the SQL Editor.
-- Anyone can subscribe their phone calendar to one person's duties, or everyone's, from the public calendar page, with no account. These links share the same names and roles as the public calendar and go empty when it's switched off.
 - The **public calendar** (off by default for new installs) gets only each day's names and roles, for about 3 months back to 6 months ahead. It never receives leave dates, notes, emails or account IDs.
 
 Keep **Confirm email** turned on under **Authentication > Providers > Email**, so people can only sign up with an address they control.

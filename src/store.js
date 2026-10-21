@@ -19,7 +19,6 @@ const PROFILE_COLUMNS = 'id, display_name, rota_order, active, is_admin, approve
 export class SupabaseStore {
   constructor(createClient, url, key) {
     this.mode = 'supabase';
-    this.url = url; this.key = key;
     this.sb = createClient(url, key);
   }
   async userId() {
@@ -71,18 +70,6 @@ export class SupabaseStore {
   /** The public calendar for a date range: names and roles only. Works without signing in. Null when switched off. */
   async loadPublic(from, to) { return check(await this.sb.rpc('public_calendar', { p_from: from, p_to: to })); }
   async deleteProfile(id) { changed(await this.sb.from('profiles').delete().eq('id', id).select('id')); }
-  /** Your personal calendar subscription link (see supabase/005_calendar_feed.sql). */
-  async calendarFeed() { return this.feedUrl(check(await this.sb.rpc('my_calendar_token'))); }
-  /** Makes a new link; the old one stops working. */
-  async resetCalendarFeed() { return this.feedUrl(check(await this.sb.rpc('reset_calendar_token'))); }
-  /** A calendar subscription link anyone can use, for one person's duties or everyone's (supabase/007_public_feed.sql). */
-  publicFeedUrl(person) {
-    return this.url + '/rest/v1/rpc/public_duty_calendar?' + (person ? 'person=' + encodeURIComponent(person) + '&' : '') + 'apikey=' + this.key;
-  }
-  feedUrl(token) {
-    if (!token) throw new Error('No calendar link yet. Ask an admin to run supabase/005_calendar_feed.sql.');
-    return this.url + '/rest/v1/rpc/duty_calendar?token=' + token + '&apikey=' + this.key;
-  }
   async addLeave(row) { check(await this.sb.from('leaves').insert(row)); }
   async deleteLeave(id) { changed(await this.sb.from('leaves').delete().eq('id', id).select('id')); }
   async updateProfile(id, patch) {
@@ -181,9 +168,6 @@ export class DemoStore {
     this.write();
   }
   me() { return this.db.profiles.find(p => p.id === this.db.session); }
-  async calendarFeed() { throw new Error('Phone calendar links work once the app is connected to Supabase.'); }
-  async resetCalendarFeed() { return this.calendarFeed(); }
-  publicFeedUrl() { return null; }
   /** Demo data saved before checkpoints existed gets one, built from the current rotation. */
   checkpoints() {
     if (!this.db.checkpoints) {

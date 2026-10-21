@@ -1,5 +1,5 @@
 -- Duty Roster update 6: safer admin rules, limits and reordering (fixes GitHub issues #3, #5 and #9).
--- Run once in Supabase > SQL Editor, after 005_calendar_feed.sql.
+-- Run once in Supabase > SQL Editor, after 004_stable_history.sql.
 --
 -- #3: Two people signing up at the same moment can no longer both become the first admin, and
 --     changes made by the project owner in the SQL editor are no longer silently undone.

@@ -198,26 +198,6 @@ function chip(duty, meId) {
   const me = duty.member.id === meId;
   return `<span class="chip${duty.role === 'Primary' ? ' p' : ''}${me ? ' me' : ''}"><span class="r">${shortRole(duty.role)}</span>${esc(duty.member.name)}</span>`;
 }
-/* ---------- Phone calendar subscription ---------- */
-function feedButtons(url) {
-  const webcal = url.replace(/^https:/, 'webcal:');
-  return `<a class="btn primary" id="feed-google" href="${esc('https://calendar.google.com/calendar/render?cid=' + encodeURIComponent(webcal))}" target="_blank" rel="noopener">Google Calendar</a>
-    <a class="btn primary" id="feed-apple" href="${esc(webcal)}">iPhone / Apple Calendar</a>
-    <button class="btn" type="button" id="feed-copy">Copy link (Samsung, Outlook)</button>
-    <button class="btn danger" type="button" id="feed-reset">Reset link</button>
-    <p class="muted" style="flex-basis:100%">Keep this link private: anyone who has it can see your duty days. Reset it if it’s been shared.</p>`;
-}
-function wireFeedButtons() {
-  const copy = document.getElementById('feed-copy');
-  if (copy) copy.onclick = () => navigator.clipboard.writeText(state.feedUrl).then(
-    () => toast('Link copied. In your calendar app, choose Add calendar > From URL and paste it.'),
-    () => toast('Couldn’t copy. Long-press the Google or iPhone button to copy its link instead.'));
-  const reset = document.getElementById('feed-reset');
-  if (reset) reset.onclick = () => {
-    if (!window.confirm('Make a new link? Calendars using the old link stop updating, so you’ll need to subscribe again.')) return;
-    act(async () => { state.feedUrl = await store.resetCalendarFeed(); }, 'New link made. Subscribe again with the buttons below.');
-  };
-}
 
 function renderRoster() {
   const { me, settings } = state.data;
@@ -259,13 +239,6 @@ function renderRoster() {
     ${shareHtml}
   </section>
   <section class="panel">
-    <h2>My duties in my phone calendar</h2>
-    <p class="muted">Subscribe once and your duty days appear in Google Calendar, Apple Calendar, Samsung Calendar or Outlook as all-day events. Leave and rota changes update by themselves (Google can take up to a day; iPhone checks every few hours).</p>
-    <div class="share" id="feed">
-      ${state.feedUrl ? feedButtons(state.feedUrl) : '<button class="btn primary" type="button" id="feed-get">Add to my calendar</button>'}
-    </div>
-  </section>
-  <section class="panel">
     <div class="row-head">
       <h2>Roster</h2>
       <div class="month">
@@ -287,9 +260,6 @@ function renderRoster() {
         <span class="chips">${d.duties.map(x => chip(x, me.id)).join('')}${d.onLeave.map(x => `<span class="chip away"><span class="r">LEAVE</span>${esc(x.name)}</span>`).join('')}</span></div>`;
     }).join('') || '<p class="muted">No working days to show this month.</p>'}</div>
   </section>`;
-  const getFeed = document.getElementById('feed-get');
-  if (getFeed) getFeed.onclick = () => act(async () => { state.feedUrl = await store.calendarFeed(); });
-  wireFeedButtons();
   const other = document.getElementById('share-other');
   if (other) other.onclick = () => navigator.share({ text: state.shareText }).catch(() => {});
   // Changing month keeps focus on the button that was pressed.
