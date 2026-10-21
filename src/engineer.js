@@ -245,7 +245,8 @@ const SCENES = {
   evening: [evening, 'Wrapping up for the day.'],
   afterwork: [afterwork, 'Off duty, still on call.'],
   sleeping: [sleeping, 'Sleeping. Phone on loud, just in case.'],
-  weekend: [weekend, 'Weekend: lights off. The servers keep watch.']
+  weekend: [weekend, 'Weekend: lights off. The servers keep watch.'],
+  holiday: [weekend, 'Public holiday: lights off. The servers keep watch.']
 };
 
 /** The illustration and its caption for a part of the day (default: now in Singapore). */

@@ -169,5 +169,6 @@ test('the engineer scene follows the time of day in Singapore', async () => {
   assert.equal(periodAt(new Date('2026-10-25T23:30:00+08:00')), 'weekend');
   assert.equal(periodAt(new Date('2026-10-26T06:00:00+08:00')), 'morning');
   assert.equal(periodAt(new Date('2026-10-24T12:30:00+08:00'), { weekdays: false }), 'lunch');
-  for (const p of ['morning', 'lunch', 'afternoon', 'evening', 'afterwork', 'sleeping', 'weekend']) assert.match(engineerScene(p).svg, /^<svg[^>]*aria-label="[^"]+"/);
+  assert.match(engineerScene('holiday').caption, /Public holiday/);
+  for (const p of ['morning', 'lunch', 'afternoon', 'evening', 'afterwork', 'sleeping', 'weekend', 'holiday']) assert.match(engineerScene(p).svg, /^<svg[^>]*aria-label="[^"]+"/);
 });

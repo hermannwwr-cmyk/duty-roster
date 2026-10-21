@@ -129,8 +129,9 @@ async function renderToday() {
     const text = rosterMessage(day, location.href.split('#')[0].split('?')[0]);
     share = `<div class="share"><a class="btn wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">${WHATSAPP_ICON}Request for OTP on WhatsApp</a></div>`;
   }
-  // The scene follows the time of day in Singapore; ?scene=lunch (etc.) shows a particular one.
-  const scene = engineerScene(new URLSearchParams(location.search).get('scene') || undefined);
+  // The scene follows the time of day in Singapore, with the lights off on public holidays;
+  // ?scene=lunch (etc.) shows a particular one.
+  const scene = engineerScene(new URLSearchParams(location.search).get('scene') || (td && td.kind === 'holiday' ? 'holiday' : undefined));
   document.getElementById('today').innerHTML = `<div class="hero">${scene.svg}<p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div><section class="panel" aria-labelledby="today-h"><h2 id="today-h">2FA Login · ${fmt(t)}</h2>${body}${share}</section>`;
 }
 
