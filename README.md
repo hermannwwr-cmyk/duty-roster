@@ -41,11 +41,11 @@ Keep **Confirm email** turned on under **Authentication > Providers > Email**, s
 
 ## Daily 9am email (optional)
 
-Anyone can ask for the 2FA Login summary by email from the public calendar page. An admin approves each address under **Team & settings > Daily 9am email**. Approved addresses get the day's roles at 9am Singapore time on working days, with an unsubscribe link in every email. Emails are sent from Supabase through [Resend](https://resend.com), which is free for up to 100 emails a day.
+Anyone can ask for the 2FA Login summary by email from the public calendar page. An admin approves each address under **Team & settings > Daily 9am email**. Approved addresses get the day's roles at about 9am Singapore time on working days, with an unsubscribe link in every email. The emails are sent from your own Gmail by a free Google Apps Script, so no email service or domain is needed. Gmail allows 100 recipients a day.
 
-1. Create a Resend account. Under **Domains**, add and verify a domain you own; until you do, Resend only delivers to your own address. Under **API Keys**, create a key.
-2. In Supabase, run `supabase/009_daily_email.sql` in the **SQL Editor**.
-3. Run the three statements at the end of that file, with your API key, your sender address and the app's address filled in. The last one sends today's email straight away, so you can check it arrives.
+1. In Supabase, run `supabase/009_daily_email.sql` in the **SQL Editor**.
+2. Run `select script_secret from public.email_config;` and copy the result.
+3. Open `scripts/daily-email.gs` and follow the steps at the top: paste the secret in, paste the file into a new project at [script.google.com](https://script.google.com), and run `setUp`. It sends today's email once as a test and schedules it for every morning.
 
 ## Put it online with GitHub Pages
 

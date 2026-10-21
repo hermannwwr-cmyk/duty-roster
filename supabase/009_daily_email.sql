@@ -2,14 +2,9 @@
 -- Run once in Supabase > SQL Editor, after 006_hardening.sql (and 008 if you had calendar sync). Safe to run again.
 --
 -- Anyone can ask for the email from the public calendar page. An admin approves each address in
--- Team & settings before anything is sent to it. At 9am Singapore time on working days, every
--- approved address gets that day's roles, with a link to unsubscribe.
---
--- Emails go out through Resend (resend.com). Before emails can send, add your Resend API key and
--- the sender address, as shown at the end of this file.
-
-create extension if not exists pg_cron;
-create extension if not exists pg_net;
+-- Team & settings before anything is sent to it. Every morning a Google Apps Script in your Google
+-- account (scripts/daily-email.gs) asks this database for the day's email and sends it from your
+-- Gmail to every approved address, with a link to unsubscribe. No email service or domain needed.
 
 -- ---------- Subscriptions ----------
 
@@ -134,14 +129,16 @@ end;
 $$;
 revoke execute on function public.roster_rows(date, date) from public, anon, authenticated;
 
--- ---------- Sending ----------
+-- ---------- What the morning script sends ----------
 
--- Where emails come from and where the links point. Fill in with the statements at the end of this file.
+-- The script proves who it is with this secret. See it with: select script_secret from public.email_config;
 create table if not exists public.email_config (
-  id        integer primary key default 1 check (id = 1),
-  from_addr text not null,
-  site_url  text not null
+  id            integer primary key default 1 check (id = 1),
+  script_secret uuid not null default gen_random_uuid(),
+  site_url      text not null default 'https://hermannwwr-cmyk.github.io/duty-roster/',
+  last_sent     date
 );
+insert into public.email_config (id) values (1) on conflict (id) do nothing;
 alter table public.email_config enable row level security;
 revoke all on public.email_config from anon, authenticated;
 
@@ -150,30 +147,28 @@ returns text
 language sql immutable
 as $$ select replace(replace(replace(replace(coalesce(t, ''), '&', '&amp;'), '<', '&lt;'), '>', '&gt;'), '"', '&quot;') $$;
 
--- Sends today's summary to every approved address. Does nothing on weekends, public holidays,
--- before the rotation starts, or when there are no approved addresses. Runs at 9am from pg_cron.
-create or replace function public.send_daily_email()
-returns int
+-- Today's email and who gets it, for the morning script only. Returns send = false on weekends,
+-- public holidays, before the rotation starts, with no approved addresses, or once today's email has
+-- gone (p_test = true sends again, for checking). {{UNSUBSCRIBE}} in text and html is each person's link.
+create or replace function public.daily_email(p_secret uuid, p_test boolean default false)
+returns json
 language plpgsql volatile security definer set search_path = public
 as $$
 declare
-  today   date := public.sg_today();
   cfg     public.email_config%rowtype;
-  api_key text;
+  today   date := public.sg_today();
   when_s  text := trim(to_char(today, 'Dy')) || ', ' || extract(day from today) || ' ' || trim(to_char(today, 'Mon'));
   lines   text;
   rows_h  text;
   primary_name text;
-  batch   jsonb := '[]';
-  sent    int := 0;
-  s       record;
-  unsub   text;
+  people  json;
 begin
   select * into cfg from public.email_config where id = 1;
-  select decrypted_secret into api_key from vault.decrypted_secrets where name = 'resend_api_key';
-  if cfg.from_addr is null or api_key is null then
-    raise notice 'Daily email not set up yet: add the Resend API key and email_config row.';
-    return 0;
+  if p_secret is distinct from cfg.script_secret then
+    raise exception 'Wrong script secret.';
+  end if;
+  if cfg.last_sent = today and not p_test then
+    return json_build_object('send', false, 'reason', 'Today''s email has already been sent.');
   end if;
 
   select string_agg(r.role || ': ' || r.name, E'\n' order by r.pos),
@@ -183,51 +178,30 @@ begin
     into lines, rows_h, primary_name
     from public.roster_rows(today, today) r;
   if lines is null then
-    return 0;  -- not a working day, or nobody on duty
+    return json_build_object('send', false, 'reason', 'No duty today.');
   end if;
 
-  for s in select email, unsubscribe_token from public.email_subscriptions where approved order by id loop
-    unsub := cfg.site_url || 'calendar.html?unsubscribe=' || s.unsubscribe_token;
-    batch := batch || jsonb_build_object(
-      'from', cfg.from_addr,
-      'to', jsonb_build_array(s.email),
-      'subject', '2FA Login · ' || when_s || ' · Primary: ' || primary_name,
-      'text', '2FA Login · ' || when_s || E'\n' || lines || E'\n\nHi ' || primary_name || ' (Primary), may we have OTP login for ...'
-              || E'\n\nCalendar: ' || cfg.site_url || 'calendar.html' || E'\nUnsubscribe: ' || unsub,
-      'html', '<div style="font-family:system-ui,sans-serif;font-size:15px;color:#18212b">'
-              || '<h2 style="font-size:18px;margin:0 0 12px">2FA Login · ' || html_text(when_s) || '</h2>'
-              || '<table style="border-collapse:collapse">' || rows_h || '</table>'
-              || '<p>Hi ' || html_text(primary_name) || ' (Primary), may we have OTP login for ...</p>'
-              || '<p><a href="' || html_text(cfg.site_url) || 'calendar.html">Open the calendar</a></p>'
-              || '<p style="font-size:12px;color:#5b6775">You asked for this daily email. <a href="' || html_text(unsub) || '">Unsubscribe</a></p></div>',
-      'headers', jsonb_build_object('List-Unsubscribe', '<' || unsub || '>'));
-    sent := sent + 1;
-    -- Resend takes up to 100 emails per request.
-    if jsonb_array_length(batch) = 100 then
-      perform net.http_post(url := 'https://api.resend.com/emails/batch', body := batch,
-        headers := jsonb_build_object('Authorization', 'Bearer ' || api_key, 'Content-Type', 'application/json'));
-      batch := '[]';
-    end if;
-  end loop;
-  if jsonb_array_length(batch) > 0 then
-    perform net.http_post(url := 'https://api.resend.com/emails/batch', body := batch,
-      headers := jsonb_build_object('Authorization', 'Bearer ' || api_key, 'Content-Type', 'application/json'));
+  select json_agg(json_build_object('email', email,
+                    'unsubscribe', cfg.site_url || 'calendar.html?unsubscribe=' || unsubscribe_token) order by id)
+    into people from public.email_subscriptions where approved;
+  if people is null then
+    return json_build_object('send', false, 'reason', 'No approved addresses.');
   end if;
-  return sent;
+
+  update public.email_config set last_sent = today where id = 1;
+  return json_build_object(
+    'send', true,
+    'to', people,
+    'subject', '2FA Login · ' || when_s || ' · Primary: ' || primary_name,
+    'text', '2FA Login · ' || when_s || E'\n' || lines || E'\n\nHi ' || primary_name || ' (Primary), may we have OTP login for ...'
+            || E'\n\nCalendar: ' || cfg.site_url || 'calendar.html' || E'\nUnsubscribe: {{UNSUBSCRIBE}}',
+    'html', '<div style="font-family:system-ui,sans-serif;font-size:15px;color:#18212b">'
+            || '<h2 style="font-size:18px;margin:0 0 12px">2FA Login · ' || html_text(when_s) || '</h2>'
+            || '<table style="border-collapse:collapse">' || rows_h || '</table>'
+            || '<p>Hi ' || html_text(primary_name) || ' (Primary), may we have OTP login for ...</p>'
+            || '<p><a href="' || html_text(cfg.site_url) || 'calendar.html">Open the calendar</a></p>'
+            || '<p style="font-size:12px;color:#5b6775">You asked for this daily email. <a href="{{UNSUBSCRIBE}}">Unsubscribe</a></p></div>');
 end;
 $$;
-revoke execute on function public.send_daily_email() from public, anon, authenticated;
-
--- 9am Singapore time is 01:00 UTC.
-select cron.schedule('daily-2fa-login-email', '0 1 * * *', 'select public.send_daily_email()');
-
--- ---------- Your details (edit, then run these lines once) ----------
--- 1. Resend > API Keys > Create API key, then paste it here:
---      select vault.create_secret('re_your_key_here', 'resend_api_key');
---    (To change it later: select vault.update_secret(id, 're_new_key') from vault.secrets where name = 'resend_api_key';)
--- 2. The sender, on a domain verified in Resend > Domains, and the address of the app (ending in /):
---      insert into public.email_config (from_addr, site_url)
---      values ('2FA Login <roster@your-domain.com>', 'https://hermannwwr-cmyk.github.io/duty-roster/')
---      on conflict (id) do update set from_addr = excluded.from_addr, site_url = excluded.site_url;
--- 3. Send one now to check it works (approve your own address first):
---      select public.send_daily_email();
+revoke execute on function public.daily_email(uuid, boolean) from public;
+grant execute on function public.daily_email(uuid, boolean) to anon;
