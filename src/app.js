@@ -227,8 +227,7 @@ function renderRoster() {
   if (shareDay) {
     const text = rosterMessage({ date: shareDay.date, duties: shareDay.duties.map(d => ({ role: d.role, name: d.member.name })) },
       new URL('calendar.html', location.href).href);
-    const label = shareDay.date === t ? 'today’s' : fmtDay(shareDay.date, { weekday: 'long' }) + '’s';
-    shareHtml = `<div class="share"><a class="btn wa" id="share-wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">Share ${label} roster on WhatsApp</a>
+    shareHtml = `<div class="share"><a class="btn wa" id="share-wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">Request for OTP on WhatsApp</a>
       ${navigator.share ? '<button class="btn" type="button" id="share-other">Share another way</button>' : ''}</div>`;
     state.shareText = text;
   }

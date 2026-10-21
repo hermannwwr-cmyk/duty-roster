@@ -121,8 +121,7 @@ async function renderToday() {
   let share = '';
   if (day) {
     const text = rosterMessage(day, location.href.split('#')[0].split('?')[0]);
-    const label = day.date === t ? 'today’s' : fromISO(day.date).toLocaleDateString('en-SG', { weekday: 'long' }) + '’s';
-    share = `<div class="share"><a class="btn wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">Share ${label} roster on WhatsApp</a></div>`;
+    share = `<div class="share"><a class="btn wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">Request for OTP on WhatsApp</a></div>`;
   }
   document.getElementById('today').innerHTML = `<section class="panel" aria-labelledby="today-h"><h2 id="today-h">${td && td.kind === 'work' ? 'On duty today' : 'No duty today'} · ${fmt(t)}</h2>${body}${share}</section>`;
 }
