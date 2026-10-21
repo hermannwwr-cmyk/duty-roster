@@ -23,7 +23,7 @@ The rules are in `src/schedule.js`, with tests in `tests/schedule.test.mjs`.
 ## Set up Supabase (about 10 minutes)
 
 1. Create a free account at [supabase.com](https://supabase.com) and a **New project**. Pick the Singapore region if it's offered.
-2. Open **SQL Editor > New query**, paste the whole of `supabase/schema.sql`, and click **Run**. This creates the tables, the security rules and the 2026–2027 Singapore public holidays. Then do the same with `supabase/003_private_data.sql` and `supabase/004_stable_history.sql`, in that order.
+2. Open **SQL Editor > New query**, paste the whole of `supabase/schema.sql`, and click **Run**. This creates the tables, the security rules and the 2026–2027 Singapore public holidays. Then do the same with `supabase/003_private_data.sql`, `supabase/004_stable_history.sql` and `supabase/005_calendar_feed.sql`, in that order.
 3. Open **Project Settings > API** and copy the **Project URL** and the **anon public** key into `config.js`.
 4. Open **Authentication > URL Configuration** and set **Site URL** to where the app will live, for example `https://<your-github-name>.github.io/duty-roster/`. Confirmation emails link back to this address.
 5. Open the app and **create an account**. The first person to sign up becomes the admin. Everyone else then creates their own account and waits in **Team & settings > Waiting for approval** until an admin approves them and they join the rotation.
