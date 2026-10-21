@@ -3,6 +3,7 @@
 // returns only names and roles, so no leave data or account ids reach this page.
 import { toISO, fromISO, addDays, todaySG, rosterMessage, whatsappLink, WHATSAPP_ICON, initials, avatarColor } from './schedule.js';
 import { createStore } from './connect.js';
+import { ENGINEER_SVG } from './engineer.js';
 
 const view = document.getElementById('view');
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -126,7 +127,7 @@ async function renderToday() {
     const text = rosterMessage(day, location.href.split('#')[0].split('?')[0]);
     share = `<div class="share"><a class="btn wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">${WHATSAPP_ICON}Request for OTP on WhatsApp</a></div>`;
   }
-  document.getElementById('today').innerHTML = `<section class="panel" aria-labelledby="today-h"><h2 id="today-h">2FA Login · ${fmt(t)}</h2>${body}${share}</section>`;
+  document.getElementById('today').innerHTML = `<div class="hero">${ENGINEER_SVG}</div><section class="panel" aria-labelledby="today-h"><h2 id="today-h">2FA Login · ${fmt(t)}</h2>${body}${share}</section>`;
 }
 
 /* Two tabs: today's 2FA Login card and the month calendar. The address remembers which (#calendar). */
