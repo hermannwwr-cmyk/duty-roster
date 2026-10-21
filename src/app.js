@@ -1,4 +1,4 @@
-import { buildSchedule, checkpointFor, toISO, fromISO, addDays, todaySG, onRota, rosterMessage, whatsappLink } from './schedule.js';
+import { buildSchedule, checkpointFor, toISO, fromISO, addDays, todaySG, onRota, rosterMessage, whatsappLink, initials, avatarColor } from './schedule.js';
 import { createStore } from './connect.js';
 
 const root = document.getElementById('root');
@@ -194,9 +194,10 @@ function renderView() {
 }
 
 /* ---------- Roster ---------- */
+const avatar = name => `<span class="av" style="--av:${avatarColor(name)}" aria-hidden="true">${esc(initials(name))}</span>`;
 /** Who holds each role on one working day, as a list: Primary, Secondary 1… then anyone on leave. */
 function summary(day, meId) {
-  const row = (cls, role, m) => `<div class="${cls}${m.id === meId ? ' me' : ''}"><dt>${role}</dt><dd>${esc(m.name)}${m.id === meId ? ' (you)' : ''}</dd></div>`;
+  const row = (cls, role, m) => `<div class="${cls}${m.id === meId ? ' me' : ''}"><dt>${role}</dt><dd>${avatar(m.name)}${esc(m.name)}${m.id === meId ? ' (you)' : ''}</dd></div>`;
   return `<dl class="summary">${day.duties.map(d => row(d.role === 'Primary' ? 'p' : '', esc(d.role), d.member)).join('')}${day.onLeave.map(m => row('away', 'On leave', m)).join('')}</dl>`
     + (day.duties.length ? '' : '<p class="muted">No one is available for duty.</p>');
 }

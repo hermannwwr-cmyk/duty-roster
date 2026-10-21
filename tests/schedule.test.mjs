@@ -136,3 +136,12 @@ test('the share message lists roles and names only, and the WhatsApp link carrie
   assert.equal(whatsappLink('A & B\nC'), 'https://wa.me/?text=A%20%26%20B%0AC');
   assert.match(rosterMessage({ date: '2026-10-21', duties: [] }), /No one is available/);
 });
+
+test('initials and avatar colours', async () => {
+  const { initials, avatarColor } = await import('../src/schedule.js');
+  assert.equal(initials('Alice Tan'), 'AT');
+  assert.equal(initials('  ben  '), 'B');
+  assert.equal(initials('Mary Ann Lee'), 'MA');
+  assert.equal(avatarColor('Alice Tan'), avatarColor('Alice Tan'));
+  assert.match(avatarColor('Ben Lim'), /^#[0-9a-f]{6}$/);
+});
