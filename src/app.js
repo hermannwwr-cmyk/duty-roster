@@ -122,7 +122,7 @@ function renderAuth() {
   const signup = state.authMode === 'signup';
   root.innerHTML = `
   <div class="auth">
-    <div><h1>Duty Roster</h1><p class="muted">Daily duty rotation. Sign in to see your duties and add your leave.</p>
+    <div><h1>2FA Login Request</h1><p class="muted">Daily duty rotation. Sign in to see your duties and add your leave.</p>
       <p><a href="calendar.html">View the duty calendar without signing in →</a></p></div>
     <div class="panel">
       <div class="switch" role="group" aria-label="Account">
@@ -168,7 +168,7 @@ function renderApp() {
   const tabs = [['roster', 'Roster'], ['leave', 'Leave'], ['team', me.is_admin ? 'Team & settings' : 'Team']];
   root.innerHTML = `
   <header class="top"><div class="wrap">
-    <span class="brand">Duty Roster</span>
+    <span class="brand">2FA Login Request</span>
     <span class="who">Signed in as <b>${esc(me.display_name)}</b>${me.is_admin ? ' · admin' : ''}</span>
     <a class="btn small" href="calendar.html">Calendar</a>
     <button class="btn small" id="signout">Sign out</button>

@@ -165,7 +165,7 @@ export function todaySG() {
  */
 export function rosterMessage(day, calendarUrl) {
   const when = fromISO(day.date).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' });
-  const lines = ['Duty roster · ' + when];
+  const lines = ['2FA Login Request · ' + when];
   if (day.duties.length) {
     day.duties.forEach(d => lines.push(d.role + ': ' + d.name));
     // The Primary handles OTP login requests that day.
