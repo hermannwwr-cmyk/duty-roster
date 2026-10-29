@@ -141,7 +141,7 @@ async function renderToday() {
     <ul class="gap-list">${nobody.map(d => `<li><span class="gap-icon" aria-hidden="true">!</span><span class="gap-text">
       <span class="gap-date">${fromISO(d.date).toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
       <span class="gap-when">${howSoon(t, d.date)}</span></span></li>`).join('')}</ul></div>` : '';
-  document.getElementById('today').innerHTML = `<div class="hero">${scene.svg}<p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div><section class="panel" aria-labelledby="today-h"><h2 id="today-h">2FA Login · ${fmt(t)}</h2>${body}${gaps}${share}</section>`;
+  document.getElementById('today').innerHTML = `<div class="hero">${scene.svg}<p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div><section class="panel" aria-labelledby="today-h"><h2 id="today-h">2FA Login · ${fmt(t)}</h2>${body}${share}${gaps}</section>`;
 }
 
 /* Two tabs: today's 2FA Login card and the month calendar. The address remembers which (#calendar). */
