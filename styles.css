@@ -284,7 +284,7 @@ h2[tabindex="-1"]:focus { outline: none; }
 .gap-date { color: #ffffff; font-size: 1.15rem; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
 .gap-when { color: #ffb4ad; font-size: .82rem; font-weight: 600; }
 @media (max-width: 760px) { .cell .nobody { font-size: .66rem; line-height: 1.2; } }
-/* Its own card under the 2FA Login card (no gradient header band) */
-#today .gaps { padding-top: 1.1rem; gap: .7rem; box-shadow: 0 0 0 1px #ffffff0f, 0 12px 32px #00000066; }
-#today .gaps > h2 { margin: 0; padding: 0; background: none; color: var(--ink); font-size: 1.1rem; }
+/* Its own card under the 2FA Login card, with a red header band */
+#today .gaps { gap: .7rem; }
+#today .gaps > h2 { background: linear-gradient(120deg, #e5484d, #be123c); font-size: 1.2rem; }
 #today > .panel + .panel { margin-top: 1.2rem; }
