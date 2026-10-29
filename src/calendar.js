@@ -130,11 +130,11 @@ async function renderToday() {
   const scene = engineerScene(new URLSearchParams(location.search).get('scene') || (td && td.kind === 'holiday' ? 'holiday' : undefined));
   // Upcoming working days when everyone is away. Only the dates: who is on leave stays private.
   const nobody = data.days.filter(d => d.kind === 'work' && !d.duties.length && d.date >= t);
-  const gaps = `<section class="panel gaps" aria-labelledby="gaps-h"><h2 id="gaps-h">No one available</h2>
+  const gaps = `<div class="gaps"><h3>No one available</h3>
     ${nobody.length ? `<p class="muted">Everyone is on leave on these working days, so there's no one to ask for an OTP.</p>
     <ul class="gap-list">${nobody.map(d => `<li>${fmt(d.date)}</li>`).join('')}</ul>`
-    : '<p class="muted">Someone is on duty every working day for the next two months.</p>'}</section>`;
-  document.getElementById('today').innerHTML = `<div class="hero">${scene.svg}<p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div><section class="panel" aria-labelledby="today-h"><h2 id="today-h">2FA Login · ${fmt(t)}</h2>${body}${share}</section>${gaps}`;
+    : '<p class="muted">Someone is on duty every working day for the next two months.</p>'}</div>`;
+  document.getElementById('today').innerHTML = `<div class="hero">${scene.svg}<p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div><section class="panel" aria-labelledby="today-h"><h2 id="today-h">2FA Login · ${fmt(t)}</h2>${body}${gaps}${share}</section>`;
 }
 
 /* Two tabs: today's 2FA Login card and the month calendar. The address remembers which (#calendar). */
