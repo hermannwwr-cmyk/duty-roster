@@ -176,7 +176,7 @@ h2[tabindex="-1"]:focus { outline: none; }
   50% { box-shadow: 0 0 18px #22c55ebf, 0 0 42px #22c55e73, 0 0 64px #22c55e33; }
 }
 @media (prefers-reduced-motion: reduce) { .btn.wa { animation: none; box-shadow: 0 0 16px #22c55e8c, 0 0 36px #22c55e40; } }
-@media (max-width: 640px) { .btn.wa { flex: 1 1 100%; padding-inline: .9rem; } }
+@media (max-width: 640px) { .btn.wa { flex: 1 1 100%; min-width: 0; padding-inline: .9rem; white-space: normal; text-align: center; } }
 
 .summary { display: grid; gap: .5rem; margin: 0; }
 .summary > div { display: flex; align-items: center; gap: .8rem; padding: .6rem .8rem; border-radius: 12px; background: #18213a; }
@@ -276,8 +276,13 @@ h2[tabindex="-1"]:focus { outline: none; }
 
 /* Working days when everyone is on leave */
 .nobody { color: var(--danger); font-size: .85rem; font-weight: 700; }
-.gap-list { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0; padding: 0; list-style: none; }
-.gap-list li { padding: .25rem .65rem; border-radius: 999px; background: #3a1d2a; color: var(--danger); font-size: .88rem; font-weight: 700; }
+/* Each date as a row: warning icon, the full date, and how soon it is */
+.gap-list { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+.gap-list li { display: flex; align-items: center; gap: .8rem; padding: .7rem .9rem; border-radius: 12px; background: #3a1d2a; box-shadow: inset 4px 0 0 #e5484d; }
+.gap-icon { flex: none; display: grid; place-items: center; width: 2.1rem; height: 2.1rem; border-radius: 50%; background: #e5484d; color: #ffffff; font-weight: 900; }
+.gap-text { display: grid; min-width: 0; }
+.gap-date { color: #ffffff; font-size: 1.15rem; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
+.gap-when { color: #ffb4ad; font-size: .82rem; font-weight: 600; }
 @media (max-width: 760px) { .cell .nobody { font-size: .66rem; line-height: 1.2; } }
 /* Inside the 2FA Login card, between the roles and the WhatsApp button */
 .gaps { display: grid; gap: .45rem; padding-top: .9rem; border-top: 1px solid var(--line); }

@@ -101,6 +101,12 @@ function render(data) {
 }
 
 /** Today's duty at the top of the page, with a one-tap WhatsApp share. On a weekend or holiday, the next working day. */
+/** "Today", "Tomorrow" or "in 13 days", from `today` to `date` (both YYYY-MM-DD). */
+function howSoon(today, date) {
+  const days = Math.round((fromISO(date) - fromISO(today)) / 864e5);
+  return days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : 'in ' + days + ' days';
+}
+
 async function renderToday() {
   const t = todaySG();
   // Two months ahead: enough for the next duty day and for the days nobody is available.
@@ -123,7 +129,7 @@ async function renderToday() {
   let share = '';
   if (day) {
     const text = rosterMessage(day, location.href.split('#')[0].split('?')[0]);
-    share = `<div class="share"><a class="btn wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">${WHATSAPP_ICON}Request for OTP on WhatsApp</a></div>`;
+    share = `<div class="share"><a class="btn wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">${WHATSAPP_ICON}Click me for OTP on WhatsApp</a></div>`;
   }
   // The scene follows the time of day in Singapore, with the lights off on public holidays;
   // ?scene=lunch (etc.) shows a particular one.
@@ -132,7 +138,9 @@ async function renderToday() {
   const nobody = data.days.filter(d => d.kind === 'work' && !d.duties.length && d.date >= t);
   // Left out when every working day is covered.
   const gaps = nobody.length ? `<div class="gaps"><h3>No one is available on:</h3>
-    <ul class="gap-list">${nobody.map(d => `<li>${fmt(d.date)}</li>`).join('')}</ul></div>` : '';
+    <ul class="gap-list">${nobody.map(d => `<li><span class="gap-icon" aria-hidden="true">!</span><span class="gap-text">
+      <span class="gap-date">${fromISO(d.date).toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+      <span class="gap-when">${howSoon(t, d.date)}</span></span></li>`).join('')}</ul></div>` : '';
   document.getElementById('today').innerHTML = `<div class="hero">${scene.svg}<p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div><section class="panel" aria-labelledby="today-h"><h2 id="today-h">2FA Login · ${fmt(t)}</h2>${body}${gaps}${share}</section>`;
 }
 
