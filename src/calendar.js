@@ -129,7 +129,7 @@ async function renderToday() {
   let share = '';
   if (day) {
     const text = rosterMessage(day, location.href.split('#')[0].split('?')[0]);
-    share = `<div class="share"><a class="btn wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">${WHATSAPP_ICON}Click me for OTP on WhatsApp</a></div>`;
+    share = `<div class="share"><a class="btn wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">${WHATSAPP_ICON}Click for OTP on WhatsApp</a></div>`;
   }
   // The scene follows the time of day in Singapore, with the lights off on public holidays;
   // ?scene=lunch (etc.) shows a particular one.
