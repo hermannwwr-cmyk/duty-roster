@@ -56,6 +56,7 @@ function render(data) {
     const label = `<span class="num"><span class="dow-inline">${dt.toLocaleDateString('en-SG', { weekday: 'short' })} </span>${dt.getDate()}</span>`;
     let body = '';
     if (kind === 'holiday') body = `<span class="hol">${esc(d.holiday)}</span>`;
+    else if (kind === 'work' && !d.duties.length) body = '<span class="nobody">No one available</span>';
     else if (kind === 'work') body = '<ol class="duty">' + d.duties.map(x => `<li class="${x.role === 'Primary' ? 'p' : ''}"><span class="r">${shortRole(x.role)}</span><span class="n" title="${esc(x.name)}"><span class="full">${esc(x.name)}</span><span class="first">${esc(x.name.trim().split(/\s+/)[0])}</span></span></li>`).join('') + '</ol>';
     cells.push(`<div class="${cls}">${label}${body}</div>`);
   }
@@ -102,7 +103,8 @@ function render(data) {
 /** Today's duty at the top of the page, with a one-tap WhatsApp share. On a weekend or holiday, the next working day. */
 async function renderToday() {
   const t = todaySG();
-  const data = await store.loadPublic(t, addDays(t, 21));
+  // Two months ahead: enough for the next duty day and for the days nobody is available.
+  const data = await store.loadPublic(t, addDays(t, 60));
   if (!data) {
     document.getElementById('today').innerHTML = '<section class="panel"><h2>The public calendar is switched off</h2><p class="muted">Sign in to see the duty roster, or ask an admin to switch the public calendar on.</p></section>';
     return;
@@ -126,7 +128,13 @@ async function renderToday() {
   // The scene follows the time of day in Singapore, with the lights off on public holidays;
   // ?scene=lunch (etc.) shows a particular one.
   const scene = engineerScene(new URLSearchParams(location.search).get('scene') || (td && td.kind === 'holiday' ? 'holiday' : undefined));
-  document.getElementById('today').innerHTML = `<div class="hero">${scene.svg}<p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div><section class="panel" aria-labelledby="today-h"><h2 id="today-h">2FA Login · ${fmt(t)}</h2>${body}${share}</section>`;
+  // Upcoming working days when everyone is away. Only the dates: who is on leave stays private.
+  const nobody = data.days.filter(d => d.kind === 'work' && !d.duties.length && d.date >= t);
+  const gaps = `<section class="panel gaps" aria-labelledby="gaps-h"><h2 id="gaps-h">No one available</h2>
+    ${nobody.length ? `<p class="muted">Everyone is on leave on these working days, so there's no one to ask for an OTP.</p>
+    <ul class="gap-list">${nobody.map(d => `<li>${fmt(d.date)}</li>`).join('')}</ul>`
+    : '<p class="muted">Someone is on duty every working day for the next two months.</p>'}</section>`;
+  document.getElementById('today').innerHTML = `<div class="hero">${scene.svg}<p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div><section class="panel" aria-labelledby="today-h"><h2 id="today-h">2FA Login · ${fmt(t)}</h2>${body}${share}</section>${gaps}`;
 }
 
 /* Two tabs: today's 2FA Login card and the month calendar. The address remembers which (#calendar). */

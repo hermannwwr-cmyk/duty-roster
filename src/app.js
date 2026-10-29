@@ -282,7 +282,7 @@ function renderRoster() {
       const away = d.onLeave.some(x => x.id === me.id);
       return `<div class="day${d.date === t ? ' is-today' : ''}"><span class="date">${fmtDay(d.date)}</span>
         <span class="yours${away ? ' off' : ''}">${mine ? esc(mine.role) : away ? 'On leave' : '–'}</span>
-        <span class="chips">${d.duties.map(x => chip(x, me.id)).join('')}${d.onLeave.map(x => `<span class="chip away"><span class="r">LEAVE</span>${esc(x.name)}</span>`).join('')}</span></div>`;
+        <span class="chips">${d.duties.length ? '' : '<span class="nobody">No one available</span>'}${d.duties.map(x => chip(x, me.id)).join('')}${d.onLeave.map(x => `<span class="chip away"><span class="r">LEAVE</span>${esc(x.name)}</span>`).join('')}</span></div>`;
     }).join('') || '<p class="muted">No working days to show this month.</p>'}</div>
   </section>`;
   const other = document.getElementById('share-other');
