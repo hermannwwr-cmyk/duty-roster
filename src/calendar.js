@@ -137,11 +137,11 @@ async function renderToday() {
   // Upcoming working days when everyone is away. Only the dates: who is on leave stays private.
   const nobody = data.days.filter(d => d.kind === 'work' && !d.duties.length && d.date >= t);
   // Left out when every working day is covered.
-  const gaps = nobody.length ? `<div class="gaps"><h3>No one is available on:</h3>
+  const gaps = nobody.length ? `<section class="panel gaps" aria-labelledby="gaps-h"><h2 id="gaps-h">No one is available on:</h2>
     <ul class="gap-list">${nobody.map(d => `<li><span class="gap-icon" aria-hidden="true">!</span><span class="gap-text">
       <span class="gap-date">${fromISO(d.date).toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
-      <span class="gap-when">${howSoon(t, d.date)}</span></span></li>`).join('')}</ul></div>` : '';
-  document.getElementById('today').innerHTML = `<div class="hero">${scene.svg}<p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div><section class="panel" aria-labelledby="today-h"><h2 id="today-h">2FA Login · ${fmt(t)}</h2>${body}${share}${gaps}</section>`;
+      <span class="gap-when">${howSoon(t, d.date)}</span></span></li>`).join('')}</ul></section>` : '';
+  document.getElementById('today').innerHTML = `<div class="hero">${scene.svg}<p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div><section class="panel" aria-labelledby="today-h"><h2 id="today-h">2FA Login · ${fmt(t)}</h2>${body}${share}</section>${gaps}`;
 }
 
 /* Two tabs: today's 2FA Login card and the month calendar. The address remembers which (#calendar). */
