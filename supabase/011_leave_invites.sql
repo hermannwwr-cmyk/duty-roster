@@ -21,14 +21,15 @@ returns table (id uuid, work_email text)
 language sql stable security definer set search_path = public
 as $$ select p.id, p.work_email from public.profiles p where p.id = auth.uid() or public.is_admin() $$;
 
--- Set your own work email, or (admins) anyone's. An empty value clears it.
+-- Signed-in, approved members set their own work email; admins set anyone's. Nobody else (not the
+-- public page, not people waiting for approval) can. An empty value clears it.
 create or replace function public.set_work_email(p_user uuid, p_email text)
 returns void
 language plpgsql volatile security definer set search_path = public
 as $$
 declare e text := nullif(lower(trim(p_email)), '');
 begin
-  if auth.uid() is null or (p_user <> auth.uid() and not public.is_admin()) then
+  if not (public.is_admin() or (p_user = auth.uid() and public.is_member())) then
     raise exception 'You can only change your own work email.';
   end if;
   if e is not null and (char_length(e) > 254 or e !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$') then
