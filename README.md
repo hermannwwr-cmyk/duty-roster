@@ -23,7 +23,7 @@ The rules are in `src/schedule.js`, with tests in `tests/schedule.test.mjs`.
 ## Set up Supabase (about 10 minutes)
 
 1. Create a free account at [supabase.com](https://supabase.com) and a **New project**. Pick the Singapore region if it's offered.
-2. Open **SQL Editor > New query**, paste the whole of `supabase/schema.sql`, and click **Run**. This creates the tables, the security rules and the 2026–2027 Singapore public holidays. Then do the same with `supabase/003_private_data.sql`, `supabase/004_stable_history.sql` and `supabase/006_hardening.sql`, in that order. (A database set up with the old calendar sync, files 005 or 007, also needs `supabase/008_remove_calendar_sync.sql`, and one that had the daily email, file 009, needs `supabase/010_remove_daily_email.sql`.) If your database is already set up, run just the files you haven't run yet.
+2. Open **SQL Editor > New query**, paste the whole of `supabase/schema.sql`, and click **Run**. This creates the tables, the security rules and the 2026–2027 Singapore public holidays. Then do the same with `supabase/003_private_data.sql`, `supabase/004_stable_history.sql`, `supabase/006_hardening.sql` and `supabase/011_leave_invites.sql`, in that order. (A database set up with the old calendar sync, files 005 or 007, also needs `supabase/008_remove_calendar_sync.sql`, and one that had the daily email, file 009, needs `supabase/010_remove_daily_email.sql`.) If your database is already set up, run just the files you haven't run yet.
 3. Open **Project Settings > API** and copy the **Project URL** and the **anon public** key into `config.js`.
 4. Open **Authentication > URL Configuration** and set **Site URL** to where the app will live, for example `https://<your-github-name>.github.io/duty-roster/`. Confirmation emails link back to this address.
 5. Open the app and **create an account**. The first person to sign up becomes the admin. Everyone else then creates their own account and waits in **Team & settings > Waiting for approval** until an admin approves them and they join the rotation.
@@ -38,6 +38,16 @@ The anon key is safe to publish. The database's security rules:
 - The **public calendar** (off by default for new installs) gets only each day's names and roles, for about 3 months back to 6 months ahead. It never receives leave dates, notes, emails or account IDs.
 
 Keep **Confirm email** turned on under **Authentication > Providers > Email**, so people can only sign up with an address they control.
+
+## Leave from Outlook invites (optional)
+
+People can book leave by inviting a shared Google account to their all-day out-of-office event in Outlook. Every 15 minutes a Google Apps Script in that account sends the invites to the app, which matches each one to a person by their work email (set on the Leave tab) or sign-in email: the leave is added, moves when the invite moves, and goes away when it's cancelled. Only all-day events, or events lasting a day or more, count. Invites from addresses that match nobody appear in Team & settings for an admin to assign.
+
+1. Create a Google account for the invites, for example `ourteam.leave@gmail.com`. In its Google Calendar settings, set **Add invitations to my calendar** to **From everyone**.
+2. In Supabase, run `supabase/011_leave_invites.sql` in the **SQL Editor**.
+3. Run `select script_secret from public.invite_config;` and copy the result.
+4. Follow the steps at the top of `scripts/leave-invites.gs`: paste in the secret, paste the file into a new project at [script.google.com](https://script.google.com) in that Google account, and run `setUp`.
+5. In the app, an admin enters the address under **Team & settings > Leave from calendar invites**, and everyone adds their work email on the **Leave** tab.
 
 ## Put it online with GitHub Pages
 

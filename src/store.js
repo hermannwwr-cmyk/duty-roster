@@ -54,7 +54,7 @@ export class SupabaseStore {
     const [profiles, leaves, holidays, settings, checkpoints, emails, notes] = await Promise.all([
       this.sb.from('profiles').select('id, display_name, rota_order, active, is_admin, approved, created_at')
         .order('rota_order').order('created_at').order('id'),
-      this.sb.from('leaves').select('id, user_id, start_date, end_date').order('start_date'),
+      this.sb.from('leaves').select('id, user_id, start_date, end_date, from_invite').order('start_date'),
       this.sb.from('holidays').select('*').order('date'),
       this.sb.from('settings').select('*').eq('id', 1).single(),
       this.sb.from('rota_checkpoints').select('effective_date, member_order, next_primary').order('effective_date'),
@@ -65,8 +65,20 @@ export class SupabaseStore {
     const noteOf = Object.fromEntries(notes.map(n => [n.id, n.note]));
     profiles.forEach(p => { p.email = emailOf[p.id] || null; });
     leaves.forEach(l => { l.note = noteOf[l.id] || null; });
-    return { me: profiles.find(p => p.id === uid) || null, profiles, leaves, holidays, settings, checkpoints };
+    const me = profiles.find(p => p.id === uid) || null;
+    // Leave from calendar invites (supabase/011_leave_invites.sql): work emails are private like emails,
+    // and only admins see invites that matched nobody.
+    const [work, unmatched] = await Promise.all([
+      this.sb.rpc('member_work_emails'),
+      me && me.is_admin ? this.sb.from('unmatched_invites').select('uid, organizer, title, start_date, end_date').eq('dismissed', false).order('start_date') : { data: [] }
+    ]).then(rs => rs.map(check));
+    const workOf = Object.fromEntries(work.map(w => [w.id, w.work_email]));
+    profiles.forEach(p => { p.work_email = workOf[p.id] || null; });
+    return { me, profiles, leaves, holidays, settings, checkpoints, unmatched };
   }
+  /** The address you send leave invites from, when it isn't your sign-in email. Admins can set anyone's. */
+  async setWorkEmail(userId, email) { check(await this.sb.rpc('set_work_email', { p_user: userId, p_email: email })); }
+  async dismissInvite(uid) { changed(await this.sb.from('unmatched_invites').update({ dismissed: true }).eq('uid', uid).select('uid')); }
   /** The public calendar for a date range: names and roles only. Works without signing in. Null when switched off. */
   async loadPublic(from, to) { return check(await this.sb.rpc('public_calendar', { p_from: from, p_to: to })); }
   async deleteProfile(id) { changed(await this.sb.from('profiles').delete().eq('id', id).select('id')); }
@@ -147,10 +159,25 @@ export class DemoStore {
     this.db = this.read() || this.db;
     const clone = x => JSON.parse(JSON.stringify(x));
     const profiles = clone(this.db.profiles).sort((a, b) => a.rota_order - b.rota_order);
-    return { me: profiles.find(p => p.id === this.db.session) || null, profiles,
+    const me = profiles.find(p => p.id === this.db.session) || null;
+    return { me, profiles,
       leaves: clone(this.db.leaves).sort((a, b) => a.start_date.localeCompare(b.start_date)),
       holidays: clone(this.db.holidays).sort((a, b) => a.date.localeCompare(b.date)), settings: clone(this.db.settings),
-      checkpoints: clone(this.checkpoints()) };
+      checkpoints: clone(this.checkpoints()), unmatched: me && me.is_admin ? clone(this.db.unmatched || []) : [] };
+  }
+  // Same rules as set_work_email() in supabase/011_leave_invites.sql. Demo mode has no invite sync.
+  async setWorkEmail(userId, email) {
+    if (userId !== this.me().id) this.requireAdmin('change other people’s work email');
+    const e = String(email || '').trim().toLowerCase() || null;
+    if (e && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) throw new Error('Please enter a valid email address.');
+    if (e && this.db.profiles.some(p => p.id !== userId && [p.work_email, p.email].some(x => x && x.toLowerCase() === e))) throw new Error('That email already belongs to someone else on the roster.');
+    this.db.profiles.find(p => p.id === userId).work_email = e;
+    if (e) this.db.unmatched = (this.db.unmatched || []).filter(u => u.organizer !== e);
+    this.write();
+  }
+  async dismissInvite(uid) {
+    this.requireAdmin('dismiss invites');
+    this.db.unmatched = (this.db.unmatched || []).filter(u => u.uid !== uid); this.write();
   }
   async loadPublic(from, to) {
     const s = this.db.settings;

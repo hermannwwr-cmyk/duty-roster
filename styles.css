@@ -288,3 +288,4 @@ h2[tabindex="-1"]:focus { outline: none; }
 #today .gaps { gap: .5rem; padding-bottom: .9rem; }
 #today .gaps > h2 { padding: .6rem 1.2rem; background: linear-gradient(120deg, #e5484d, #be123c); font-size: 1rem; }
 #today > .panel + .panel { margin-top: 1.2rem; }
+.invite-hint { font-size: .82rem; }

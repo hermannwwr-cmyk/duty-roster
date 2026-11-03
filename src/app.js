@@ -296,7 +296,7 @@ function renderRoster() {
 
 /* ---------- Leave ---------- */
 function renderLeave() {
-  const { me, profiles, leaves } = state.data;
+  const { me, profiles, leaves, settings } = state.data;
   const view = document.getElementById('view');
   const t = today();
   const name = id => (profiles.find(p => p.id === id) || {}).display_name || 'Unknown';
@@ -304,8 +304,10 @@ function renderLeave() {
   const mine = upcoming.filter(l => l.user_id === me.id);
   const leaveItem = l => `<div class="item"><div class="main"><span class="when">${fmtRange(l.start_date, l.end_date)}</span>
       ${l.user_id !== me.id ? ` · <b>${esc(name(l.user_id))}</b>` : ''}${l.note ? `<div class="muted">${esc(l.note)}</div>` : ''}</div>
-      ${l.start_date <= t ? '<span class="tag leave">On leave now</span>' : ''}
-      ${l.user_id !== me.id && !me.is_admin ? ''
+      ${l.from_invite ? '<span class="tag">From invite</span>' : ''}${l.start_date <= t ? '<span class="tag leave">On leave now</span>' : ''}
+      ${l.from_invite ? '<span class="muted invite-hint">Change or cancel the invite in Outlook</span>'
+        // Invite leave follows the invite: removing it here would come back on the next sync.
+        : l.user_id !== me.id && !me.is_admin ? ''
         // Leave that has begun is part of past duties, so it can be ended early but not removed (issue #7).
         : l.start_date < t ? `<button class="btn small" data-end="${l.id}">End early (back today)</button>`
         : `<button class="btn small danger" data-del="${l.id}">Remove</button>`}</div>`;
@@ -322,6 +324,7 @@ function renderLeave() {
     </form>
     <p class="muted" id="l-note-hint">Only you and admins can see the note. Please don’t include medical details. Teammates see only the dates.</p>
   </section>
+  ${invitePanel(me, settings)}
   <section class="panel"><h2>Your upcoming leave</h2>
     <div class="list">${mine.map(leaveItem).join('') || '<p class="muted">You have no leave booked.</p>'}</div></section>
   <section class="panel"><h2>Team leave</h2>
@@ -336,11 +339,32 @@ function renderLeave() {
   view.querySelectorAll('[data-del]').forEach(b => b.onclick = () => act(() => store.deleteLeave(Number(b.dataset.del)), 'Leave removed.'));
   view.querySelectorAll('[data-end]').forEach(b => b.onclick = () => act(() => store.updateLeave(Number(b.dataset.end), { end_date: addDays(t, -1) }), 'Leave ended. You’re back on the roster from today.'));
   document.getElementById('l-start').onchange = e => { document.getElementById('l-end').min = e.target.value; };
+  const wf = document.getElementById('work-form');
+  if (wf) wf.onsubmit = e => {
+    e.preventDefault();
+    const v = document.getElementById('w-email').value.trim();
+    act(() => store.setWorkEmail(me.id, v), v ? 'Work email saved. Invites from it will now add your leave.' : 'Work email removed.');
+  };
+}
+
+/* ---------- Leave from Outlook invites (supabase/011_leave_invites.sql) ---------- */
+function invitePanel(me, settings) {
+  const address = settings.invite_address;
+  return `<section class="panel">
+    <h2>Leave from Outlook invites</h2>
+    ${address ? `<p class="muted">Invite <b class="copyable">${esc(address)}</b> to your all-day out-of-office event in Outlook. Your leave appears here within about 15 minutes, moves if you move the invite, and goes away if you cancel it.</p>`
+      : `<p class="muted">${me.is_admin ? 'Set the invite address in Team & settings to turn this on.' : 'An admin hasn’t set this up yet.'}</p>`}
+    <form class="form" id="work-form">
+      <label class="field grow">Your work email (the one you send invites from)<input type="email" id="w-email" maxlength="254" autocomplete="email" value="${esc(me.work_email || '')}" placeholder="${esc(me.email || 'name@company.com')}"></label>
+      <button class="btn primary" type="submit">Save</button>
+    </form>
+    <p class="muted">Only you and admins can see it. Leave it empty if you send invites from the email you sign in with.</p>
+  </section>`;
 }
 
 /* ---------- Team & settings ---------- */
 function renderTeam() {
-  const { me, profiles, holidays, settings } = state.data;
+  const { me, profiles, holidays, settings, unmatched = [] } = state.data;
   const admin = me.is_admin;
   const view = document.getElementById('view');
   const t = today();
@@ -383,6 +407,17 @@ function renderTeam() {
     ${admin ? `<label class="check"><input type="checkbox" id="pub-cal"${settings.public_calendar !== false ? ' checked' : ''}> Anyone with the link can view the calendar</label>`
       : `<p>${settings.public_calendar !== false ? 'The public calendar is on.' : 'The public calendar is off.'}</p>`}
   </section>
+  ${admin ? `<section class="panel">
+    <h2>Leave from calendar invites</h2>
+    <p class="muted">The shared Google account people invite to their out-of-office events. Its Apps Script (<code>scripts/leave-invites.gs</code>) turns the invites into leave every 15 minutes.</p>
+    <form class="form" id="inv-form"><label class="field grow">Invite address<input type="email" id="inv-address" maxlength="254" value="${esc(settings.invite_address || '')}" placeholder="ourteam.leave@gmail.com"></label><button class="btn primary" type="submit">Save</button></form>
+    <h3>Invites from unknown senders</h3>
+    <p class="muted">These came from addresses that don’t match anyone. Assign one to a person to save it as their work email; their leave is added on the next sync.</p>
+    <div class="list">${unmatched.map(u => `<div class="item"><div class="main"><b>${esc(u.organizer)}</b>
+        <div class="muted">${esc(u.title || 'Invite')} · ${fmtRange(u.start_date, u.end_date)}</div></div>
+      <select class="assign" data-assign="${esc(u.uid)}" data-from="${esc(u.organizer)}" aria-label="Assign ${esc(u.organizer)} to"><option value="">Assign to…</option>${profiles.filter(onRota).map(p => `<option value="${p.id}">${esc(p.display_name)}</option>`).join('')}</select>
+      <button class="btn small" data-dismiss="${esc(u.uid)}">Dismiss</button></div>`).join('') || '<p class="muted">None.</p>'}</div>
+  </section>` : ''}
   <section class="panel">
     <h2>Public holidays</h2>
     <p class="muted">No duty on these days. Singapore holidays for 2026 and 2027 are included${admin ? '. Add later years when they’re announced.' : '.'}</p>
@@ -429,6 +464,18 @@ function renderTeam() {
     if (!window.confirm('Restart the rotation on ' + fmtDay(start, { day: 'numeric', month: 'long', year: 'numeric' }) + '? Person 1 will be Primary on the first working day, and all earlier duty history is recalculated.')) return;
     act(() => store.resetRotation(start, sorted.filter(onRota).map(p => p.id)), 'Rotation restarted.');
   };
+  const invf = document.getElementById('inv-form');
+  if (invf) invf.onsubmit = e => {
+    e.preventDefault();
+    const v = document.getElementById('inv-address').value.trim().toLowerCase() || null;
+    act(() => store.updateSettings({ invite_address: v }), v ? 'Invite address saved.' : 'Invite address removed.');
+  };
+  view.querySelectorAll('[data-assign]').forEach(sel => sel.onchange = () => {
+    const who = profiles.find(p => p.id === sel.value);
+    if (!who || !window.confirm('Save ' + sel.dataset.from + ' as ' + who.display_name + '’s work email? Their invites from it will become their leave.')) { sel.value = ''; return; }
+    act(() => store.setWorkEmail(who.id, sel.dataset.from), 'Assigned. ' + who.display_name + '’s leave is added on the next sync.');
+  });
+  view.querySelectorAll('[data-dismiss]').forEach(b => b.onclick = () => act(() => store.dismissInvite(b.dataset.dismiss), 'Dismissed.'));
   const pc = document.getElementById('pub-cal');
   if (pc) pc.onchange = () => act(() => store.updateSettings({ public_calendar: pc.checked }), pc.checked ? 'Public calendar switched on.' : 'Public calendar switched off.');
   const hf = document.getElementById('hol-form');
