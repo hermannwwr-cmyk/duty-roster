@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 npm start                     # serve on http://localhost:5173 (http-server, no caching)
-npm test                      # node --test: runs every tests/*.test.mjs
+npm test                      # node --test: runs every tests/*.test.mjs (store tests fake localStorage to drive DemoStore)
 node --test --test-name-pattern "midnight" tests/schedule.test.mjs   # one test
 npm run stamp                 # REQUIRED before every commit that changes a page, script or styles.css
 ```
@@ -23,7 +23,11 @@ There is no linter, formatter or bundler.
 
 **Two pages, two entry scripts**
 - `index.html` → `src/app.js`: the signed-in app (Roster, Leave, Team & settings tabs). Renders with template strings into `#root`; `refresh()` reloads all data and redraws; `act(fn, message)` wraps every write (disables the triggering control, toasts, refreshes, restores focus via `focusKey`/`restoreFocus`).
-- `calendar.html` → `src/calendar.js`: the public page, no login. Two tabs (2FA Login card, and Calendar Forecast month grid; `#calendar` in the URL opens the second). Above the card, `src/engineer.js` draws an animated scene picked by Singapore time (`periodAt`): six weekday scenes, and a lights-off room on weekends and public holidays; `?scene=lunch` etc. forces one for previews. `src/faces.js` draws each person's cartoon face from their name. It only ever receives names and roles, never leave, emails or ids.
+- `calendar.html` → `src/calendar.js`: the public page, no login. Two tabs (2FA Login card, and Calendar Forecast month grid; `#calendar` in the URL opens the second). Above the card, `src/engineer.js` draws an animated scene picked by Singapore time (`periodAt`): six weekday scenes, and a lights-off room on weekends and public holidays; `?scene=lunch` etc. forces one for previews. `src/faces.js` draws each person's cartoon face from their name. Under the card, a "No one is available on:" card lists upcoming working days whose duty list is empty. The page only ever receives names and roles, never leave, emails or ids.
+  - It asks `loadPublic(today, today + 60)`. The SQL `public_calendar()` silently clips every request to at most ~62 days and to 90 days back / 180 days ahead, so asking for more just returns fewer days.
+  - On phones the Calendar Forecast prints each name twice (`.full` and `.first` spans) and CSS shows the first name only; wording changes touch both.
+
+**Shared UI pieces across the two pages** — the WhatsApp button label is written in both `app.js` and `calendar.js`; its icon (`WHATSAPP_ICON`), link and message text (`rosterMessage`) live in `schedule.js`. Avatars differ by page: the public card uses `faces.js`, the signed-in Roster tab uses initials circles from `initials()`/`avatarColor()` in `schedule.js`.
 
 **Data layer** — `src/connect.js` returns `SupabaseStore` when `config.js` has a URL and anon key, otherwise `DemoStore` (localStorage, five example people). Both live in `src/store.js` and expose the same methods. `DemoStore` deliberately mirrors the database's row-level security and triggers (admin checks, leave rules) so demo mode fails the same way production does; keep them in step. In `SupabaseStore`, updates and deletes end in `.select()` and go through `changed()`, because RLS silently skips forbidden rows and `protect_profile_fields()` silently reverts non-admin field changes — `updateProfile` compares the returned row to the patch to catch that.
 
