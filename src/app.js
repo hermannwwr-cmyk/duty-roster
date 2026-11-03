@@ -385,14 +385,15 @@ function renderTeam() {
     <div class="list">${sorted.map((p, i) => `<div class="item">
       <span class="order">${i + 1}.</span>
       <div class="main">${admin || p.id === me.id ? `<input class="name-input" data-name="${p.id}" value="${esc(p.display_name)}" maxlength="60" aria-label="Name">` : `<b>${esc(p.display_name)}</b>`}
-        ${p.email ? `<div class="muted">${esc(p.email)}</div>` : ''}</div>
+        ${p.email ? `<div class="muted">${esc(p.email)}</div>` : ''}
+        ${admin ? `<input class="name-input work-input" type="email" data-work="${p.id}" value="${esc(p.work_email || '')}" maxlength="254" placeholder="Work Outlook email" aria-label="Work Outlook email for ${esc(p.display_name)}">` : ''}</div>
       ${p.is_admin ? '<span class="tag">Admin</span>' : ''}${!p.active ? '<span class="tag leave">Inactive</span>' : ''}
       ${admin ? `<label class="check"><input type="checkbox" data-active="${p.id}"${p.active ? ' checked' : ''}> Active</label>
         <label class="check"><input type="checkbox" data-admin="${p.id}"${p.is_admin ? ' checked' : ''}${p.id === me.id ? ' disabled title="You can’t remove your own admin access"' : ''}> Admin</label>
         <button class="btn small" data-up="${p.id}" aria-label="Move ${esc(p.display_name)} up"${i === 0 ? ' disabled' : ''}>↑</button>
         <button class="btn small" data-down="${p.id}" aria-label="Move ${esc(p.display_name)} down"${i === sorted.length - 1 ? ' disabled' : ''}>↓</button>` : ''}
     </div>`).join('')}</div>
-    <p class="muted">${admin ? 'New people appear under Waiting for approval when they create an account, and join the end of the rotation once approved.' : 'New people join the end of the rotation once an admin approves them.'} Only admins see everyone’s email.</p>
+    <p class="muted">${admin ? 'New people appear under Waiting for approval when they create an account, and join the end of the rotation once approved. The second box under each name is their work Outlook email: leave invites from it are added to their leave.' : 'New people join the end of the rotation once an admin approves them.'} Only admins see everyone’s email.</p>
   </section>
   <section class="panel">
     <h2>Rotation start</h2>
@@ -425,6 +426,11 @@ function renderTeam() {
     <div class="list">${upcomingHol.map(h => `<div class="item"><span class="when">${fmtDay(h.date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span><div class="main">${esc(h.name)}</div>${admin ? `<button class="btn small danger" data-hdel="${h.date}">Remove</button>` : ''}</div>`).join('') || '<p class="muted">No holidays listed.</p>'}</div>
   </section>`;
 
+  // Admins set anyone's work Outlook email; invites from it become that person's leave.
+  view.querySelectorAll('[data-work]').forEach(inp => inp.onchange = () => {
+    const who = profiles.find(p => p.id === inp.dataset.work), v = inp.value.trim();
+    act(() => store.setWorkEmail(inp.dataset.work, v), v ? 'Work email saved for ' + who.display_name + '.' : 'Work email removed for ' + who.display_name + '.');
+  });
   view.querySelectorAll('[data-name]').forEach(inp => inp.onchange = () => {
     const v = inp.value.trim();
     if (!v) { toast('Name can’t be empty.'); return; }

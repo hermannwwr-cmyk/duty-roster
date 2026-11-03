@@ -48,3 +48,15 @@ test('non-admins can book at most 180 days, up to a year ahead', async () => {
   await s.signIn('alice@example.com');
   await s.addLeave({ user_id: 'demo-2', start_date: t, end_date: addDays(t, 300) });
 });
+
+test('admins can set anyone\'s work email; others only their own', async () => {
+  const s = new DemoStore();
+  await s.signIn('alice@example.com');
+  await s.setWorkEmail('demo-2', ' Chloe.Ng@Company.com ');
+  assert.equal(s.db.profiles.find(p => p.id === 'demo-2').work_email, 'chloe.ng@company.com');
+  await assert.rejects(s.setWorkEmail('demo-3', 'chloe.ng@company.com'), /someone else/);
+  await s.signIn('ben@example.com');
+  await assert.rejects(s.setWorkEmail('demo-2', 'x@company.com'), /Only admins/);
+  await s.setWorkEmail('demo-1', 'ben.lim@company.com');
+  assert.equal(s.db.profiles.find(p => p.id === 'demo-1').work_email, 'ben.lim@company.com');
+});
