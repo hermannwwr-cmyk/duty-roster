@@ -26,6 +26,7 @@ There is no linter, formatter or bundler.
 - `calendar.html` → `src/calendar.js`: the public page, no login. Two tabs (2FA Login card, and Calendar Forecast month grid; `#calendar` in the URL opens the second). Above the card, `src/engineer.js` draws an animated scene picked by Singapore time (`periodAt`): six weekday scenes, and a lights-off room on weekends and public holidays; `?scene=lunch` etc. forces one for previews. `src/faces.js` draws each person's cartoon face from their name. Under the card, a "No one is available on:" card lists upcoming working days whose duty list is empty. The page only ever receives names and roles, never leave, emails or ids.
   - It asks `loadPublic(today, today + 60)`. The SQL `public_calendar()` silently clips every request to at most ~62 days and to 90 days back / 180 days ahead, so asking for more just returns fewer days.
   - On phones the Calendar Forecast prints each name twice (`.full` and `.first` spans) and CSS shows the first name only; wording changes touch both.
+- Headers have no title: one row with the tab pill, then on the right a "Sign in" link (calendar.html) or, in the app, a round initials button whose menu (`toggleAccount` in app.js) holds who is signed in, Calendar and Sign out. Tab labels too long for phones carry `.tab-long`/`.tab-short` spans (e.g. "Calendar Forecast"/"Forecast", admins' "Team & settings"/"Team").
 
 **Shared UI pieces across the two pages** — the WhatsApp button label is written in both `app.js` and `calendar.js`; its icon (`WHATSAPP_ICON`), link and message text (`rosterMessage`) live in `schedule.js`. Avatars differ by page: the public card uses `faces.js`, the signed-in Roster tab uses initials circles from `initials()`/`avatarColor()` in `schedule.js`.
 
@@ -33,13 +34,15 @@ There is no linter, formatter or bundler.
 
 **Rotation logic** — `src/schedule.js` is pure (no DOM) and fully unit-tested: `buildSchedule` walks working days from the first **rota checkpoint**, skipping weekends, holidays and people on leave. Checkpoints (`rota_checkpoints` table) freeze history: approving, deactivating or reordering people saves a checkpoint dated today (`recordRotaChange` in app.js), so earlier days keep their duties. The same algorithm is reimplemented in SQL as `public_calendar()` (supabase/004_stable_history.sql) for the public page — a change to the rotation rules must be made in both. `rosterMessage()` builds the WhatsApp text (its exact wording is asserted in tests).
 
+**Public holidays** — `schema.sql` seeds the `holidays` table and `src/holidays-sg.js` seeds demo mode, both with 2026–2027 from the Ministry of Manpower dataset (data.gov.sg collection 691). Later years are added by admins in the Team tab, not in code.
+
 **Time** — everything uses Singapore dates: `todaySG()` in JS, `public.sg_today()` in SQL. Dates are `YYYY-MM-DD` strings; `fromISO` parses at noon to avoid DST/offset slips.
 
 **Staying fresh** — `src/live.js` `keepFresh()` re-fetches when the page becomes visible, every 5 minutes, and just after Singapore midnight; app.js skips it while a form has unsaved input. It also shows a "new version available" bar when the published page's stamp differs.
 
 **Swiping** — `src/swipe.js` (both pages): on phones a sideways swipe clicks the next or previous `[data-tab]` button and slides the new content in; it ignores the screen edges, form fields and (in app.js) unsaved input. The first visit on a phone plays a one-time "peek" at the next tab (remembered in localStorage as `swipePeekSeen`).
 
-**Styles** — one `styles.css`, the "Ocean" theme: always dark, deep sea blue with cyan accents, tokens on `:root`, Plus Jakarta Sans + JetBrains Mono from Google Fonts. Animations must stop under `prefers-reduced-motion`.
+**Styles** — one `styles.css`, the "Ocean" theme: always dark, deep sea blue with cyan accents, tokens on `:root`, Plus Jakarta Sans + JetBrains Mono from Google Fonts. Animations must stop under `prefers-reduced-motion`. A theme change is more than the `:root` tokens: `styles.css` also hard-codes theme colours (header, panels, buttons, pill tabs, the Primary row gradient, band label, account menu, Forecast today column), and `engineer.js` hard-codes the room and padlock colours.
 
 ## Database (supabase/)
 
