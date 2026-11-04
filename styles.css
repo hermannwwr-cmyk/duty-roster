@@ -291,3 +291,6 @@ h2[tabindex="-1"]:focus { outline: none; }
 #today > .panel + .panel { margin-top: 1.2rem; }
 .invite-hint { font-size: .82rem; }
 .work-input { display: block; margin-top: .35rem; font-size: .88rem; }
+.up-next { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .45rem; color: var(--soft); font-size: .92rem; }
+.up-next b { color: var(--ink); }
+.up-next-label { color: var(--accent); font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
