@@ -6,6 +6,7 @@
   --primary: #c4b5fd; --primary-soft: #241c4a; --leave: #d0aefc; --leave-soft: #2b2148;
   --holiday: #6fd3ad; --holiday-soft: #12302a; --danger: #ff8a80;
   --band: linear-gradient(120deg, #4f46e5, #9333ea);
+  --hoodie: #6d5df5; --hoodie-light: #7c6ff7; --hoodie-dark: #5246d6;   /* the engineer's clothes */
   --sans: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
   color-scheme: dark;

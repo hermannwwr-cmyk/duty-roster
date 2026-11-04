@@ -19,7 +19,9 @@ export function periodAt(now = new Date(), { weekdays = true } = {}) {
   return 'afterwork';
 }
 
-const SKIN = '#c98b63', SKIN_DARK = '#b97b55', HAIR = '#1f1a2e', HOODIE = '#6d5df5', HOODIE_LIGHT = '#7c6ff7', HOODIE_DARK = '#5246d6';
+const SKIN = '#c98b63', SKIN_DARK = '#b97b55', HAIR = '#1f1a2e';
+// The hoodie (and the blanket at night) follows the theme: --hoodie, --hoodie-light, --hoodie-dark in styles.css.
+const HOODIE = 'var(--hoodie, #6d5df5)', HOODIE_LIGHT = 'var(--hoodie-light, #7c6ff7)', HOODIE_DARK = 'var(--hoodie-dark, #5246d6)';
 const PANTS = '#1e293b', LINE = '#e8ecf8';
 
 /* ---------- Shared pieces ---------- */
@@ -113,13 +115,13 @@ const seatedBody = `
     <rect x="110" y="117" width="10" height="36" rx="5" fill="${PANTS}"/>
     <rect x="108" y="150" width="22" height="7" rx="3.5" fill="${LINE}"/>
     <rect x="76" y="111" width="44" height="12" rx="6" fill="${PANTS}"/>
-    <rect x="66" y="80" width="32" height="42" rx="13" fill="${HOODIE}"/>
+    <rect x="66" y="80" width="32" height="42" rx="13" style="fill:${HOODIE}"/>
     <rect x="87" y="72" width="9" height="10" rx="3" fill="${SKIN}"/>`;
 
 const typingArms = (cls = '') => ({
-  back: `<path class="arm back${cls}" d="M92 90 L112 104 L146 110" fill="none" stroke="${HOODIE_DARK}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  back: `<path class="arm back${cls}" d="M92 90 L112 104 L146 110" fill="none" style="stroke:${HOODIE_DARK}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
     <circle class="arm back${cls}" cx="148" cy="110" r="4.2" fill="${SKIN_DARK}"/>`,
-  front: `<path class="arm front${cls}" d="M88 92 L108 106 L144 114" fill="none" stroke="${HOODIE_LIGHT}" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+  front: `<path class="arm front${cls}" d="M88 92 L108 106 L144 114" fill="none" style="stroke:${HOODIE_LIGHT}" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
     <circle class="arm front${cls}" cx="146" cy="114" r="4.4" fill="${SKIN}"/>`
 });
 
@@ -141,11 +143,11 @@ function lunch() {
   <text x="194" y="88" text-anchor="middle" font-size="7" fill="#a3adca">Back at 2pm</text>`;
   return sky('lunch') + floor + rack() + desk({ screen, steam: false, bowl: true }) +
     `<g class="breathe">${seatedBody}
-    <path d="M92 90 L110 106 L132 108" fill="none" stroke="${HOODIE_DARK}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M92 90 L110 106 L132 108" fill="none" style="stroke:${HOODIE_DARK}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
     <circle cx="134" cy="108" r="4.2" fill="${SKIN_DARK}"/>
     ${head({ mouth: 'chew' })}
     <g class="eat">
-      <path d="M88 92 L106 104 L126 92" fill="none" stroke="${HOODIE_LIGHT}" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M88 92 L106 104 L126 92" fill="none" style="stroke:${HOODIE_LIGHT}" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
       <circle cx="128" cy="91" r="4.4" fill="${SKIN}"/>
       <path d="M127 89l14 12M130 88l14 11" stroke="#a16207" stroke-width="1.6" stroke-linecap="round"/>
       <path d="M140 100c1 3 0 6-1 8" fill="none" stroke="#fde68a" stroke-width="1.6" stroke-linecap="round"/>
@@ -167,12 +169,12 @@ function evening() {
   return sky('evening') + floor + rack() + desk({ screen, steam: false }) +
     `<g class="breathe">${seatedBody}
     <g class="stretch">
-      <path d="M90 88 L86 64 L92 42" fill="none" stroke="${HOODIE_DARK}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M90 88 L86 64 L92 42" fill="none" style="stroke:${HOODIE_DARK}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
       <circle cx="93" cy="39" r="4.2" fill="${SKIN_DARK}"/>
     </g>
     ${head({ headset: false, eyes: 'closed', mouth: 'yawn' })}
     <g class="stretch late">
-      <path d="M94 88 L104 66 L104 42" fill="none" stroke="${HOODIE_LIGHT}" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M94 88 L104 66 L104 42" fill="none" style="stroke:${HOODIE_LIGHT}" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
       <circle cx="104" cy="39" r="4.4" fill="${SKIN}"/>
     </g></g>`;
 }
@@ -192,10 +194,10 @@ function afterwork() {
     <rect x="128" y="120" width="40" height="12" rx="6" fill="${PANTS}"/>
     <rect x="158" y="124" width="10" height="32" rx="5" fill="${PANTS}"/>
     <rect x="156" y="152" width="22" height="7" rx="3.5" fill="${LINE}"/>
-    <rect x="108" y="88" width="32" height="40" rx="13" fill="${HOODIE}"/>
+    <rect x="108" y="88" width="32" height="40" rx="13" style="fill:${HOODIE}"/>
     <rect x="125" y="80" width="9" height="10" rx="3" fill="${SKIN}"/>
     ${head({ at: [38, 16], headset: false, eyes: 'happy', mouth: 'smile' })}
-    <path d="M126 98 L140 112 L150 104" fill="none" stroke="${HOODIE_LIGHT}" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M126 98 L140 112 L150 104" fill="none" style="stroke:${HOODIE_LIGHT}" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
     <rect x="148" y="92" width="9" height="15" rx="2" fill="#111827"/>
     <rect class="phone" x="149.5" y="93.5" width="6" height="12" rx="1" fill="#8b9cff"/>
     <circle class="tap" cx="151" cy="106" r="3.6" fill="${SKIN}"/>
@@ -213,8 +215,8 @@ function sleeping() {
   <rect x="46" y="108" width="182" height="14" rx="5" fill="#c7d2fe"/>
   <ellipse cx="72" cy="104" rx="20" ry="8" fill="${LINE}"/>
   ${head({ at: [-18, 34], headset: false, eyes: 'closed' }).replace('<g transform="translate(-18 34)">', '<g transform="translate(-18 34) rotate(-12 92 62)">')}
-  <path class="blanket" d="M84 110c2-12 24-16 46-14s58 0 76-2 22 6 22 16v6H84z" fill="${HOODIE}"/>
-  <path d="M110 104c30-4 70-4 110-6" fill="none" stroke="${HOODIE_LIGHT}" stroke-width="3" stroke-linecap="round" opacity=".7"/>
+  <path class="blanket" d="M84 110c2-12 24-16 46-14s58 0 76-2 22 6 22 16v6H84z" style="fill:${HOODIE}"/>
+  <path d="M110 104c30-4 70-4 110-6" fill="none" style="stroke:${HOODIE_LIGHT}" stroke-width="3" stroke-linecap="round" opacity=".7"/>
   <g class="zzz" fill="#c7d2fe" font-weight="800">
     <text x="92" y="74" font-size="10">z</text><text x="102" y="62" font-size="13">z</text><text x="114" y="48" font-size="16">Z</text>
   </g>
