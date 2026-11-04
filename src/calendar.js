@@ -6,6 +6,7 @@ import { createStore } from './connect.js';
 import { engineerScene } from './engineer.js';
 import { keepFresh } from './live.js';
 import { faceSvg } from './faces.js';
+import { swipeTabs } from './swipe.js';
 
 const view = document.getElementById('view');
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -163,6 +164,7 @@ document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
   setTab(b.dataset.tab);
 });
 setTab(location.hash === '#calendar' ? 'calendar' : 'today');
+swipeTabs(() => [document.getElementById('today'), view].find(el => !el.hidden));
 
 try {
   store = await createStore();

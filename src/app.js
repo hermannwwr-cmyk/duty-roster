@@ -1,6 +1,7 @@
 import { buildSchedule, checkpointFor, toISO, fromISO, addDays, todaySG, onRota, rosterMessage, whatsappLink, WHATSAPP_ICON, initials, avatarColor } from './schedule.js';
 import { createStore } from './connect.js';
 import { keepFresh } from './live.js';
+import { swipeTabs } from './swipe.js';
 
 const root = document.getElementById('root');
 let store;
@@ -123,6 +124,9 @@ let unsaved = false;
 root.addEventListener('input', () => { unsaved = true; });
 const typing = () => unsaved || /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement && document.activeElement.tagName);
 let lastDay = today();
+// Swipe left or right on a phone to change tab.
+swipeTabs(() => document.getElementById('view'), typing);
+
 keepFresh(async () => {
   // Follow the calendar into a new month if the page was showing the month that just ended.
   const t = today();

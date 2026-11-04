@@ -309,3 +309,10 @@ h2[tabindex="-1"]:focus { outline: none; }
 .up-next { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .45rem; color: var(--soft); font-size: .92rem; }
 .up-next b { color: var(--ink); }
 .up-next-label { color: var(--accent); font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+
+/* Swiping between tabs (src/swipe.js): the new tab slides in from the side the finger came from. */
+@keyframes slide-from-right { from { opacity: 0; transform: translateX(40px); } }
+@keyframes slide-from-left { from { opacity: 0; transform: translateX(-40px); } }
+.slide-from-right { animation: slide-from-right .25s ease-out; }
+.slide-from-left { animation: slide-from-left .25s ease-out; }
+@media (prefers-reduced-motion: reduce) { .slide-from-right, .slide-from-left { animation: none; } }
