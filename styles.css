@@ -317,20 +317,6 @@ h2[tabindex="-1"]:focus { outline: none; }
 .slide-from-left { animation: slide-from-left .25s ease-out; }
 @media (prefers-reduced-motion: reduce) { .slide-from-right, .slide-from-left { animation: none; } }
 
-/* Phones: dots under the header showing which tab you're on (src/swipe.js), and a one-time swipe tip. */
-.tab-dots { display: flex; justify-content: center; gap: .4rem; padding: .55rem 0 0; }
-.tab-dots span { width: .4rem; height: .4rem; border-radius: 999px; background: #ffffff33; transition: width .2s, background .2s; }
-.tab-dots span.on { width: 1.1rem; background: var(--accent); }
-.swipe-tip { position: fixed; left: 50%; bottom: calc(1.2rem + env(safe-area-inset-bottom, 0px)); z-index: 15; display: flex; align-items: center; gap: .6rem;
-  width: max-content; max-width: calc(100% - 32px); padding: .7rem 1rem; border-radius: 14px; background: #10303f; color: var(--ink); font-size: .92rem;
-  box-shadow: inset 0 0 0 1px #1f4a60, 0 12px 32px #00000080; transform: translateX(-50%); animation: tip-in .3s ease-out; transition: opacity .3s; }
-.swipe-tip svg { flex: none; color: var(--accent); }
-.swipe-tip b { color: var(--accent); }
-.swipe-tip.out { opacity: 0; }
-.swipe-arrows { animation: tip-wiggle 1.4s ease-in-out infinite; }
-@keyframes tip-in { from { opacity: 0; transform: translate(-50%, 12px); } }
-@keyframes tip-wiggle { 50% { transform: translateX(1.5px); } }
-@media (prefers-reduced-motion: reduce) { .swipe-tip, .swipe-arrows, .tab-dots span { animation: none; transition: none; } }
 /* The one-time peek: the edge of the next tab, a slim card with an arrow, while the page nudges aside. */
 .peek-edge { position: fixed; top: 32%; z-index: 15; display: grid; place-items: center; width: 48px; height: 36vh; color: #ffffff; pointer-events: none;
   background: linear-gradient(180deg, #0891b2, #0369a1); box-shadow: 0 10px 30px #00000080; }

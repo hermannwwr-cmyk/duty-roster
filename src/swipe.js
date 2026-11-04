@@ -36,7 +36,6 @@ export function swipeTabs(content, blocked = () => false) {
     void el.offsetWidth;   // restart the animation
     el.classList.add(dx < 0 ? 'slide-from-right' : 'slide-from-left');
     el.addEventListener('animationend', () => el.classList.remove('slide-from-left', 'slide-from-right'), { once: true });
-    hideTip(true);
   }, { passive: true });
   showSwipeHints(content);
 }
@@ -45,56 +44,18 @@ export function swipeTabs(content, blocked = () => false) {
 
 const phone = () => matchMedia('(max-width: 760px) and (pointer: coarse)').matches;
 
-/**
- * Page dots under the header, one per tab with the current one filled, and a one-time tip.
- * The pages redraw their header now and then, so the dots are put back whenever the tabs change.
- */
+/** Waits for the tabs to appear (the signed-in app draws them after sign-in), then peeks once. */
 function showSwipeHints(content) {
-  const sync = () => {
-    const nav = document.querySelector('nav.tabs'), header = nav && nav.closest('header');
-    let dots = document.querySelector('.tab-dots');
-    if (!nav || !phone()) { if (dots) dots.remove(); return; }
-    const tabs = [...nav.querySelectorAll('[data-tab]')];
-    if (!dots || dots.previousElementSibling !== header) {
-      if (dots) dots.remove();
-      dots = document.createElement('div');
-      dots.className = 'tab-dots';
-      dots.setAttribute('aria-hidden', 'true');
-      header.after(dots);
-    }
-    const html = tabs.map(b => `<span${b.getAttribute('aria-current') === 'page' ? ' class="on"' : ''}></span>`).join('');
-    if (dots.innerHTML !== html) dots.innerHTML = html;
-    if (tabs.length > 1) { peek(content, tabs); showTip(); }
+  const check = () => {
+    if (!phone()) { watch.disconnect(); return; }   // nothing to swipe on a computer
+    const tabs = [...document.querySelectorAll('nav.tabs [data-tab]')];
+    if (tabs.length < 2) return;
+    watch.disconnect();
+    peek(content, tabs);
   };
-  new MutationObserver(sync).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-current'] });
-  sync();
-}
-
-const TIP_SEEN = 'swipeTipSeen';
-let tip = null;
-/** Shown once per phone, a moment after the page opens; gone after a few seconds, a tap or a swipe. */
-function showTip() {
-  if (tip) return;
-  try { if (localStorage.getItem(TIP_SEEN)) return; localStorage.setItem(TIP_SEEN, '1'); } catch { return; }
-  tip = document.createElement('div');
-  tip.className = 'swipe-tip';
-  tip.setAttribute('role', 'status');
-  tip.innerHTML = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V11m0-1.5a1.5 1.5 0 0 1 3 0V11m0-.5a1.5 1.5 0 0 1 3 0v4.5a6 6 0 0 1-6 6h-.6a6 6 0 0 1-4.6-2.2L4.6 15.6a1.5 1.5 0 0 1 2.3-1.9L9 16"/>
-    <path class="swipe-arrows" d="M3 5h4M3 5l1.5-1.5M3 5l1.5 1.5M21 5h-4m4 0-1.5-1.5M21 5l-1.5 1.5"/></svg>
-    <span><b>Tip:</b> swipe left or right to change tabs</span>`;
-  setTimeout(() => {
-    document.body.append(tip);
-    setTimeout(() => hideTip(), 6000);
-    document.addEventListener('touchstart', () => setTimeout(() => hideTip(), 1500), { once: true, passive: true });
-  }, 1200);
-}
-function hideTip(now) {
-  if (!tip || !tip.isConnected) return;
-  const el = tip;
-  if (now) { el.remove(); return; }
-  el.classList.add('out');
-  setTimeout(() => el.remove(), 300);
+  const watch = new MutationObserver(check);
+  watch.observe(document.body, { subtree: true, childList: true });
+  check();
 }
 
 const PEEK_SEEN = 'swipePeekSeen';

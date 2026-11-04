@@ -37,6 +37,8 @@ There is no linter, formatter or bundler.
 
 **Staying fresh** — `src/live.js` `keepFresh()` re-fetches when the page becomes visible, every 5 minutes, and just after Singapore midnight; app.js skips it while a form has unsaved input. It also shows a "new version available" bar when the published page's stamp differs.
 
+**Swiping** — `src/swipe.js` (both pages): on phones a sideways swipe clicks the next or previous `[data-tab]` button and slides the new content in; it ignores the screen edges, form fields and (in app.js) unsaved input. The first visit on a phone plays a one-time "peek" at the next tab (remembered in localStorage as `swipePeekSeen`).
+
 **Styles** — one `styles.css`, the "Ocean" theme: always dark, deep sea blue with cyan accents, tokens on `:root`, Plus Jakarta Sans + JetBrains Mono from Google Fonts. Animations must stop under `prefers-reduced-motion`.
 
 ## Database (supabase/)
