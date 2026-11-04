@@ -9,14 +9,6 @@ import { faceSvg } from './faces.js';
 
 const view = document.getElementById('view');
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-/** How long until a day's duty starts (Singapore midnight), e.g. "in 11h" or "in 3 days". */
-function takesOver(date, now = Date.now()) {
-  const hours = Math.max(0, (Date.parse(date + 'T00:00:00+08:00') - now) / 36e5);
-  if (hours < 1) return 'within the hour';
-  if (hours < 24) return `in ${Math.floor(hours)}h`;
-  const days = Math.round(hours / 24);
-  return `in ${days} day${days === 1 ? '' : 's'}`;
-}
 const shortRole = r => r === 'Primary' ? 'P' : 'S' + r.split(' ')[1];
 const state = { month: todaySG().slice(0, 7) };
 
@@ -154,9 +146,7 @@ async function renderToday() {
       <span class="gap-when">${howSoon(t, d.date)}</span></span></li>`).join('')}</ul></section>` : '';
   // Who is Primary on the working day after the one shown, so people know who to ask next.
   const after = day && data.days.find(d => d.kind === 'work' && d.date > day.date && d.duties.length);
-  const upNext = after ? `<div class="up-next"><span class="av face-av">${faceSvg(after.duties[0].name)}</span>
-    <span class="up-next-text"><span class="up-next-label">Up next · ${after.date === addDays(t, 1) ? 'Tomorrow' : fmt(after.date)}</span><span class="up-next-name">${esc(after.duties[0].name)}</span></span>
-    <span class="up-next-when">Takes over<br>${takesOver(after.date)}</span></div>` : '';
+  const upNext = after ? `<p class="up-next"><span class="up-next-label">Up next</span> ${after.date === addDays(t, 1) ? 'Tomorrow' : fmt(after.date)} · <b>${esc(after.duties[0].name)}</b> is Primary</p>` : '';
   document.getElementById('today').innerHTML = `<div class="hero">${scene.svg}<p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div><section class="panel" aria-labelledby="today-h"><h2 id="today-h"><span class="band-title">2FA Login</span> <span class="date-pill">${fmt(t)}</span></h2>${body}${upNext}${share}</section>${gaps}`;
 }
 

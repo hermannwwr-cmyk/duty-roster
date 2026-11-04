@@ -306,10 +306,6 @@ h2[tabindex="-1"]:focus { outline: none; }
 #today > .panel + .panel { margin-top: 1.2rem; }
 .invite-hint { font-size: .82rem; }
 .work-input { display: block; margin-top: .35rem; font-size: .88rem; }
-/* Up next: a small card with the next Primary's face and how long until they take over. */
-.up-next { display: flex; align-items: center; gap: .75rem; padding: .7rem .9rem; border-radius: 14px; background: #0f2a38; box-shadow: inset 0 0 0 1px var(--line); }
-.up-next .face-av { width: 2.4rem; height: 2.4rem; }
-.up-next-text { display: grid; gap: .05rem; min-width: 0; }
-.up-next-name { color: var(--ink); font-weight: 700; font-size: 1rem; overflow-wrap: anywhere; }
-.up-next-when { margin-left: auto; text-align: right; color: var(--accent); font-weight: 700; font-size: .8rem; white-space: nowrap; }
+.up-next { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .45rem; color: var(--soft); font-size: .92rem; }
+.up-next b { color: var(--ink); }
 .up-next-label { color: var(--accent); font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
