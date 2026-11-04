@@ -331,4 +331,8 @@ h2[tabindex="-1"]:focus { outline: none; }
 @keyframes tip-in { from { opacity: 0; transform: translate(-50%, 12px); } }
 @keyframes tip-wiggle { 50% { transform: translateX(1.5px); } }
 @media (prefers-reduced-motion: reduce) { .swipe-tip, .swipe-arrows, .tab-dots span { animation: none; transition: none; } }
-
+/* The one-time peek: the edge of the next tab, a slim card with an arrow, while the page nudges aside. */
+.peek-edge { position: fixed; top: 32%; z-index: 15; display: grid; place-items: center; width: 48px; height: 36vh; color: #ffffff; pointer-events: none;
+  background: linear-gradient(180deg, #0891b2, #0369a1); box-shadow: 0 10px 30px #00000080; }
+.peek-edge.right { right: 0; border-radius: 18px 0 0 18px; }
+.peek-edge.left { left: 0; border-radius: 0 18px 18px 0; }

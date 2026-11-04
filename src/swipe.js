@@ -38,7 +38,7 @@ export function swipeTabs(content, blocked = () => false) {
     el.addEventListener('animationend', () => el.classList.remove('slide-from-left', 'slide-from-right'), { once: true });
     hideTip(true);
   }, { passive: true });
-  showSwipeHints();
+  showSwipeHints(content);
 }
 
 /* ---------- Telling people they can swipe (phones only) ---------- */
@@ -49,7 +49,7 @@ const phone = () => matchMedia('(max-width: 760px) and (pointer: coarse)').match
  * Page dots under the header, one per tab with the current one filled, and a one-time tip.
  * The pages redraw their header now and then, so the dots are put back whenever the tabs change.
  */
-function showSwipeHints() {
+function showSwipeHints(content) {
   const sync = () => {
     const nav = document.querySelector('nav.tabs'), header = nav && nav.closest('header');
     let dots = document.querySelector('.tab-dots');
@@ -64,7 +64,7 @@ function showSwipeHints() {
     }
     const html = tabs.map(b => `<span${b.getAttribute('aria-current') === 'page' ? ' class="on"' : ''}></span>`).join('');
     if (dots.innerHTML !== html) dots.innerHTML = html;
-    if (tabs.length > 1) showTip();
+    if (tabs.length > 1) { peek(content, tabs); showTip(); }
   };
   new MutationObserver(sync).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-current'] });
   sync();
@@ -96,3 +96,35 @@ function hideTip(now) {
   el.classList.add('out');
   setTimeout(() => el.remove(), 300);
 }
+
+const PEEK_SEEN = 'swipePeekSeen';
+let peeked = false;
+/**
+ * Once per phone: the page slides a little to the left and springs back, with the edge of the next
+ * tab (a slim card with an arrow) peeking in from the right, as if it were just off screen.
+ */
+function peek(content, tabs) {
+  if (peeked || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  peeked = true;
+  try { if (localStorage.getItem(PEEK_SEEN)) return; localStorage.setItem(PEEK_SEEN, '1'); } catch { return; }
+  const now = tabs.findIndex(b => b.getAttribute('aria-current') === 'page');
+  const next = tabs[now + 1] || tabs[now - 1];
+  if (!next) return;
+  const fromRight = tabs.indexOf(next) > now;
+  setTimeout(() => {
+    const el = content();
+    if (!el) return;
+    const edge = document.createElement('div');
+    edge.className = 'peek-edge ' + (fromRight ? 'right' : 'left');
+    edge.setAttribute('aria-hidden', 'true');
+    edge.innerHTML = `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="${fromRight ? 'M9 5l7 7-7 7' : 'M15 5l-7 7 7 7'}"/></svg>`;
+    document.body.append(edge);
+    // Out quickly, a short pause, then a softer spring back. The easing is per step, not overall.
+    const d = fromRight ? -1 : 1, out = 'cubic-bezier(.2, .8, .2, 1)', back = 'cubic-bezier(.5, 0, .2, 1)';
+    const steps = (from, to) => [{ transform: from, easing: out }, { transform: to, offset: .35 }, { transform: to, offset: .55, easing: back }, { transform: from }];
+    el.animate(steps('none', `translateX(${d * 56}px)`), 1400);
+    edge.animate(steps(`translateX(${-d * 100}%)`, 'none'), 1400)
+      .finished.then(() => edge.remove());
+  }, 900);
+}
+
