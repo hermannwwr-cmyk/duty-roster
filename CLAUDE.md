@@ -37,7 +37,7 @@ There is no linter, formatter or bundler.
 
 **Staying fresh** — `src/live.js` `keepFresh()` re-fetches when the page becomes visible, every 5 minutes, and just after Singapore midnight; app.js skips it while a form has unsaved input. It also shows a "new version available" bar when the published page's stamp differs.
 
-**Styles** — one `styles.css`, the "Midnight" theme: always dark, tokens on `:root`, Plus Jakarta Sans + JetBrains Mono from Google Fonts. Animations must stop under `prefers-reduced-motion`.
+**Styles** — one `styles.css`, the "Ocean" theme: always dark, deep sea blue with cyan accents, tokens on `:root`, Plus Jakarta Sans + JetBrains Mono from Google Fonts. Animations must stop under `prefers-reduced-motion`.
 
 ## Database (supabase/)
 

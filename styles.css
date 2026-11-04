@@ -27,13 +27,11 @@ p { margin: 0; }
 
 /* Header */
 .top { position: sticky; top: 0; z-index: 5; background: #06141cd9; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
-.top .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.2rem; padding-block: .8rem; }
+.top .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.2rem; padding-block: .8rem 0; }
 .brand { font-weight: 800; font-size: 1.2rem; letter-spacing: -.01em; margin-right: auto; }
 .who { color: var(--soft); font-size: .95rem; }
 .who b { color: var(--ink); }
-/* Tabs sit under the header, outside it: the header's blur would trap the phone tab bar (position: fixed) inside it. */
-.tabs { display: flex; gap: .2rem; overflow-x: auto; border-bottom: 1px solid var(--line); }
-.tab-icon, .tab-short { display: none; }
+.tabs { display: flex; gap: .2rem; width: 100%; overflow-x: auto; }
 .tabs button { background: none; border: 0; border-bottom: 3px solid transparent; padding: .55rem .9rem; font-weight: 600; color: var(--soft); white-space: nowrap; }
 .tabs button[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); }
 .demo { background: var(--accent-soft); color: var(--ink); font-size: .92rem; }
@@ -118,7 +116,7 @@ label.field input, label.field select { font-weight: 400; color: var(--ink); bac
 /* Public month calendar (calendar.html) */
 .cal-top .brand { margin-right: auto; }
 .cal-top { flex-wrap: wrap; gap: .5rem; }
-.cal-top { padding-block: .8rem !important; }
+.cal-top { padding-block: .8rem 0 !important; }
 a.btn { text-decoration: none; color: inherit; display: inline-block; }
 .cal { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
 .dow { font-size: .76rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--soft); padding: .4rem .5rem; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
@@ -298,15 +296,3 @@ h2[tabindex="-1"]:focus { outline: none; }
 .up-next { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .45rem; color: var(--soft); font-size: .92rem; }
 .up-next b { color: var(--ink); }
 .up-next-label { color: var(--accent); font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-
-/* Phones: the tabs become a tab bar along the bottom, with an icon over a short label. */
-@media (max-width: 760px) {
-  .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; max-width: none; margin: 0; padding: .35rem .5rem calc(.35rem + env(safe-area-inset-bottom, 0px)); gap: 0;
-    background: #08202ced; backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 0; border-top: 1px solid var(--line); }
-  .tabs button { flex: 1; display: grid; justify-items: center; gap: .15rem; padding: .25rem 0; border-bottom: 0; color: var(--soft); font-size: .68rem; }
-  .tabs button[aria-current="page"] { color: var(--accent); }
-  .tab-icon { display: block; width: 1.55rem; height: 1.55rem; }
-  .tab-long { display: none; } .tab-short { display: inline; }
-  body { padding-bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px)); }
-  .toast, .update-bar { bottom: calc(5.2rem + env(safe-area-inset-bottom, 0px)); }
-}

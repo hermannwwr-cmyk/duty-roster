@@ -6,7 +6,6 @@ import { createStore } from './connect.js';
 import { engineerScene } from './engineer.js';
 import { keepFresh } from './live.js';
 import { faceSvg } from './faces.js';
-import { tabInner } from './icons.js';
 
 const view = document.getElementById('view');
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -161,7 +160,6 @@ document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
   history.replaceState(null, '', b.dataset.tab === 'calendar' ? '#calendar' : location.pathname + location.search);
   setTab(b.dataset.tab);
 });
-document.querySelectorAll('[data-tab]').forEach(b => { b.innerHTML = tabInner(b.dataset.tab, b.textContent, b.dataset.short); });
 setTab(location.hash === '#calendar' ? 'calendar' : 'today');
 
 try {

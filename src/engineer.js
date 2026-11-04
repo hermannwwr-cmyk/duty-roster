@@ -58,10 +58,10 @@ function rack(dim) {
     <path d="M302 ${54 + i * 21}h26M302 ${58 + i * 21}h26M302 ${62 + i * 21}h18" stroke="#2f3c6b" stroke-width="1.6" stroke-linecap="round"/>`).join('')}
   </g>
   <g class="lock">
-    <circle cx="306" cy="20" r="13" fill="#4f46e5" opacity=".25" class="lock-pulse"/>
-    <path d="M300 18v-4a6 6 0 0 1 12 0v4" fill="none" stroke="#c4b5fd" stroke-width="2.4"/>
-    <rect x="297" y="17" width="18" height="13" rx="3" fill="#c4b5fd"/>
-    <circle cx="306" cy="23" r="2" fill="#1e1b4b"/>
+    <circle cx="306" cy="20" r="13" fill="#0891b2" opacity=".25" class="lock-pulse"/>
+    <path d="M300 18v-4a6 6 0 0 1 12 0v4" fill="none" stroke="#7dd3fc" stroke-width="2.4"/>
+    <rect x="297" y="17" width="18" height="13" rx="3" fill="#7dd3fc"/>
+    <circle cx="306" cy="23" r="2" fill="#082f49"/>
   </g>`;
 }
 

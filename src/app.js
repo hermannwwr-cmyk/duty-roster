@@ -1,7 +1,6 @@
 import { buildSchedule, checkpointFor, toISO, fromISO, addDays, todaySG, onRota, rosterMessage, whatsappLink, WHATSAPP_ICON, initials, avatarColor } from './schedule.js';
 import { createStore } from './connect.js';
 import { keepFresh } from './live.js';
-import { tabInner } from './icons.js';
 
 const root = document.getElementById('root');
 let store;
@@ -183,15 +182,15 @@ function renderAuth() {
 /* ---------- App shell ---------- */
 function renderApp() {
   const { me } = state.data;
-  const tabs = [['roster', 'Roster'], ['leave', 'Leave'], ['team', me.is_admin ? 'Team & settings' : 'Team', 'Team']];
+  const tabs = [['roster', 'Roster'], ['leave', 'Leave'], ['team', me.is_admin ? 'Team & settings' : 'Team']];
   root.innerHTML = `
   <header class="top"><div class="wrap">
     <span class="brand">2FA Login Request</span>
     <span class="who">Signed in as <b>${esc(me.display_name)}</b>${me.is_admin ? ' · admin' : ''}</span>
     <a class="btn small" href="calendar.html">Calendar</a>
     <button class="btn small" id="signout">Sign out</button>
+    <nav class="tabs" aria-label="Sections">${tabs.map(([id, label]) => `<button type="button" data-tab="${id}"${state.tab === id ? ' aria-current="page"' : ''}>${label}</button>`).join('')}</nav>
   </div></header>
-  <nav class="tabs wrap" aria-label="Sections">${tabs.map(([id, label, short]) => `<button type="button" data-tab="${id}"${state.tab === id ? ' aria-current="page"' : ''}>${tabInner(id, label, short)}</button>`).join('')}</nav>
   ${store.mode === 'demo' ? '<div class="demo"><div class="wrap"><span><b>Demo mode.</b> Data is saved in this browser only. Add your Supabase details to <code>config.js</code> to share it with the team.</span><button class="btn link" id="reset-demo">Reset demo data</button></div></div>' : ''}
   <main class="wrap" id="view" data-user="${esc(userKey(me))}"></main>`;
   document.getElementById('signout').onclick = () => store.signOut();
