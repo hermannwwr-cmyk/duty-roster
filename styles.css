@@ -27,16 +27,27 @@ p { margin: 0; }
 
 /* Header */
 .top { position: sticky; top: 0; z-index: 5; background: #06141cd9; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 1px 0 var(--line), 0 14px 30px -14px #06b6d499; }
-.top .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.2rem; padding-block: .8rem; }
-/* The tabs always start their own row, under the title and buttons. */
-.top .wrap::after { content: ""; order: 1; flex-basis: 100%; height: 0; margin-top: -.6rem; }
-.brand { font-weight: 800; font-size: 1.2rem; letter-spacing: -.01em; margin-right: auto; }
-.who { color: var(--soft); font-size: .95rem; }
-.who b { color: var(--ink); }
+.top .wrap { position: relative; display: flex; align-items: center; gap: .6rem; padding-block: .6rem; }
 /* Tabs: a rounded pill, the selected one filled in cyan. */
-.tabs { order: 2; display: flex; gap: .2rem; width: fit-content; max-width: 100%; overflow-x: auto; padding: .25rem; background: #0a2230; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--line); }
+.tabs { display: flex; flex: 0 1 auto; min-width: 0; gap: .2rem; width: fit-content; max-width: 100%; overflow-x: auto; padding: .25rem; background: #0a2230; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--line); }
 .tabs button { background: none; border: 0; border-radius: 999px; padding: .45rem 1rem; font-weight: 600; color: var(--soft); white-space: nowrap; }
 .tabs button[aria-current="page"] { color: #ffffff; background: linear-gradient(120deg, #0369a1, #0891b2); box-shadow: 0 4px 14px #0891b255; }
+.tab-short { display: none; }
+@media (max-width: 760px) { .tab-long { display: none; } .tab-short { display: inline; } }
+/* On the right of the tab row: Sign in on the public page, the account button in the app. */
+.top-end { flex: none; margin-left: auto; }
+.acct { position: relative; }
+.acct-btn { display: grid; place-items: center; width: 2.6rem; height: 2.6rem; border: 0; border-radius: 50%; background: var(--av); color: #ffffff; font-weight: 800; font-size: .85rem;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--accent); }
+.acct-menu { position: absolute; right: 0; top: calc(100% + .5rem); z-index: 9; display: grid; min-width: 14rem; padding: .4rem; border-radius: 16px; background: #10283a;
+  box-shadow: inset 0 0 0 1px #1f4a60, 0 16px 40px #000000a0; }
+.acct-menu[hidden] { display: none; }
+.acct-head { padding: .55rem .7rem .6rem; margin-bottom: .3rem; border-bottom: 1px solid #1f4a60; color: var(--soft); font-size: .85rem; }
+.acct-head b { display: block; color: var(--ink); font-size: 1rem; overflow-wrap: anywhere; }
+.acct-role { display: inline-block; margin-top: .25rem; padding: .05rem .5rem; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: .72rem; font-weight: 700; }
+.acct-menu a, .acct-menu button { display: flex; align-items: center; gap: .6rem; padding: .6rem .7rem; border: 0; border-radius: 10px; background: none; color: var(--ink); font-weight: 600; text-align: left; text-decoration: none; }
+.acct-menu a:hover, .acct-menu button:hover, .acct-menu a:focus-visible, .acct-menu button:focus-visible { background: #ffffff10; }
+.acct-menu svg { flex: none; color: var(--accent); }
 .demo { background: var(--accent-soft); color: var(--ink); font-size: .92rem; }
 .demo .wrap { padding-block: .5rem; display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: center; }
 
@@ -117,9 +128,6 @@ label.field input, label.field select { font-weight: 400; color: var(--ink); bac
 .toast { position: fixed; left: 50%; bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: .6rem 1rem; border-radius: 8px; font-size: .95rem; max-width: calc(100% - 32px); z-index: 10; }
 
 /* Public month calendar (calendar.html) */
-.cal-top .brand { margin-right: auto; }
-.cal-top { flex-wrap: wrap; gap: .5rem; }
-.cal-top { padding-block: .8rem !important; }
 a.btn { text-decoration: none; color: inherit; display: inline-block; }
 .cal { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
 .dow { font-size: .76rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--soft); padding: .4rem .5rem; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }

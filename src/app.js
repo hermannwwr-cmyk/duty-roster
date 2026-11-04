@@ -184,20 +184,42 @@ function renderAuth() {
 }
 
 /* ---------- App shell ---------- */
+const ICON_CALENDAR = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>';
+const ICON_SIGNOUT = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M10 16l-4-4 4-4M6 12h10"/></svg>';
+/** The account menu under the initials button: who is signed in, Calendar and Sign out. */
+function toggleAccount(open) {
+  const btn = document.getElementById('acct-btn'), menu = document.getElementById('acct-menu');
+  if (!btn || !menu) return;
+  open = open ?? menu.hidden;
+  menu.hidden = !open;
+  btn.setAttribute('aria-expanded', String(open));
+  if (open) menu.querySelector('a, button').focus();
+}
+// Close it on a tap elsewhere or Escape.
+document.addEventListener('click', e => { if (!e.target.closest('.acct')) toggleAccount(false); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('acct-menu')?.hidden === false) { toggleAccount(false); document.getElementById('acct-btn').focus(); }
+});
 function renderApp() {
   const { me } = state.data;
-  const tabs = [['roster', 'Roster'], ['leave', 'Leave'], ['team', me.is_admin ? 'Team & settings' : 'Team']];
+  const tabs = [['roster', 'Roster'], ['leave', 'Leave'], ['team', me.is_admin ? '<span class="tab-long">Team & settings</span><span class="tab-short">Team</span>' : 'Team']];
   root.innerHTML = `
   <header class="top"><div class="wrap">
-    <span class="brand">2FA Login Request</span>
-    <span class="who">Signed in as <b>${esc(me.display_name)}</b>${me.is_admin ? ' · admin' : ''}</span>
-    <a class="btn small" href="calendar.html">Calendar</a>
-    <button class="btn small" id="signout">Sign out</button>
     <nav class="tabs" aria-label="Sections">${tabs.map(([id, label]) => `<button type="button" data-tab="${id}"${state.tab === id ? ' aria-current="page"' : ''}>${label}</button>`).join('')}</nav>
+    <div class="acct top-end">
+      <button type="button" class="acct-btn" id="acct-btn" style="--av:${avatarColor(me.display_name)}" aria-haspopup="true" aria-expanded="false" aria-controls="acct-menu"
+        aria-label="Account: ${esc(me.display_name)}">${esc(initials(me.display_name))}</button>
+      <div class="acct-menu" id="acct-menu" hidden>
+        <p class="acct-head">Signed in as<b>${esc(me.display_name)}</b>${me.is_admin ? '<span class="acct-role">Admin</span>' : ''}</p>
+        <a href="calendar.html">${ICON_CALENDAR}Calendar</a>
+        <button type="button" id="signout">${ICON_SIGNOUT}Sign out</button>
+      </div>
+    </div>
   </div></header>
   ${store.mode === 'demo' ? '<div class="demo"><div class="wrap"><span><b>Demo mode.</b> Data is saved in this browser only. Add your Supabase details to <code>config.js</code> to share it with the team.</span><button class="btn link" id="reset-demo">Reset demo data</button></div></div>' : ''}
   <main class="wrap" id="view" data-user="${esc(userKey(me))}"></main>`;
   document.getElementById('signout').onclick = () => store.signOut();
+  document.getElementById('acct-btn').onclick = () => toggleAccount();
   const reset = document.getElementById('reset-demo');
   if (reset) reset.onclick = () => store.reset();
   root.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {

@@ -10,32 +10,31 @@
 <script type="importmap">
 {
   "imports": {
-    "./config.js": "./config.js?v=202611041355",
-    "./src/app.js": "./src/app.js?v=202611041355",
-    "./src/calendar.js": "./src/calendar.js?v=202611041355",
-    "./src/connect.js": "./src/connect.js?v=202611041355",
-    "./src/engineer.js": "./src/engineer.js?v=202611041355",
-    "./src/faces.js": "./src/faces.js?v=202611041355",
-    "./src/holidays-sg.js": "./src/holidays-sg.js?v=202611041355",
-    "./src/live.js": "./src/live.js?v=202611041355",
-    "./src/schedule.js": "./src/schedule.js?v=202611041355",
-    "./src/store.js": "./src/store.js?v=202611041355",
-    "./src/swipe.js": "./src/swipe.js?v=202611041355"
+    "./config.js": "./config.js?v=202611041402",
+    "./src/app.js": "./src/app.js?v=202611041402",
+    "./src/calendar.js": "./src/calendar.js?v=202611041402",
+    "./src/connect.js": "./src/connect.js?v=202611041402",
+    "./src/engineer.js": "./src/engineer.js?v=202611041402",
+    "./src/faces.js": "./src/faces.js?v=202611041402",
+    "./src/holidays-sg.js": "./src/holidays-sg.js?v=202611041402",
+    "./src/live.js": "./src/live.js?v=202611041402",
+    "./src/schedule.js": "./src/schedule.js?v=202611041402",
+    "./src/store.js": "./src/store.js?v=202611041402",
+    "./src/swipe.js": "./src/swipe.js?v=202611041402"
   }
 }
 </script>
-<link rel="stylesheet" href="styles.css?v=202611041355">
-<script type="module" src="src/calendar.js?v=202611041355"></script>
+<link rel="stylesheet" href="styles.css?v=202611041402">
+<script type="module" src="src/calendar.js?v=202611041402"></script>
 <!-- version:end -->
 </head>
 <body>
 <header class="top"><div class="wrap cal-top">
-  <span class="brand">2FA Login Request</span>
-  <a class="btn small" href="./">Sign in to add leave</a>
   <nav class="tabs" aria-label="Sections">
     <button type="button" data-tab="today" aria-current="page">2FA Login</button>
-    <button type="button" data-tab="calendar">Calendar Forecast</button>
+    <button type="button" data-tab="calendar"><span class="tab-long">Calendar Forecast</span><span class="tab-short">Forecast</span></button>
   </nav>
+  <a class="btn small top-end" href="./" aria-label="Sign in to add leave">Sign in</a>
 </div></header>
 <div class="wrap" id="today"><p class="loading">Loading today’s 2FA Login…</p></div>
 <main class="wrap" id="view" hidden><p class="loading">Loading the calendar…</p></main>
