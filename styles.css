@@ -26,14 +26,17 @@ p { margin: 0; }
 .wrap { max-width: 62rem; margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); }
 
 /* Header */
-.top { position: sticky; top: 0; z-index: 5; background: #06141cd9; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
-.top .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.2rem; padding-block: .8rem 0; }
+.top { position: sticky; top: 0; z-index: 5; background: #06141cd9; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 1px 0 var(--line), 0 14px 30px -14px #06b6d499; }
+.top .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.2rem; padding-block: .8rem; }
+/* The tabs always start their own row, under the title and buttons. */
+.top .wrap::after { content: ""; order: 1; flex-basis: 100%; height: 0; margin-top: -.6rem; }
 .brand { font-weight: 800; font-size: 1.2rem; letter-spacing: -.01em; margin-right: auto; }
 .who { color: var(--soft); font-size: .95rem; }
 .who b { color: var(--ink); }
-.tabs { display: flex; gap: .2rem; width: 100%; overflow-x: auto; }
-.tabs button { background: none; border: 0; border-bottom: 3px solid transparent; padding: .55rem .9rem; font-weight: 600; color: var(--soft); white-space: nowrap; }
-.tabs button[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); }
+/* Tabs: a rounded pill, the selected one filled in cyan. */
+.tabs { order: 2; display: flex; gap: .2rem; width: fit-content; max-width: 100%; overflow-x: auto; padding: .25rem; background: #0a2230; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--line); }
+.tabs button { background: none; border: 0; border-radius: 999px; padding: .45rem 1rem; font-weight: 600; color: var(--soft); white-space: nowrap; }
+.tabs button[aria-current="page"] { color: #ffffff; background: linear-gradient(120deg, #0369a1, #0891b2); box-shadow: 0 4px 14px #0891b255; }
 .demo { background: var(--accent-soft); color: var(--ink); font-size: .92rem; }
 .demo .wrap { padding-block: .5rem; display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: center; }
 
@@ -116,15 +119,16 @@ label.field input, label.field select { font-weight: 400; color: var(--ink); bac
 /* Public month calendar (calendar.html) */
 .cal-top .brand { margin-right: auto; }
 .cal-top { flex-wrap: wrap; gap: .5rem; }
-.cal-top { padding-block: .8rem 0 !important; }
+.cal-top { padding-block: .8rem !important; }
 a.btn { text-decoration: none; color: inherit; display: inline-block; }
 .cal { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
 .dow { font-size: .76rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--soft); padding: .4rem .5rem; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .cell { min-height: 6.5rem; padding: .35rem .45rem .5rem; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); display: grid; align-content: start; gap: .25rem; min-width: 0; }
 .cell .num { font: 500 .85rem var(--mono); color: var(--soft); }
 .cell .dow-inline { display: none; }
-.cell.is-today { background: var(--accent-soft); }
-.cell.is-today .num { color: var(--accent); font-weight: 700; }
+.cell.today-col { background: #38bdf812; }
+.cell.is-today { background: #38bdf826; box-shadow: inset 0 3px 0 var(--accent); }
+.cell.is-today .num { display: inline-grid; place-items: center; justify-self: start; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-weight: 700; }
 .cell.weekend { background: var(--bg); }
 .cell.out { opacity: .45; }
 .cell.holiday { background: var(--holiday-soft); }
@@ -133,6 +137,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-block; }
 .duty li { display: flex; gap: .3rem; min-width: 0; overflow-wrap: anywhere; color: var(--soft); }
 .duty li .r { font: 500 .7rem var(--mono); min-width: 1.6rem; padding-top: .1rem; }
 .duty li.p { color: var(--ink); font-weight: 700; }
+.duty li.p::before { content: ""; flex: none; width: .4rem; height: .4rem; margin-top: .35em; border-radius: 50%; background: var(--accent); }
 .duty li.p .r { color: var(--primary); }
 .duty .n .first { display: none; }
 /* On phones the five weekdays fit across the screen: small type, tight cells, long names end in "…". */
@@ -161,6 +166,14 @@ h2[tabindex="-1"]:focus { outline: none; }
 /* The 2FA Login card: a gradient header band, then each role with the person's initials. */
 .today { grid-template-columns: minmax(0, 1fr); gap: 1rem; padding-top: 0; overflow: hidden; box-shadow: 0 0 0 1px #ffffff14, 0 16px 40px #00000080; }
 .today .mine, #today .panel > h2 { margin: 0 -1.2rem; padding: 1.1rem 1.2rem 1rem; background: var(--band); color: #ffffff; }
+/* A slow light ripple drifting across the band, and the date in a pill on the right. */
+.today .mine, #today .panel > h2 { position: relative; overflow: hidden; isolation: isolate; }
+.today .mine::after, #today .panel > h2::after { content: ""; position: absolute; inset: -40% -10%; z-index: -1; pointer-events: none;
+  background: radial-gradient(60% 50% at 30% 120%, #ffffff33, transparent 70%), radial-gradient(40% 40% at 85% -20%, #ffffff22, transparent 70%); animation: ripple 9s ease-in-out infinite alternate; }
+@keyframes ripple { to { transform: translateX(8%); } }
+@media (prefers-reduced-motion: reduce) { .today .mine::after, #today .panel > h2::after { animation: none; } }
+#today-h { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
+.date-pill { font-size: .82rem; font-weight: 700; padding: .3rem .7rem; border-radius: 999px; background: #ffffff26; box-shadow: inset 0 0 0 1px #ffffff33; white-space: nowrap; }
 .today .label { color: #cffafe; }
 .today .role { font-size: 1.6rem; }
 #today { margin-top: 1.4rem; padding-bottom: 3rem; }
@@ -293,6 +306,10 @@ h2[tabindex="-1"]:focus { outline: none; }
 #today > .panel + .panel { margin-top: 1.2rem; }
 .invite-hint { font-size: .82rem; }
 .work-input { display: block; margin-top: .35rem; font-size: .88rem; }
-.up-next { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .45rem; color: var(--soft); font-size: .92rem; }
-.up-next b { color: var(--ink); }
+/* Up next: a small card with the next Primary's face and how long until they take over. */
+.up-next { display: flex; align-items: center; gap: .75rem; padding: .7rem .9rem; border-radius: 14px; background: #0f2a38; box-shadow: inset 0 0 0 1px var(--line); }
+.up-next .face-av { width: 2.4rem; height: 2.4rem; }
+.up-next-text { display: grid; gap: .05rem; min-width: 0; }
+.up-next-name { color: var(--ink); font-weight: 700; font-size: 1rem; overflow-wrap: anywhere; }
+.up-next-when { margin-left: auto; text-align: right; color: var(--accent); font-weight: 700; font-size: .8rem; white-space: nowrap; }
 .up-next-label { color: var(--accent); font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
