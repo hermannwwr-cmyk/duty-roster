@@ -301,3 +301,52 @@ h2[tabindex="-1"]:focus { outline: none; }
   body { padding-bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px)); }
   .toast, .update-bar { bottom: calc(5.2rem + env(safe-area-inset-bottom, 0px)); }
 }
+
+/* ---------- Liquid Glass ----------
+   Frosted glass cards, header and tab bar floating over a faint deep-blue glow. Layered on the tokens above. */
+:root { --glass: rgba(255, 255, 255, .07); --glass-strong: rgba(255, 255, 255, .11); --glass-edge: rgba(255, 255, 255, .16);
+  --glass-shine: inset 0 1px 0 rgba(255, 255, 255, .28), inset 0 -1px 0 rgba(255, 255, 255, .04), 0 10px 40px rgba(0, 0, 0, .45); }
+body { background: radial-gradient(40rem 28rem at 80% -5%, #1e3a6e66, transparent 65%), radial-gradient(36rem 30rem at 0% 100%, #33415533, transparent 60%), #07080c fixed; }
+.panel, .hero, .top, .tabs, .btn, .summary, .gap-list li {
+  backdrop-filter: blur(28px) saturate(190%); -webkit-backdrop-filter: blur(28px) saturate(190%); }
+.panel, .hero { background: linear-gradient(160deg, rgba(255,255,255,.10), rgba(255,255,255,.04) 45%, rgba(255,255,255,.06)); border-radius: 30px; box-shadow: var(--glass-shine); outline: 1px solid var(--glass-edge); outline-offset: -1px; }
+/* Floating glass header */
+.top { position: sticky; top: .6rem; margin: .6rem .6rem 0; border-radius: 26px; border: 0; background: rgba(255,255,255,.06); box-shadow: var(--glass-shine); outline: 1px solid var(--glass-edge); outline-offset: -1px; }
+.top .wrap { padding-block: .65rem; }
+/* On wider screens the header lines up with the cards below it. */
+@media (min-width: 761px) { .top { width: calc(100% - 32px); max-width: calc(62rem - 32px); margin: .6rem auto 0; } }
+.btn { background: var(--glass-strong); color: #ffffff; box-shadow: inset 0 1px 0 rgba(255,255,255,.25); border-radius: 999px; }
+.btn.primary { background: rgba(10,132,255,.55); }
+/* Rows inside a card: a lighter glass sheet */
+.summary { background: rgba(255,255,255,.06); box-shadow: inset 0 1px 0 rgba(255,255,255,.12); border-radius: 22px; }
+.summary > li { box-shadow: inset 0 -1px 0 rgba(255,255,255,.07); }
+.summary .p { background: linear-gradient(120deg, rgba(10,132,255,.28), rgba(10,132,255,.08)); }
+.summary .p .av { box-shadow: 0 0 0 2.5px rgba(255,255,255,.35), 0 0 22px rgba(10,132,255,.6); }
+.summary .me { background: rgba(10,132,255,.16); }
+.kicker, .today .label { color: #64b5ff; }
+/* WhatsApp: tinted green glass */
+.btn.wa { background: linear-gradient(180deg, rgba(48,209,88,.85), rgba(36,170,72,.75)); color: #ffffff; text-shadow: 0 1px 1px rgba(0,0,0,.25); border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.45), inset 0 -2px 6px rgba(0,0,0,.15), 0 8px 24px rgba(48,209,88,.35); }
+/* Calendar on glass */
+.cal { background: rgba(255,255,255,.08); border-radius: 20px; }
+.dow, .cell { background: rgba(10,12,20,.55); }
+.cell.holiday { background: rgba(48,209,88,.16); }
+.cell.is-today .num { box-shadow: 0 0 14px rgba(10,132,255,.8); }
+.gap-list li { background: rgba(255,69,58,.12); box-shadow: inset 0 1px 0 rgba(255,255,255,.12); }
+#today .gaps > h2 { background: linear-gradient(120deg, rgba(255,69,58,.85), rgba(255,69,58,.55)); }
+.demo { background: rgba(255,255,255,.05); }
+label.field input, label.field select, .name-input { background: rgba(255,255,255,.08); box-shadow: inset 0 1px 0 rgba(255,255,255,.12); }
+/* The segmented control (desktop) and the floating capsule tab bar (phones) */
+.tabs { background: rgba(255,255,255,.07); border-radius: 999px; box-shadow: var(--glass-shine); outline: 1px solid var(--glass-edge); outline-offset: -1px; }
+.tabs button { border-radius: 999px; }
+.tabs button[aria-current="page"] { background: rgba(255,255,255,.16); box-shadow: inset 0 1px 0 rgba(255,255,255,.3); }
+@media (max-width: 760px) {
+  .tabs { left: 1rem; right: 1rem; bottom: calc(.8rem + env(safe-area-inset-bottom, 0px)); padding: .35rem; border-radius: 999px; border: 0; background: rgba(30,30,34,.45); }
+  .tabs button { border-radius: 999px; padding: .35rem 0; }
+  .tabs button[aria-current="page"] { background: rgba(255,255,255,.14); color: #64b5ff; box-shadow: inset 0 1px 0 rgba(255,255,255,.28); }
+  body { padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px)); }
+}
+/* Tuning: readable Primary line, more frosted bars */
+.summary .p .rl { color: #a8d4ff; }
+.top { background: rgba(18, 18, 24, .5); backdrop-filter: blur(36px) saturate(200%); -webkit-backdrop-filter: blur(36px) saturate(200%); }
+@media (max-width: 760px) { .tabs { background: rgba(28, 28, 33, .95); backdrop-filter: blur(40px) saturate(200%); -webkit-backdrop-filter: blur(40px) saturate(200%); } }
