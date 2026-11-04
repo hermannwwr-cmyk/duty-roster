@@ -29,7 +29,7 @@ const PANTS = '#1e293b', LINE = '#e8ecf8';
 function sky(period) {
   const skies = {
     morning: ['#fde68a', '#93c5fd'], lunch: ['#bae6fd', '#7dd3fc'], afternoon: ['#7dd3fc', '#38bdf8'],
-    evening: ['#fb923c', '#7c3aed'], afterwork: ['#1e1b4b', '#312e81'], sleeping: ['#0b1020', '#1e1b4b']
+    evening: ['#fb923c', '#7c3aed'], afterwork: ['#1e1b4b', '#312e81'], sleeping: ['#000000', '#1e1b4b']
   };
   const [top, bottom] = skies[period];
   const light = { morning: '<circle class="rise" cx="44" cy="52" r="9" fill="#fbbf24"/>',
@@ -44,28 +44,28 @@ function sky(period) {
     <clipPath id="eng-win-${period}"><rect x="16" y="14" width="58" height="44" rx="3"/></clipPath></defs>
   <rect x="16" y="14" width="58" height="44" rx="3" fill="url(#eng-sky-${period})"/>
   <g clip-path="url(#eng-win-${period})">${light}</g>
-  <rect x="16" y="14" width="58" height="44" rx="3" fill="none" stroke="#2a3560" stroke-width="3"/>
-  <path d="M45 14v44M16 36h58" stroke="#2a3560" stroke-width="2"/>`;
+  <rect x="16" y="14" width="58" height="44" rx="3" fill="none" stroke="#3a3a3c" stroke-width="3"/>
+  <path d="M45 14v44M16 36h58" stroke="#3a3a3c" stroke-width="2"/>`;
 }
 
 function rack(dim) {
   return `
-  <rect x="268" y="40" width="76" height="120" rx="6" fill="#141d36" stroke="#2a3560" stroke-width="2"/>
+  <rect x="268" y="40" width="76" height="120" rx="6" fill="#1c1c1e" stroke="#3a3a3c" stroke-width="2"/>
   <g${dim ? ' opacity=".55"' : ''}>${[0, 1, 2, 3, 4].map(i => `
-    <rect x="276" y="${50 + i * 21}" width="60" height="15" rx="3" fill="#1c2748"/>
+    <rect x="276" y="${50 + i * 21}" width="60" height="15" rx="3" fill="#2c2c2e"/>
     <circle class="led" style="animation-delay:${(i * 0.37) % 1.3}s" cx="284" cy="${57.5 + i * 21}" r="2.6" fill="${i % 2 ? '#8b9cff' : '#34d399'}"/>
     <circle class="led slow" style="animation-delay:${(i * 0.61) % 1.9}s" cx="292" cy="${57.5 + i * 21}" r="2.6" fill="#34d399"/>
-    <path d="M302 ${54 + i * 21}h26M302 ${58 + i * 21}h26M302 ${62 + i * 21}h18" stroke="#2f3c6b" stroke-width="1.6" stroke-linecap="round"/>`).join('')}
+    <path d="M302 ${54 + i * 21}h26M302 ${58 + i * 21}h26M302 ${62 + i * 21}h18" stroke="#48484a" stroke-width="1.6" stroke-linecap="round"/>`).join('')}
   </g>
   <g class="lock">
-    <circle cx="306" cy="20" r="13" fill="#4f46e5" opacity=".25" class="lock-pulse"/>
-    <path d="M300 18v-4a6 6 0 0 1 12 0v4" fill="none" stroke="#c4b5fd" stroke-width="2.4"/>
-    <rect x="297" y="17" width="18" height="13" rx="3" fill="#c4b5fd"/>
-    <circle cx="306" cy="23" r="2" fill="#1e1b4b"/>
+    <circle cx="306" cy="20" r="13" fill="#0a84ff" opacity=".25" class="lock-pulse"/>
+    <path d="M300 18v-4a6 6 0 0 1 12 0v4" fill="none" stroke="#0a84ff" stroke-width="2.4"/>
+    <rect x="297" y="17" width="18" height="13" rx="3" fill="#0a84ff"/>
+    <circle cx="306" cy="23" r="2" fill="#ffffff"/>
   </g>`;
 }
 
-const floor = '<line x1="12" y1="160" x2="348" y2="160" stroke="#26304d" stroke-width="2" stroke-linecap="round"/>';
+const floor = '<line x1="12" y1="160" x2="348" y2="160" stroke="#38383a" stroke-width="2" stroke-linecap="round"/>';
 
 /** The head facing right, centred on (92, 62); move it with `at`. */
 function head({ at = [0, 0], headset = true, eyes = 'open', mouth = 'none' } = {}) {
@@ -89,14 +89,14 @@ function head({ at = [0, 0], headset = true, eyes = 'open', mouth = 'none' } = {
 
 function desk({ screen, mug = true, steam = true, bowl = false }) {
   return `
-  <rect x="112" y="118" width="140" height="8" rx="3" fill="#2a3560"/>
-  <rect x="120" y="126" width="6" height="34" rx="2" fill="#222c4d"/>
-  <rect x="238" y="126" width="6" height="34" rx="2" fill="#222c4d"/>
-  <rect x="158" y="52" width="72" height="52" rx="5" fill="#0b1020" stroke="#3b4a80" stroke-width="3"/>
+  <rect x="112" y="118" width="140" height="8" rx="3" fill="#3a3a3c"/>
+  <rect x="120" y="126" width="6" height="34" rx="2" fill="#2c2c2e"/>
+  <rect x="238" y="126" width="6" height="34" rx="2" fill="#2c2c2e"/>
+  <rect x="158" y="52" width="72" height="52" rx="5" fill="#000000" stroke="#545458" stroke-width="3"/>
   ${screen}
-  <rect x="190" y="104" width="8" height="12" fill="#2f3c6b"/>
-  <rect x="180" y="115" width="28" height="3" rx="1.5" fill="#3b4a80"/>
-  <rect x="${bowl ? 210 : 146}" y="114" width="30" height="4" rx="1.5" fill="#3b4a80"/>
+  <rect x="190" y="104" width="8" height="12" fill="#48484a"/>
+  <rect x="180" y="115" width="28" height="3" rx="1.5" fill="#545458"/>
+  <rect x="${bowl ? 210 : 146}" y="114" width="30" height="4" rx="1.5" fill="#545458"/>
   ${mug ? `<rect x="236" y="104" width="11" height="14" rx="2.5" fill="#8b9cff"/>
   <path d="M247 107.5a3.5 3.5 0 0 1 0 7" fill="none" stroke="#8b9cff" stroke-width="2.2"/>` : ''}
   ${mug && steam ? `<path class="steam" d="M239 100c-2-3 2-5 0-8" fill="none" stroke="#a3adca" stroke-width="1.6" stroke-linecap="round"/>
@@ -104,11 +104,11 @@ function desk({ screen, mug = true, steam = true, bowl = false }) {
   ${bowl ? `<path d="M134 106h30a15 12 0 0 1-30 0z" fill="#f97316"/><path d="M137 106h24" stroke="#fde68a" stroke-width="3" stroke-linecap="round"/>
   <path class="steam" d="M143 101c-2-3 2-5 0-8" fill="none" stroke="#a3adca" stroke-width="1.6" stroke-linecap="round"/>
   <path class="steam late" d="M153 101c-2-3 2-5 0-8" fill="none" stroke="#a3adca" stroke-width="1.6" stroke-linecap="round"/>` : ''}
-  <rect x="54" y="76" width="9" height="48" rx="4" fill="#26305a"/>
-  <rect x="58" y="118" width="46" height="7" rx="3.5" fill="#26305a"/>
-  <rect x="78" y="125" width="5" height="25" fill="#222c4d"/>
-  <path d="M62 152h38" stroke="#222c4d" stroke-width="4" stroke-linecap="round"/>
-  <circle cx="64" cy="156" r="3" fill="#2f3c6b"/><circle cx="98" cy="156" r="3" fill="#2f3c6b"/>`;
+  <rect x="54" y="76" width="9" height="48" rx="4" fill="#3a3a3c"/>
+  <rect x="58" y="118" width="46" height="7" rx="3.5" fill="#3a3a3c"/>
+  <rect x="78" y="125" width="5" height="25" fill="#2c2c2e"/>
+  <path d="M62 152h38" stroke="#2c2c2e" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="64" cy="156" r="3" fill="#48484a"/><circle cx="98" cy="156" r="3" fill="#48484a"/>`;
 }
 
 const seatedBody = `
@@ -157,14 +157,14 @@ function lunch() {
 function afternoon() {
   const arms = typingArms(' fast');
   const screen = `${[0, 1, 2, 3, 4, 5].map(i => `<rect class="bar" style="animation-delay:${i * 0.23}s" x="${166 + i * 10}" y="64" width="6" height="32" rx="1.5" fill="${i % 2 ? '#8b9cff' : '#34d399'}"/>`).join('')}
-  <path d="M164 97h60" stroke="#3b4a80" stroke-width="1.2"/>`;
+  <path d="M164 97h60" stroke="#545458" stroke-width="1.2"/>`;
   return sky('afternoon') + floor + rack() + desk({ screen }) +
     `<g class="breathe">${seatedBody}${arms.back}${head()}${arms.front}</g>`;
 }
 
 function evening() {
   const screen = `<text x="194" y="74" text-anchor="middle" font-size="7.5" font-weight="700" fill="#c4b5fd">Shutting down…</text>
-  <rect x="172" y="82" width="44" height="5" rx="2.5" fill="#26305a"/>
+  <rect x="172" y="82" width="44" height="5" rx="2.5" fill="#3a3a3c"/>
   <rect class="progress" x="172" y="82" width="44" height="5" rx="2.5" fill="#8b9cff"/>`;
   return sky('evening') + floor + rack() + desk({ screen, steam: false }) +
     `<g class="breathe">${seatedBody}
@@ -185,11 +185,11 @@ function afterwork() {
   return sky('afterwork') + floor + rack(true) + `
   <defs><radialGradient id="eng-lamp"><stop offset="0" stop-color="#fde68a" stop-opacity=".32"/><stop offset="1" stop-color="#fde68a" stop-opacity="0"/></radialGradient></defs>
   <circle class="lamp-glow" cx="226" cy="66" r="62" fill="url(#eng-lamp)"/>
-  <path d="M216 52h20l6 16h-32z" fill="#fde68a"/><rect x="224" y="68" width="4" height="88" fill="#3b4a80"/><rect x="214" y="155" width="24" height="4" rx="2" fill="#3b4a80"/>
-  <rect x="40" y="92" width="152" height="36" rx="12" fill="#4c3d8a"/>
-  <rect x="44" y="118" width="144" height="24" rx="8" fill="#3b2f6b"/>
-  <rect x="30" y="104" width="22" height="40" rx="9" fill="#4c3d8a"/><rect x="180" y="104" width="22" height="40" rx="9" fill="#4c3d8a"/>
-  <rect x="48" y="142" width="6" height="16" fill="#26305a"/><rect x="178" y="142" width="6" height="16" fill="#26305a"/>
+  <path d="M216 52h20l6 16h-32z" fill="#fde68a"/><rect x="224" y="68" width="4" height="88" fill="#545458"/><rect x="214" y="155" width="24" height="4" rx="2" fill="#545458"/>
+  <rect x="40" y="92" width="152" height="36" rx="12" fill="#48484a"/>
+  <rect x="44" y="118" width="144" height="24" rx="8" fill="#3a3a3c"/>
+  <rect x="30" y="104" width="22" height="40" rx="9" fill="#48484a"/><rect x="180" y="104" width="22" height="40" rx="9" fill="#48484a"/>
+  <rect x="48" y="142" width="6" height="16" fill="#3a3a3c"/><rect x="178" y="142" width="6" height="16" fill="#3a3a3c"/>
   <g class="breathe">
     <rect x="128" y="120" width="40" height="12" rx="6" fill="${PANTS}"/>
     <rect x="158" y="124" width="10" height="32" rx="5" fill="${PANTS}"/>
@@ -208,21 +208,21 @@ function afterwork() {
 
 function sleeping() {
   return sky('sleeping') + floor + rack(true) + `
-  <rect x="34" y="86" width="12" height="74" rx="4" fill="#2a3560"/>
-  <rect x="40" y="118" width="196" height="16" rx="5" fill="#2a3560"/>
-  <rect x="226" y="108" width="12" height="52" rx="4" fill="#2a3560"/>
-  <rect x="48" y="134" width="6" height="24" fill="#222c4d"/><rect x="220" y="134" width="6" height="24" fill="#222c4d"/>
-  <rect x="46" y="108" width="182" height="14" rx="5" fill="#c7d2fe"/>
+  <rect x="34" y="86" width="12" height="74" rx="4" fill="#3a3a3c"/>
+  <rect x="40" y="118" width="196" height="16" rx="5" fill="#3a3a3c"/>
+  <rect x="226" y="108" width="12" height="52" rx="4" fill="#3a3a3c"/>
+  <rect x="48" y="134" width="6" height="24" fill="#2c2c2e"/><rect x="220" y="134" width="6" height="24" fill="#2c2c2e"/>
+  <rect x="46" y="108" width="182" height="14" rx="5" fill="#d1d1d6"/>
   <ellipse cx="72" cy="104" rx="20" ry="8" fill="${LINE}"/>
   ${head({ at: [-18, 34], headset: false, eyes: 'closed' }).replace('<g transform="translate(-18 34)">', '<g transform="translate(-18 34) rotate(-12 92 62)">')}
   <path class="blanket" d="M84 110c2-12 24-16 46-14s58 0 76-2 22 6 22 16v6H84z" style="fill:${HOODIE}"/>
   <path d="M110 104c30-4 70-4 110-6" fill="none" style="stroke:${HOODIE_LIGHT}" stroke-width="3" stroke-linecap="round" opacity=".7"/>
-  <g class="zzz" fill="#c7d2fe" font-weight="800">
+  <g class="zzz" fill="#d1d1d6" font-weight="800">
     <text x="92" y="74" font-size="10">z</text><text x="102" y="62" font-size="13">z</text><text x="114" y="48" font-size="16">Z</text>
   </g>
-  <rect x="242" y="128" width="22" height="32" rx="3" fill="#26305a"/><rect x="246" y="138" width="14" height="2" rx="1" fill="#3b4a80"/>
+  <rect x="242" y="128" width="22" height="32" rx="3" fill="#3a3a3c"/><rect x="246" y="138" width="14" height="2" rx="1" fill="#545458"/>
   <ellipse class="phone-glow" cx="253" cy="124" rx="13" ry="7" fill="#8b9cff" opacity=".45"/>
-  <rect x="245" y="123" width="16" height="5" rx="1.5" fill="#111827"/><rect class="phone" x="246.5" y="124" width="13" height="3" rx="1" fill="#c7d2fe"/>`;
+  <rect x="245" y="123" width="16" height="5" rx="1.5" fill="#111827"/><rect class="phone" x="246.5" y="124" width="13" height="3" rx="1" fill="#d1d1d6"/>`;
 }
 
 /* ---------- Weekend: nobody in, room lights off ---------- */
@@ -235,8 +235,8 @@ function weekend() {
   return floor + desk({ screen, steam: false }) + `
   <rect x="0" y="0" width="360" height="172" fill="#05070f" opacity=".55"/>
   ${sky(outside)}
-  <path d="M16 58h58l40 102H24z" fill="${daytime ? '#fde68a' : '#c7d2fe'}" opacity="${daytime ? '.07' : '.05'}"/>
-  <rect x="106" y="62" width="10" height="16" rx="2" fill="#1c2748" stroke="#2a3560"/><rect x="109.5" y="70" width="3" height="5" rx="1" fill="#3b4a80"/>
+  <path d="M16 58h58l40 102H24z" fill="${daytime ? '#fde68a' : '#d1d1d6'}" opacity="${daytime ? '.07' : '.05'}"/>
+  <rect x="106" y="62" width="10" height="16" rx="2" fill="#2c2c2e" stroke="#3a3a3c"/><rect x="109.5" y="70" width="3" height="5" rx="1" fill="#545458"/>
   ${rack(true)}`;
 }
 

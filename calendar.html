@@ -3,39 +3,49 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Add to Home Screen: opens full screen like an app, with the black status bar -->
+<link rel="manifest" href="manifest-calendar.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="2FA Login">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#000000">
 <title>2FA Login Request</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap">
 <!-- version:start -->
 <script type="importmap">
 {
   "imports": {
-    "./config.js": "./config.js?v=202611040301",
-    "./src/app.js": "./src/app.js?v=202611040301",
-    "./src/calendar.js": "./src/calendar.js?v=202611040301",
-    "./src/connect.js": "./src/connect.js?v=202611040301",
-    "./src/engineer.js": "./src/engineer.js?v=202611040301",
-    "./src/faces.js": "./src/faces.js?v=202611040301",
-    "./src/holidays-sg.js": "./src/holidays-sg.js?v=202611040301",
-    "./src/live.js": "./src/live.js?v=202611040301",
-    "./src/schedule.js": "./src/schedule.js?v=202611040301",
-    "./src/store.js": "./src/store.js?v=202611040301"
+    "./config.js": "./config.js?v=202611040313",
+    "./src/app.js": "./src/app.js?v=202611040313",
+    "./src/calendar.js": "./src/calendar.js?v=202611040313",
+    "./src/connect.js": "./src/connect.js?v=202611040313",
+    "./src/engineer.js": "./src/engineer.js?v=202611040313",
+    "./src/faces.js": "./src/faces.js?v=202611040313",
+    "./src/holidays-sg.js": "./src/holidays-sg.js?v=202611040313",
+    "./src/icons.js": "./src/icons.js?v=202611040313",
+    "./src/live.js": "./src/live.js?v=202611040313",
+    "./src/schedule.js": "./src/schedule.js?v=202611040313",
+    "./src/store.js": "./src/store.js?v=202611040313"
   }
 }
 </script>
-<link rel="stylesheet" href="styles.css?v=202611040301">
-<script type="module" src="src/calendar.js?v=202611040301"></script>
+<link rel="stylesheet" href="styles.css?v=202611040313">
+<script type="module" src="src/calendar.js?v=202611040313"></script>
 <!-- version:end -->
 </head>
 <body>
 <header class="top"><div class="wrap cal-top">
   <span class="brand">2FA Login Request</span>
   <a class="btn small" href="./">Sign in to add leave</a>
-  <nav class="tabs" aria-label="Sections">
-    <button type="button" data-tab="today" aria-current="page">2FA Login</button>
-    <button type="button" data-tab="calendar">Calendar Forecast</button>
-  </nav>
 </div></header>
+<nav class="tabs wrap" aria-label="Sections">
+  <button type="button" data-tab="today" data-short="2FA Login" aria-current="page">2FA Login</button>
+  <button type="button" data-tab="calendar" data-short="Forecast">Calendar Forecast</button>
+</nav>
 <div class="wrap" id="today"><p class="loading">Loading today’s 2FA Login…</p></div>
 <main class="wrap" id="view" hidden><p class="loading">Loading the calendar…</p></main>
 <script>

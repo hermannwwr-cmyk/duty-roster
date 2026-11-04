@@ -6,6 +6,7 @@ import { createStore } from './connect.js';
 import { engineerScene } from './engineer.js';
 import { keepFresh } from './live.js';
 import { faceSvg } from './faces.js';
+import { tabInner } from './icons.js';
 
 const view = document.getElementById('view');
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -118,7 +119,8 @@ async function renderToday() {
   const td = data.days.find(d => d.date === t);
   const day = data.days.find(d => d.kind === 'work');
   const fmt = iso => fromISO(iso).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' });
-  const list = d => `<dl class="summary">${d.duties.map(x => `<div class="${x.role === 'Primary' ? 'p' : ''}"><dt>${esc(x.role)}</dt><dd><span class="av face-av">${faceSvg(x.name)}</span>${esc(x.name)}</dd></div>`).join('')}</dl>`
+  const list = d => `<ul class="summary">${d.duties.map(x => `<li class="${x.role === 'Primary' ? 'p' : ''}"><span class="av face-av">${faceSvg(x.name)}</span>
+    <span class="person"><span class="nm">${esc(x.name)}</span><span class="rl">${x.role === 'Primary' ? 'Primary · ask for OTP' : esc(x.role)}</span></span></li>`).join('')}</ul>`
     + (d.duties.length ? '' : '<p class="muted">No one is available for duty.</p>');
   let body;
   if (td && td.kind === 'work') body = list(td);
@@ -144,7 +146,7 @@ async function renderToday() {
   // Who is Primary on the working day after the one shown, so people know who to ask next.
   const after = day && data.days.find(d => d.kind === 'work' && d.date > day.date && d.duties.length);
   const upNext = after ? `<p class="up-next"><span class="up-next-label">Up next</span> ${after.date === addDays(t, 1) ? 'Tomorrow' : fmt(after.date)} · <b>${esc(after.duties[0].name)}</b> is Primary</p>` : '';
-  document.getElementById('today').innerHTML = `<div class="hero">${scene.svg}<p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div><section class="panel" aria-labelledby="today-h"><h2 id="today-h">2FA Login · ${fmt(t)}</h2>${body}${upNext}${share}</section>${gaps}`;
+  document.getElementById('today').innerHTML = `<div class="hero">${scene.svg}<p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div><section class="panel" aria-labelledby="today-h"><h2 id="today-h"><span class="kicker">${fromISO(t).toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long' })}</span>2FA Login</h2>${body}${upNext}${share}</section>${gaps}`;
 }
 
 /* Two tabs: today's 2FA Login card and the month calendar. The address remembers which (#calendar). */
@@ -159,6 +161,7 @@ document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
   history.replaceState(null, '', b.dataset.tab === 'calendar' ? '#calendar' : location.pathname + location.search);
   setTab(b.dataset.tab);
 });
+document.querySelectorAll('[data-tab]').forEach(b => { b.innerHTML = tabInner(b.dataset.tab, b.textContent, b.dataset.short); });
 setTab(location.hash === '#calendar' ? 'calendar' : 'today');
 
 try {
