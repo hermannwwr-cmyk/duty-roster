@@ -41,9 +41,9 @@ Keep **Confirm email** turned on under **Authentication > Providers > Email**, s
 
 ## Leave from Outlook invites (optional)
 
-People can book leave by inviting a shared Google account to their all-day out-of-office event in Outlook. Every 15 minutes a Google Apps Script in that account sends the invites to the app, which matches each one to a person by their work email (set on the Leave tab) or sign-in email: the leave is added, moves when the invite moves, and goes away when it's cancelled. Only all-day events, or events lasting a day or more, count. Invites from addresses that match nobody appear in Team & settings for an admin to assign.
+People can book leave by inviting a shared Google account to their all-day out-of-office event in Outlook. Every 15 minutes a Google Apps Script in that account reads the invite emails (their attached calendar files) and sends the leave to the app, which matches each invite to a person by their work Outlook email (set by them on the Leave tab or by an admin) or sign-in email: the leave is added, moves when the invite is updated, and goes away when it's cancelled. All-day events, events lasting a day or more, and events marked Out of office lasting 4 hours or more count; ordinary meetings don't. Invites from addresses that match nobody appear in Team & settings for an admin to assign.
 
-1. Create a Google account for the invites, for example `ourteam.leave@gmail.com`. In its Google Calendar settings, set **Add invitations to my calendar** to **From everyone**.
+1. Create a Google account for the invites, for example `ourteam.leave@gmail.com`.
 2. In Supabase, run `supabase/011_leave_invites.sql` in the **SQL Editor**.
 3. Run `select script_secret from public.invite_config;` and copy the result.
 4. Follow the steps at the top of `scripts/leave-invites.gs`: paste in the secret, paste the file into a new project at [script.google.com](https://script.google.com) in that Google account, and run `setUp`.
