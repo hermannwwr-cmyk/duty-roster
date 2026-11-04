@@ -37,11 +37,7 @@ There is no linter, formatter or bundler.
 
 **Staying fresh** — `src/live.js` `keepFresh()` re-fetches when the page becomes visible, every 5 minutes, and just after Singapore midnight; app.js skips it while a form has unsaved input. It also shows a "new version available" bar when the published page's stamp differs.
 
-**Styles** — one `styles.css`, the "Apple Dark" theme (iOS dark mode): always dark, tokens on `:root` (`--panel` cards, `--raised` rows), San Francisco on Apple devices and Inter elsewhere, no gradients or glows. Animations must stop under `prefers-reduced-motion`.
-- The engineer's hoodie follows `--hoodie*`; set as inline `style` in `engineer.js` because SVG presentation attributes can't hold `var()`.
-- Tabs (`<nav class="tabs">`, icons from `src/icons.js`) sit *outside* the sticky `.top` header on both pages: the header's `backdrop-filter` would make a `position: fixed` child stick to the header instead of the screen. Under 760px they become an iOS tab bar fixed to the bottom; toasts and the update bar sit above it.
-
-**Home-screen app** — each page links its own manifest (`manifest-app.webmanifest` → `./`, `manifest-calendar.webmanifest` → `./calendar.html`) plus Apple meta tags, so "Add to Home Screen" opens that page full screen. Icons live in `icons/` (rendered from `icons/icon.svg`). There is no service worker.
+**Styles** — one `styles.css`, the "Midnight" theme: always dark, tokens on `:root`, Plus Jakarta Sans + JetBrains Mono from Google Fonts. Animations must stop under `prefers-reduced-motion`.
 
 ## Database (supabase/)
 
