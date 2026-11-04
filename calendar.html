@@ -10,32 +10,33 @@
 <script type="importmap">
 {
   "imports": {
-    "./config.js": "./config.js?v=202611041106",
-    "./src/app.js": "./src/app.js?v=202611041106",
-    "./src/calendar.js": "./src/calendar.js?v=202611041106",
-    "./src/connect.js": "./src/connect.js?v=202611041106",
-    "./src/engineer.js": "./src/engineer.js?v=202611041106",
-    "./src/faces.js": "./src/faces.js?v=202611041106",
-    "./src/holidays-sg.js": "./src/holidays-sg.js?v=202611041106",
-    "./src/live.js": "./src/live.js?v=202611041106",
-    "./src/schedule.js": "./src/schedule.js?v=202611041106",
-    "./src/store.js": "./src/store.js?v=202611041106"
+    "./config.js": "./config.js?v=202611041218",
+    "./src/app.js": "./src/app.js?v=202611041218",
+    "./src/calendar.js": "./src/calendar.js?v=202611041218",
+    "./src/connect.js": "./src/connect.js?v=202611041218",
+    "./src/engineer.js": "./src/engineer.js?v=202611041218",
+    "./src/faces.js": "./src/faces.js?v=202611041218",
+    "./src/holidays-sg.js": "./src/holidays-sg.js?v=202611041218",
+    "./src/icons.js": "./src/icons.js?v=202611041218",
+    "./src/live.js": "./src/live.js?v=202611041218",
+    "./src/schedule.js": "./src/schedule.js?v=202611041218",
+    "./src/store.js": "./src/store.js?v=202611041218"
   }
 }
 </script>
-<link rel="stylesheet" href="styles.css?v=202611041106">
-<script type="module" src="src/calendar.js?v=202611041106"></script>
+<link rel="stylesheet" href="styles.css?v=202611041218">
+<script type="module" src="src/calendar.js?v=202611041218"></script>
 <!-- version:end -->
 </head>
 <body>
 <header class="top"><div class="wrap cal-top">
   <span class="brand">2FA Login Request</span>
   <a class="btn small" href="./">Sign in to add leave</a>
-  <nav class="tabs" aria-label="Sections">
-    <button type="button" data-tab="today" aria-current="page">2FA Login</button>
-    <button type="button" data-tab="calendar">Calendar Forecast</button>
-  </nav>
 </div></header>
+<nav class="tabs wrap" aria-label="Sections">
+  <button type="button" data-tab="today" data-short="2FA Login" aria-current="page">2FA Login</button>
+  <button type="button" data-tab="calendar" data-short="Forecast">Calendar Forecast</button>
+</nav>
 <div class="wrap" id="today"><p class="loading">Loading today’s 2FA Login…</p></div>
 <main class="wrap" id="view" hidden><p class="loading">Loading the calendar…</p></main>
 <script>

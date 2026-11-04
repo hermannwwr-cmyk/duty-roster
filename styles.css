@@ -1,12 +1,12 @@
 /* Layout: a header with tabs over one working column; the roster is a list of day rows with role chips. */
-/* Midnight theme: deep navy, glass-like cards, violet accents. Always dark. */
+/* Ocean theme: deep sea blue, glass-like cards, cyan accents. Always dark. */
 :root {
-  --bg: #0b1020; --panel: #121a2e; --ink: #e8ecf8; --soft: #a3adca; --line: #26304d;
-  --accent: #8b9cff; --accent-ink: #0b1020; --accent-soft: #1a2342;
-  --primary: #c4b5fd; --primary-soft: #241c4a; --leave: #d0aefc; --leave-soft: #2b2148;
+  --bg: #06141c; --panel: #0c1f2a; --raised: #10283a; --ink: #e6f4f8; --soft: #9bb8c4; --line: #1d3a48;
+  --accent: #38bdf8; --accent-ink: #06141c; --accent-soft: #0f2a38;
+  --primary: #7dd3fc; --primary-soft: #0f2a38; --leave: #d0aefc; --leave-soft: #2b2148;
   --holiday: #6fd3ad; --holiday-soft: #12302a; --danger: #ff8a80;
-  --band: linear-gradient(120deg, #4f46e5, #9333ea);
-  --hoodie: #6d5df5; --hoodie-light: #7c6ff7; --hoodie-dark: #5246d6;   /* the engineer's clothes */
+  --band: linear-gradient(120deg, #0369a1, #0891b2 55%, #06b6d4);
+  --hoodie: #0891b2; --hoodie-light: #22b8cf; --hoodie-dark: #0e7490;   /* the engineer's clothes */
   --sans: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
   color-scheme: dark;
@@ -14,7 +14,7 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body { margin: 0; min-height: 100vh; color: var(--ink); font: 16px/1.5 var(--sans); -webkit-font-smoothing: antialiased;
-  background: radial-gradient(50rem 30rem at 90% -10%, #3b2a8a66 0, transparent 60%), radial-gradient(40rem 25rem at -10% 10%, #1e3a8a55 0, transparent 60%), var(--bg) fixed; }
+  background: radial-gradient(50rem 30rem at 90% -10%, #0e749066 0, transparent 60%), radial-gradient(40rem 25rem at -10% 10%, #1e3a8a44 0, transparent 60%), var(--bg) fixed; }
 button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -26,24 +26,26 @@ p { margin: 0; }
 .wrap { max-width: 62rem; margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); }
 
 /* Header */
-.top { position: sticky; top: 0; z-index: 5; background: #0b1020d9; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
-.top .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.2rem; padding-block: .8rem 0; }
+.top { position: sticky; top: 0; z-index: 5; background: #06141cd9; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.2rem; padding-block: .8rem; }
 .brand { font-weight: 800; font-size: 1.2rem; letter-spacing: -.01em; margin-right: auto; }
 .who { color: var(--soft); font-size: .95rem; }
 .who b { color: var(--ink); }
-.tabs { display: flex; gap: .2rem; width: 100%; overflow-x: auto; }
+/* Tabs sit under the header, outside it: the header's blur would trap the phone tab bar (position: fixed) inside it. */
+.tabs { display: flex; gap: .2rem; overflow-x: auto; border-bottom: 1px solid var(--line); }
+.tab-icon, .tab-short { display: none; }
 .tabs button { background: none; border: 0; border-bottom: 3px solid transparent; padding: .55rem .9rem; font-weight: 600; color: var(--soft); white-space: nowrap; }
 .tabs button[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); }
 .demo { background: var(--accent-soft); color: var(--ink); font-size: .92rem; }
 .demo .wrap { padding-block: .5rem; display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: center; }
 
 main.wrap { padding-block: 1.4rem 3rem; display: grid; gap: 1.4rem; }
-.panel { background: #121a2ee6; border: 0; box-shadow: 0 0 0 1px #ffffff0f, 0 12px 32px #00000066; border-radius: 16px; padding: 1.1rem 1.2rem; display: grid; gap: .9rem; min-width: 0; }
+.panel { background: #0c1f2ae6; border: 0; box-shadow: 0 0 0 1px #ffffff0f, 0 12px 32px #00000066; border-radius: 16px; padding: 1.1rem 1.2rem; display: grid; gap: .9rem; min-width: 0; }
 .row-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem; }
 .muted { color: var(--soft); font-size: .93rem; }
 
 /* Buttons and fields */
-.btn { border: 1px solid #2a3560; background: #1a2340; border-radius: 10px; padding: .45rem .9rem; font-weight: 600; }
+.btn { border: 1px solid #1f4a60; background: #123244; border-radius: 10px; padding: .45rem .9rem; font-weight: 600; }
 .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .btn.small { padding: .2rem .55rem; font-size: .88rem; }
 .btn.link { border: 0; background: none; padding: 0; color: var(--accent); text-decoration: underline; }
@@ -116,7 +118,7 @@ label.field input, label.field select { font-weight: 400; color: var(--ink); bac
 /* Public month calendar (calendar.html) */
 .cal-top .brand { margin-right: auto; }
 .cal-top { flex-wrap: wrap; gap: .5rem; }
-.cal-top { padding-block: .8rem 0 !important; }
+.cal-top { padding-block: .8rem !important; }
 a.btn { text-decoration: none; color: inherit; display: inline-block; }
 .cal { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
 .dow { font-size: .76rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--soft); padding: .4rem .5rem; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
@@ -161,7 +163,7 @@ h2[tabindex="-1"]:focus { outline: none; }
 /* The 2FA Login card: a gradient header band, then each role with the person's initials. */
 .today { grid-template-columns: minmax(0, 1fr); gap: 1rem; padding-top: 0; overflow: hidden; box-shadow: 0 0 0 1px #ffffff14, 0 16px 40px #00000080; }
 .today .mine, #today .panel > h2 { margin: 0 -1.2rem; padding: 1.1rem 1.2rem 1rem; background: var(--band); color: #ffffff; }
-.today .label { color: #ddd6fe; }
+.today .label { color: #cffafe; }
 .today .role { font-size: 1.6rem; }
 #today { margin-top: 1.4rem; padding-bottom: 3rem; }
 #today .panel { gap: 1rem; padding-top: 0; overflow: hidden; box-shadow: 0 0 0 1px #ffffff14, 0 16px 40px #00000080; }
@@ -179,21 +181,23 @@ h2[tabindex="-1"]:focus { outline: none; }
 @media (prefers-reduced-motion: reduce) { .btn.wa { animation: none; box-shadow: 0 0 16px #22c55e8c, 0 0 36px #22c55e40; } }
 @media (max-width: 640px) { .btn.wa { flex: 1 1 100%; min-width: 0; padding-inline: .9rem; white-space: normal; text-align: center; } }
 
-.summary { display: grid; gap: .5rem; margin: 0; }
-.summary > div { display: flex; align-items: center; gap: .8rem; padding: .6rem .8rem; border-radius: 12px; background: #18213a; }
-.summary dd { order: 1; display: flex; align-items: center; gap: .7rem; margin: 0; min-width: 0; font-size: 1.05rem; font-weight: 700; overflow-wrap: anywhere; }
-.summary dt { order: 2; margin-left: auto; padding: .2rem .55rem; border-radius: 999px; background: #26305a; color: #c7d2fe; font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
-.av { flex: none; display: grid; place-items: center; width: 2.3rem; height: 2.3rem; border-radius: 50%; background: var(--av); color: #ffffff; font-size: .82rem; font-weight: 800; }
-.summary .p { padding: .9rem; background: linear-gradient(120deg, #312e81, #581c87); box-shadow: 0 0 28px #7c3aed40; }
-.summary .p dd { font-size: 1.45rem; color: #ffffff; }
-.summary .p dt { background: #c4b5fd; color: #1e1b4b; }
-.summary .p .av { width: 3rem; height: 3rem; font-size: 1rem; background: linear-gradient(135deg, #f472b6, #f59e0b); box-shadow: 0 0 0 3px #ffffff33; }
-.summary .away { background: var(--leave-soft); }
-.summary .away dd { color: var(--leave); }
-.summary .away dt { background: #3a2c63; color: var(--leave); }
-.summary .me { box-shadow: inset 0 0 0 2px var(--accent); }
+/* One grouped list: the Primary large on top, then everyone else on thin-ruled rows with the role underneath. */
+.summary { display: grid; margin: 0; padding: 0; list-style: none; background: var(--raised); border-radius: 16px; overflow: hidden; box-shadow: 0 0 0 1px #ffffff0d; }
+.summary > li { display: flex; align-items: center; gap: .8rem; padding: .7rem .9rem; box-shadow: inset 0 -1px 0 #ffffff12; }
+.summary > li:last-child { box-shadow: none; }
+.summary .person { display: grid; min-width: 0; }
+.summary .nm { font-size: 1.05rem; font-weight: 700; overflow-wrap: anywhere; }
+.summary .rl { font-size: .82rem; color: var(--soft); }
+.av { flex: none; display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: 50%; background: var(--av); color: #ffffff; font-size: .82rem; font-weight: 800; }
+.summary .p { padding: 1rem .9rem; background: linear-gradient(120deg, #0c4a6e, #155e75); }
+.summary .p .nm { font-size: 1.45rem; font-weight: 800; color: #ffffff; letter-spacing: -.01em; }
+.summary .p .rl { color: var(--primary); font-size: .9rem; font-weight: 700; }
+.summary .p .av { width: 3.6rem; height: 3.6rem; font-size: 1.1rem; box-shadow: 0 0 0 3px #0c4a6e, 0 0 0 5px var(--primary), 0 0 24px #38bdf880; }
+.summary .away .nm, .summary .away .rl { color: var(--leave); }
+.summary .me { background: #38bdf81f; }
+.summary .p.me { background: linear-gradient(120deg, #0c4a6e, #155e75); }
+.summary .you { color: var(--accent); font-weight: 700; }
 .summary-next { margin: .2rem 0 -.2rem; font-size: .8rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--soft); }
-@media (min-width: 761px) { .summary { grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); } .summary .p { grid-column: 1 / -1; } }
 
 /* The infra engineer at work, above the 2FA Login card (src/engineer.js). */
 .hero { display: grid; place-items: center; margin: -.4rem 0 .6rem; }
@@ -294,3 +298,15 @@ h2[tabindex="-1"]:focus { outline: none; }
 .up-next { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .45rem; color: var(--soft); font-size: .92rem; }
 .up-next b { color: var(--ink); }
 .up-next-label { color: var(--accent); font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+
+/* Phones: the tabs become a tab bar along the bottom, with an icon over a short label. */
+@media (max-width: 760px) {
+  .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; max-width: none; margin: 0; padding: .35rem .5rem calc(.35rem + env(safe-area-inset-bottom, 0px)); gap: 0;
+    background: #08202ced; backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 0; border-top: 1px solid var(--line); }
+  .tabs button { flex: 1; display: grid; justify-items: center; gap: .15rem; padding: .25rem 0; border-bottom: 0; color: var(--soft); font-size: .68rem; }
+  .tabs button[aria-current="page"] { color: var(--accent); }
+  .tab-icon { display: block; width: 1.55rem; height: 1.55rem; }
+  .tab-long { display: none; } .tab-short { display: inline; }
+  body { padding-bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px)); }
+  .toast, .update-bar { bottom: calc(5.2rem + env(safe-area-inset-bottom, 0px)); }
+}
