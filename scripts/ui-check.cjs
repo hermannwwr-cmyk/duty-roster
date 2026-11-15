@@ -66,7 +66,7 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   /* ---------- A. The public page ---------- */
   let pub = await open('/calendar.html');
   check('A1 public: today\'s Primary is shown', (await pub.locator('.hero-name .name').innerText()) === 'Alice Tan');
-  check('A2 public: four Secondaries in order', (await pub.locator('.backups .nm').evaluateAll(els => els.map(e => [...e.childNodes].filter(n => !(n.classList && n.classList.contains('sr-only'))).map(n => n.textContent).join('').trim()))).join() === 'Ben Lim,Chloe Ng,Dev Kumar,Elena Goh');
+  check('A2 public: four Secondaries in order', (await pub.locator('.backups .nm').allTextContents()).join() === 'Ben Lim,Chloe Ng,Dev Kumar,Elena Goh');
   check('A3 public: Up next shows five working days', (await pub.locator('.strip li').count()) === 5 && (await pub.locator('.strip .nm').allTextContents()).join() === 'Alice,Ben,Chloe,Dev,Elena');
   const want = rosterMessage({ date: '2026-11-16', duties: ['Alice Tan', 'Ben Lim', 'Chloe Ng', 'Dev Kumar', 'Elena Goh'].map((name, i) => ({ role: i ? 'Secondary ' + i : 'Primary', name })) }, BASE + '/calendar.html');
   const got = decodeURIComponent((await pub.locator('a.btn.wa').getAttribute('href')).replace('https://wa.me/?text=', ''));

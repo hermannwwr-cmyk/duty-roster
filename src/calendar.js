@@ -174,7 +174,7 @@ async function renderToday() {
   const secondaries = day ? day.duties.slice(1) : [];
   const backups = secondaries.length ? `<section class="panel sub" aria-labelledby="sec-h">
     <div class="sub-head"><h3 id="sec-h">${secondaries.length === 1 ? 'Secondary' : 'Secondaries'}</h3>${secondaries.length > 1 ? '<span>in backup order</span>' : ''}</div>
-    <ol class="backups">${secondaries.map((x, i) => `<li><span class="n" aria-hidden="true">${i + 1}</span><span class="nm"><span class="sr-only">${esc(x.role)}: </span>${esc(x.name)}</span></li>`).join('')}</ol>
+    <ol class="backups">${secondaries.map((x, i) => `<li>${avatar(x.name, '', `<b class="n">${i + 1}</b>`)}<span class="person"><span class="nm">${esc(x.name)}</span><span class="rl">${esc(x.role)}</span></span></li>`).join('')}</ol>
   </section>` : '';
 
   // Who is Primary over the next five working days, so people know who to ask next.
