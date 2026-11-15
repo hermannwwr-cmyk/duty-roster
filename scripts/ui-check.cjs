@@ -57,7 +57,7 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
 
   const { rosterMessage } = await import(pathToFileURL(path.join(ROOT, 'src/schedule.js')).href);
   const dayRow = (p, n) => p.locator('.days .day').filter({ has: p.locator('.dnum', { hasText: new RegExp('^' + n + '$') }) });
-  const cell = (p, n) => p.locator('.cal .cell:not(.out)').filter({ has: p.locator('.num', { hasText: new RegExp('(^|\\s)' + n + '$') }) });
+  const cell = (p, n) => p.locator('.cal .cell:not(.out)').filter({ has: p.locator('.num .d', { hasText: new RegExp('^' + n + '$') }) });
   const names = async loc => (await loc.locator('.duty-list li:not(.away) .full').allTextContents());
   const signIn = async (p, who) => { await p.click(`[data-demo="${who}@example.com"]`); await settle(p); };
   const signOut = async p => { await p.click('#acct-btn'); await p.click('#signout'); await settle(p); };
@@ -74,6 +74,7 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   check('A5 public: WhatsApp opens in a new tab', (await pub.locator('a.btn.wa').getAttribute('target')) === '_blank');
   await tab(pub, 'calendar');
   check('A6 calendar: today lists all five, Primary first', (await names(cell(pub, 16))).join() === 'Alice Tan,Ben Lim,Chloe Ng,Dev Kumar,Elena Goh' && (await cell(pub, 16).locator('.duty-list li.p .full').innerText()) === 'Alice Tan');
+  check('A6b calendar: today is labelled "Today" and marked as the current date', (await cell(pub, 16).locator('.today-tag').innerText()).toLowerCase() === 'today' && (await cell(pub, 16).getAttribute('aria-current')) === 'date' && await pub.locator('.cal .today-tag').count() === 1);
   check('A7 calendar: the address remembers the tab', pub.url().endsWith('#calendar'));
   await pub.click('#next'); await settle(pub);
   check('A8 calendar: next month, focus stays on the button', (await pub.locator('.cal-head h2').innerText()) === 'December 2026' && (await pub.evaluate(() => document.activeElement.id)) === 'next');

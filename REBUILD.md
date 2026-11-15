@@ -257,7 +257,7 @@ The page loads `loadPublic(today, today + 60)`. If that returns `null`, show "Th
   - for a holiday, a star and its name in green
   - for a working day with nobody available, "No one available" in red
   - otherwise **everyone available that day, names only**: the Primary first in a pill, then the backups in order. From today on, a dashed empty slot stands for each person missing from the day (team size minus the people listed), so an absence shows at a glance without naming anyone.
-- Today's cell is tinted with a cyan outline, its number sits in a cyan pill and its Primary pill is solid cyan. Days gone by and days outside the month are outlined rather than filled.
+- Today's cell is brighter, with a thick cyan outline and a soft glow; its number sits in a cyan pill with the word "TODAY" beside it, and its Primary pill is solid cyan. Days gone by are outlined and faded to half strength; days outside the month are outlined rather than filled.
 - On phones, names print twice (`.full` and `.first` spans) and CSS shows the short one (`shortName`).
 
 ### Signed-in app (`index.html`)

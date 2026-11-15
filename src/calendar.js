@@ -78,7 +78,8 @@ function render(data) {
         if (!out) { anyone = true; if (away) someoneAway = true; }
         body = `<ol class="duty-list">${d.duties.map(x => `<li${x.role === 'Primary' ? ' class="p"' : ''} title="${esc(x.role + ': ' + x.name)}"><span class="sr-only">${esc(x.role)}: </span><span class="full">${esc(x.name)}</span><span class="first">${esc(shortName(x.name, data.people))}</span></li>`).join('')}${'<li class="away" role="img" aria-label="Someone is away"></li>'.repeat(away)}</ol>`;
       }
-      cells.push(`<li class="${cls}"><span class="num"><span class="sr-only">${dt.toLocaleDateString('en-SG', { weekday: 'long' })} </span>${num}</span>${body}</li>`);
+      // Today says so in words next to its date, so it can't be missed.
+      cells.push(`<li class="${cls}"${date === t ? ' aria-current="date"' : ''}><span class="num"><span class="sr-only">${dt.toLocaleDateString('en-SG', { weekday: 'long' })} </span><span class="d">${num}</span>${date === t ? '<span class="today-tag">Today</span>' : ''}</span>${body}</li>`);
     }
   }
 

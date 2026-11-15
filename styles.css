@@ -234,11 +234,20 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .dows .now { color: var(--primary); }
 .cal { margin: 0; padding: 0; list-style: none; }
 .cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; min-height: 4.6rem; padding: 5px 3px 6px; border-radius: 12px; background: var(--raised); color: #dcebf0; font-size: .78rem; font-weight: 600; line-height: 1.2; }
-.cell .num { padding: 0 6px 2px; font: 500 .69rem/1.3 var(--mono); color: var(--soft); white-space: nowrap; }
+.cell .num { display: flex; align-items: center; gap: 4px; padding: 0 6px 2px; font: 500 .69rem/1.3 var(--mono); color: var(--soft); white-space: nowrap; }
 /* Days gone by, and days outside this month, are outlined rather than filled. */
 .cell.past, .cell.out, .cell.empty { background: none; box-shadow: inset 0 0 0 1px #17323f; color: var(--soft); }
-.cell.is-today { background: var(--accent-soft); box-shadow: inset 0 0 0 1.5px var(--accent); color: #ffffff; }
-.cell.is-today .num { align-self: flex-start; margin: 0 0 2px 1px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+/* Days gone by step back, so today and the days ahead stand out. */
+.cell.past { opacity: .5; }
+/* Today: a brighter cell, a thick cyan outline with a soft glow, and the word "Today" next to the date. */
+.cell.is-today { position: relative; z-index: 1; background: #164a60; box-shadow: inset 0 0 0 2px var(--accent), 0 0 0 1px var(--accent), 0 0 18px #38bdf866; color: #ffffff; }
+.cell.is-today .num { padding-left: 2px; }
+.cell.is-today .d { padding: 0 5px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.today-tag { min-width: 0; overflow: hidden; color: var(--primary); font-weight: 700; font-size: .6rem; letter-spacing: .02em; text-transform: uppercase; }
+.cell.is-today .num { gap: 3px; padding-right: 2px; }
+@media (min-width: 761px) { .today-tag { font-size: .7rem; letter-spacing: .06em; } }
+/* The narrowest phones: "Today" goes on its own line under the date rather than being cut off. */
+@media (max-width: 360px) { .cell.is-today .num { flex-wrap: wrap; row-gap: 2px; } .today-tag { flex-basis: 100%; padding-left: 3px; } }
 .cell.holiday { align-items: center; gap: 6px; background: var(--holiday-soft); box-shadow: none; color: var(--holiday); text-align: center; }
 .cell.holiday .num { align-self: flex-start; color: var(--holiday); }
 .cell.holiday svg { flex: none; margin-top: .3rem; }
