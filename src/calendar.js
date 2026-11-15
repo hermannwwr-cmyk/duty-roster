@@ -142,7 +142,10 @@ async function renderToday() {
     : data.days.find(d => d.kind === 'work');   // today if it's a working day, otherwise the next one
   const fmt = iso => fromISO(iso).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' });
   const primary = day && day.duties[0];
-  const lead = closed ? null : primary;   // the big face is for whoever is on duty now
+  // Weekends, public holidays and days before the rotation starts have no duty at all.
+  const offDay = !!td && !working;
+  const noDutyNow = closed || offDay;
+  const lead = noDutyNow ? null : primary;   // the big face is for whoever is on duty now
 
   // The scene follows the time of day in Singapore, with the lights off on public holidays and on a
   // working day when nobody is available; ?scene=lunch (etc.) shows a particular one. Today's date is
@@ -156,12 +159,13 @@ async function renderToday() {
     const text = rosterMessage(day, location.href.split('#')[0].split('?')[0]);
     // With nobody to ask, the button no longer offers an OTP: it shares the same message, which says no one is available.
     // Outside office hours too: nobody can give an OTP now, so it shares the next day's roster instead.
-    share = `<a class="btn wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">${WHATSAPP_ICON}${primary && !closed ? 'Click for OTP on WhatsApp' : 'Tell the team on WhatsApp'}</a>`;
+    share = `<a class="btn wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">${WHATSAPP_ICON}${primary && !noDutyNow ? 'Click for OTP on WhatsApp' : 'Tell the team on WhatsApp'}</a>`;
   }
   // Outside office hours: say no one is on duty now, then who is next and from when.
   const nextWhen = !day ? '' : day.date === t ? '9am today' : day.date === addDays(t, 1) ? '9am tomorrow' : '9am ' + fmt(day.date);
-  const who = closed ? `<div class="hero-name"><span class="eyebrow warn">Outside office hours</span>
-      <p class="hero-none">No one is on duty now.</p><span class="hero-role">Office hours are 9am to 6pm on working days.</span></div>
+  // Weekends and holidays read the same way: say why there is no duty, then who is next.
+  const who = noDutyNow ? `<div class="hero-name"><span class="eyebrow warn">${closed ? 'Outside office hours' : 'No duty today'}</span>
+      <p class="hero-none">${closed ? 'No one is on duty now.' : why}</p>${closed ? '<span class="hero-role">Office hours are 9am to 6pm on working days.</span>' : ''}</div>
     ${day ? `<div class="next-cover"><span class="eyebrow">Next on duty · ${nextWhen}</span>
       ${primary ? `<div class="who-line">${avatar(primary.name)}<span class="person"><span class="nm">${esc(primary.name)}</span><span class="rl">Primary · ask for OTP</span></span></div>` : '<p class="hero-note">No one is available that day.</p>'}</div>` : ''}`
     : !day ? '' : `<div class="hero-name"><span class="eyebrow${working && !primary ? ' warn' : ''}">${!working ? 'Next duty day · ' + fmt(day.date) : primary ? 'Primary · ask for OTP' : 'No duty cover today'}</span>
@@ -171,7 +175,6 @@ async function renderToday() {
     <div class="hero-scene">${scene.svg}<span class="wall-date"><i></i>${sign}</span></div>
     <div class="hero-body">
       <div class="hero-who${lead ? '' : ' plain'}">${lead ? avatar(lead.name, 'big', `<span class="lock">${ICON_LOCK}</span>`) : ''}<p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div>
-      ${working || !td ? '' : `<p class="hero-note">No duty today.${why ? ' ' + why : ''}</p>`}
       ${who}${share}
     </div>
   </section>`;

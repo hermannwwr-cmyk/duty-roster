@@ -252,6 +252,15 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   check('I7 signed-in app after 6pm: shows tomorrow\'s role, the note and the share button', (await app.locator('.role-head .eyebrow').innerText()).toLowerCase().includes('tue, 17 nov') && (await app.locator('.role-card').innerText()).includes('No one is on duty now.') && (await app.locator('#share-wa').innerText()).trim() === 'Tell the team on WhatsApp', await app.locator('.role-card').innerText());
   await app.close();
 
+  /* ---------- K. On a weekend the 2FA Login card offers no OTP ---------- */
+  pub = await open('/calendar.html', '2026-11-22T03:00:00Z');   // Sunday 22 Nov, 11am
+  check('K1 weekend: the card says there is no duty, with no big face', (await pub.locator('.hero-name .eyebrow').textContent()) === 'No duty today' && (await pub.locator('.hero-none').innerText()) === 'It’s the weekend.' && await pub.locator('.av.big').count() === 0, await pub.locator('.hero-name').innerText());
+  check('K2 weekend: next on duty is Monday, and the button shares rather than asks', (await pub.locator('.next-cover .eyebrow').textContent()) === 'Next on duty · 9am tomorrow' && (await pub.locator('a.btn.wa').innerText()).trim() === 'Tell the team on WhatsApp' && !(await pub.locator('.hero-card').innerText()).includes('Click for OTP'));
+  await pub.close();
+  app = await open('/index.html', '2026-11-22T03:00:00Z');
+  check('K3 weekend: the signed-in page offers no OTP either', (await app.locator('.role-head .role').innerText()) === 'No duty' && (await app.locator('#share-wa').innerText()).trim() === 'Tell the team on WhatsApp');
+  await app.close();
+
   /* ---------- J. At the weekend the calendar marks the next weekday ---------- */
   pub = await open('/calendar.html#calendar', '2026-11-21T03:00:00Z');   // Saturday 21 Nov, 11am
   check('J1 weekend: a note says today is the weekend', (await pub.locator('.today-note').innerText()) === 'Today is Saturday, 21 November. No duty at weekends.', await pub.locator('.today-note').innerText().catch(() => 'none'));
