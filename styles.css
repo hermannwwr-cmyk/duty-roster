@@ -141,7 +141,7 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .strip .away .when, .strip .away .nm { color: var(--leave); }
 .strip .none .nm { color: var(--danger); }
 /* Up next (2FA Login tab): one open row, no box per day. Today is marked by a cyan label and a ring on the face. */
-.upnext { gap: .25rem; }
+.upnext { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .25rem; }
 .upnext li { gap: .3rem; padding: .3rem 0 .15rem; background: none; }
 .upnext .nm { font-size: .92rem; font-weight: 700; }
 .upnext .is-today { background: none; box-shadow: none; }

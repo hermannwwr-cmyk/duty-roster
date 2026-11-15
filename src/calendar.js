@@ -183,8 +183,8 @@ async function renderToday() {
     <ol class="backups">${secondaries.map((x, i) => `<li>${avatar(x.name, '', `<b class="n">${i + 1}</b>`)}<span class="person"><span class="nm">${esc(x.name)}</span><span class="rl">${esc(x.role)}</span></span></li>`).join('')}</ol>
   </section>` : '';
 
-  // Who is Primary over the next five working days, so people know who to ask next.
-  const coming = day ? data.days.filter(d => d.kind === 'work' && d.date >= day.date).slice(0, 5) : [];
+  // Who is Primary over the next three working days, so people know who to ask next.
+  const coming = day ? data.days.filter(d => d.kind === 'work' && d.date >= day.date).slice(0, 3) : [];
   const upNext = coming.length > 1 ? `<section class="panel sub" aria-labelledby="next-h">
     <div class="sub-head"><h3 id="next-h">Up next</h3><span>Primary each day</span></div>
     <ol class="strip upnext">${coming.map(d => {
