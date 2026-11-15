@@ -5,27 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>2FA Login Request</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
 <!-- version:start -->
 <script type="importmap">
 {
   "imports": {
-    "./config.js": "./config.js?v=202611041402",
-    "./src/app.js": "./src/app.js?v=202611041402",
-    "./src/calendar.js": "./src/calendar.js?v=202611041402",
-    "./src/connect.js": "./src/connect.js?v=202611041402",
-    "./src/engineer.js": "./src/engineer.js?v=202611041402",
-    "./src/faces.js": "./src/faces.js?v=202611041402",
-    "./src/holidays-sg.js": "./src/holidays-sg.js?v=202611041402",
-    "./src/live.js": "./src/live.js?v=202611041402",
-    "./src/schedule.js": "./src/schedule.js?v=202611041402",
-    "./src/store.js": "./src/store.js?v=202611041402",
-    "./src/swipe.js": "./src/swipe.js?v=202611041402"
+    "./config.js": "./config.js?v=202611150211",
+    "./src/app.js": "./src/app.js?v=202611150211",
+    "./src/calendar.js": "./src/calendar.js?v=202611150211",
+    "./src/connect.js": "./src/connect.js?v=202611150211",
+    "./src/engineer.js": "./src/engineer.js?v=202611150211",
+    "./src/holidays-sg.js": "./src/holidays-sg.js?v=202611150211",
+    "./src/live.js": "./src/live.js?v=202611150211",
+    "./src/schedule.js": "./src/schedule.js?v=202611150211",
+    "./src/store.js": "./src/store.js?v=202611150211",
+    "./src/swipe.js": "./src/swipe.js?v=202611150211"
   }
 }
 </script>
-<link rel="stylesheet" href="styles.css?v=202611041402">
-<script type="module" src="src/calendar.js?v=202611041402"></script>
+<link rel="stylesheet" href="styles.css?v=202611150211">
+<script type="module" src="src/calendar.js?v=202611150211"></script>
 <!-- version:end -->
 </head>
 <body>
@@ -34,7 +33,7 @@
     <button type="button" data-tab="today" aria-current="page">2FA Login</button>
     <button type="button" data-tab="calendar"><span class="tab-long">Calendar Forecast</span><span class="tab-short">Forecast</span></button>
   </nav>
-  <a class="btn small top-end" href="./" aria-label="Sign in to add leave">Sign in</a>
+  <a class="signin top-end" href="./" aria-label="Sign in to add leave">Sign in</a>
 </div></header>
 <div class="wrap" id="today"><p class="loading">Loading today’s 2FA Login…</p></div>
 <main class="wrap" id="view" hidden><p class="loading">Loading the calendar…</p></main>

@@ -1,4 +1,4 @@
-import { buildSchedule, checkpointFor, toISO, fromISO, addDays, todaySG, onRota, rosterMessage, whatsappLink, WHATSAPP_ICON, initials, avatarColor } from './schedule.js';
+import { buildSchedule, checkpointFor, toISO, fromISO, addDays, todaySG, onRota, rosterMessage, whatsappLink, WHATSAPP_ICON, initials, shortName } from './schedule.js';
 import { createStore } from './connect.js';
 import { keepFresh } from './live.js';
 import { swipeTabs } from './swipe.js';
@@ -207,7 +207,7 @@ function renderApp() {
   <header class="top"><div class="wrap">
     <nav class="tabs" aria-label="Sections">${tabs.map(([id, label]) => `<button type="button" data-tab="${id}"${state.tab === id ? ' aria-current="page"' : ''}>${label}</button>`).join('')}</nav>
     <div class="acct top-end">
-      <button type="button" class="acct-btn" id="acct-btn" style="--av:${avatarColor(me.display_name)}" aria-haspopup="true" aria-expanded="false" aria-controls="acct-menu"
+      <button type="button" class="acct-btn" id="acct-btn" aria-haspopup="true" aria-expanded="false" aria-controls="acct-menu"
         aria-label="Account: ${esc(me.display_name)}">${esc(initials(me.display_name))}</button>
       <div class="acct-menu" id="acct-menu" hidden>
         <p class="acct-head">Signed in as<b>${esc(me.display_name)}</b>${me.is_admin ? '<span class="acct-role">Admin</span>' : ''}</p>
@@ -238,44 +238,43 @@ function renderView() {
 }
 
 /* ---------- Roster ---------- */
-const avatar = name => `<span class="av" style="--av:${avatarColor(name)}" aria-hidden="true">${esc(initials(name))}</span>`;
-/** Who holds each role on one working day, as a list: Primary, Secondary 1… then anyone on leave. */
-function summary(day, meId) {
-  // One grouped list: the face or initials, then the name with the role underneath.
-  const row = (cls, role, m) => `<li class="${cls}${m.id === meId ? ' me' : ''}">${avatar(m.name)}<span class="person"><span class="nm">${esc(m.name)}</span>
-    <span class="rl">${role}${m.id === meId ? ' <span class="you">· You</span>' : ''}</span></span></li>`;
-  return `<ul class="summary">${day.duties.map(d => row(d.role === 'Primary' ? 'p' : '', d.role === 'Primary' ? 'Primary · ask for OTP' : esc(d.role), d.member)).join('')}${day.onLeave.map(m => row('away', 'On leave', m)).join('')}</ul>`
+const icon = d => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+const ICON_PREV = icon('M15 5l-7 7 7 7'), ICON_NEXT = icon('M9 5l7 7-7 7');
+/** A person shown by their initials in a circle. */
+const mono = (name, cls = '') => `<span class="mono-av${cls ? ' ' + cls : ''}" aria-hidden="true">${esc(initials(name))}</span>`;
+/** One working day's line-up as a strip: the Primary, each Secondary in order, then anyone on leave. */
+function lineup(day, meId, names) {
+  const cell = (cls, label, m) => `<li class="${cls}${m.id === meId ? ' me' : ''}" title="${esc(m.name)}"><span class="when">${label}</span>${mono(m.name)}
+    <span class="nm">${esc(shortName(m.name, names))}${m.id === meId ? '<span class="sr-only"> (you)</span>' : ''}</span></li>`;
+  return `<ol class="strip lineup">${day.duties.map(d => cell(d.role === 'Primary' ? 'p' : '', shortRole(d.role), d.member)).join('')}${day.onLeave.map(m => cell('away', 'Leave', m)).join('')}</ol>`
     + (day.duties.length ? '' : '<p class="muted">No one is available for duty.</p>');
-}
-function chip(duty, meId) {
-  const me = duty.member.id === meId;
-  return `<span class="chip${duty.role === 'Primary' ? ' p' : ''}${me ? ' me' : ''}"><span class="r">${shortRole(duty.role)}</span>${esc(duty.member.name)}</span>`;
 }
 
 function renderRoster() {
-  const { me, settings } = state.data;
+  const { me, settings, profiles } = state.data;
   const view = document.getElementById('view');
   const t = today();
+  const names = profiles.map(p => p.display_name);
   const [td] = scheduleFor(t, t);
-  // The next working day's roster (today if it's a working day): summarised here and shared on WhatsApp.
+  // The next working day's roster (today if it's a working day): shown in the line-up and shared on WhatsApp.
   const shareDay = scheduleFor(t, addDays(t, 21)).find(d => d.kind === 'work');
-  let mineToday, todaySummary;
+  let mineToday, note = '';
   if (td.kind === 'work') {
     const mine = td.duties.find(d => d.member.id === me.id);
     mineToday = mine ? mine.role : td.onLeave.some(m => m.id === me.id) ? 'On leave' : 'No duty';
-    todaySummary = summary(td, me.id);
   } else {
     mineToday = 'No duty';
-    todaySummary = `<p class="muted">${td.kind === 'holiday' ? 'Public holiday: ' + esc(td.holiday) + '.' : td.kind === 'weekend' ? 'It’s the weekend.' : 'The rotation starts on ' + fmtDay(settings.rota_start) + '.'}</p>`
-      + (shareDay ? `<p class="summary-next">Next duty day · ${fmtDay(shareDay.date)}</p>` + summary(shareDay, me.id) : '');
+    note = `<p class="muted">${td.kind === 'holiday' ? 'Public holiday: ' + esc(td.holiday) + '.' : td.kind === 'weekend' ? 'It’s the weekend.' : 'The rotation starts on ' + fmtDay(settings.rota_start) + '.'}</p>`
+      + (shareDay ? `<p class="eyebrow">Next duty day · ${fmtDay(shareDay.date)}</p>` : '');
   }
+  const shown = td.kind === 'work' ? td : shareDay;
 
   let shareHtml = '';
   if (shareDay) {
     const text = rosterMessage({ date: shareDay.date, duties: shareDay.duties.map(d => ({ role: d.role, name: d.member.name })) },
       new URL('calendar.html', location.href).href);
     shareHtml = `<div class="share"><a class="btn wa" id="share-wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">${WHATSAPP_ICON}Click for OTP on WhatsApp</a>
-      ${navigator.share ? '<button class="btn" type="button" id="share-other">Share another way</button>' : ''}</div>`;
+      ${navigator.share ? '<button class="btn ghost" type="button" id="share-other">Share another way</button>' : ''}</div>`;
     state.shareText = text;
   }
 
@@ -285,33 +284,42 @@ function renderRoster() {
   const before = first < settings.rota_start;
   const monthName = fromISO(first).toLocaleDateString('en-SG', { month: 'long', year: 'numeric' });
 
+  // One row per working day: the date, the Primary, then the backups in order, with your own role on the right.
+  const dayRow = d => {
+    const dt = fromISO(d.date);
+    const date = `<span class="date"><span class="dow">${d.date === t ? 'Today' : dt.toLocaleDateString('en-SG', { weekday: 'short' })}</span><span class="dnum">${dt.getDate()}</span></span>`;
+    if (d.kind === 'holiday') return `<li class="day holiday${d.date === t ? ' is-today' : ''}">${date}<span class="who"><span class="what">Public holiday</span><span class="then">${esc(d.holiday)}</span></span></li>`;
+    const mine = d.duties.find(x => x.member.id === me.id);
+    const away = d.onLeave.some(x => x.id === me.id);
+    const [p, ...rest] = d.duties;
+    const short = member => member.id === me.id ? `<b>${esc(shortName(member.name, names))}</b>` : esc(shortName(member.name, names));
+    return `<li class="day${d.date === t ? ' is-today' : ''}">${date}<span class="who">
+      ${p ? `<span class="lead">${mono(p.member.name, 'sm')}<span class="nm"><span class="sr-only">Primary: </span>${esc(p.member.name)}${p.member.id === me.id ? ' <span class="you">· You</span>' : ''}</span></span>` : '<span class="nobody">No one available</span>'}
+      ${rest.length ? `<span class="then">then ${rest.map(x => short(x.member)).join(' → ')}</span>` : ''}
+      ${d.onLeave.length ? `<span class="tags">${d.onLeave.map(x => `<span class="tag leave">${esc(shortName(x.name, names))} on leave</span>`).join('')}</span>` : ''}</span>
+      ${mine ? `<span class="badge${mine.role === 'Primary' ? ' p' : ''}"><span class="sr-only">Your role: </span>${mine.role === 'Primary' ? 'Primary' : shortRole(mine.role)}</span>` : away ? '<span class="badge off"><span class="sr-only">You are on </span>Leave</span>' : ''}</li>`;
+  };
+
   view.innerHTML = `
-  <section class="panel today" aria-label="2FA Login">
-    <div class="mine"><span class="label">2FA Login · ${fmtDay(t)} · Your role</span><span class="role">${esc(mineToday)}</span></div>
-    <div>${todaySummary}</div>
+  <section class="panel role-card" aria-label="2FA Login">
+    <div class="role-head"><span class="eyebrow">Your role · ${fmtDay(t)}</span><span class="role">${esc(mineToday)}</span></div>
+    ${note}
+    ${shown ? lineup(shown, me.id, names) : ''}
     ${shareHtml}
   </section>
-  <section class="panel">
+  <section class="panel roster-panel">
     <div class="row-head">
       <h2>Roster</h2>
       <div class="month">
-        <button class="btn small" id="prev" aria-label="Previous month">◀</button>
+        ${state.month === t.slice(0, 7) ? '' : '<button class="btn small" id="this">This month</button>'}
+        <button class="btn icon" id="prev" aria-label="Previous month">${ICON_PREV}</button>
         <strong>${monthName}</strong>
-        <button class="btn small" id="next" aria-label="Next month">▶</button>
-        <button class="btn small" id="this">This month</button>
+        <button class="btn icon" id="next" aria-label="Next month">${ICON_NEXT}</button>
       </div>
     </div>
-    <p class="muted">Weekdays only. Weekends and public holidays have no duty. P is Primary, S1 is Secondary 1, and so on. People on leave are left out that day.</p>
+    <p class="muted">Weekdays only. Weekends and public holidays have no duty. Each day shows the Primary, then the backups in order. People on leave are left out that day.</p>
     ${before ? `<p class="muted">The rotation starts on ${fmtDay(settings.rota_start, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}.</p>` : ''}
-    <div class="cols" aria-hidden="true"><span>Date</span><span>Your role</span><span>Everyone</span></div>
-    <div class="days">${days.map(d => {
-      if (d.kind === 'holiday') return `<div class="day holiday${d.date === t ? ' is-today' : ''}"><span class="date">${fmtDay(d.date)}</span><span class="what">Public holiday</span><span class="what">${esc(d.holiday)}</span></div>`;
-      const mine = d.duties.find(x => x.member.id === me.id);
-      const away = d.onLeave.some(x => x.id === me.id);
-      return `<div class="day${d.date === t ? ' is-today' : ''}"><span class="date">${fmtDay(d.date)}</span>
-        <span class="yours${away ? ' off' : ''}">${mine ? esc(mine.role) : away ? 'On leave' : '–'}</span>
-        <span class="chips">${d.duties.length ? '' : '<span class="nobody">No one available</span>'}${d.duties.map(x => chip(x, me.id)).join('')}${d.onLeave.map(x => `<span class="chip away"><span class="r">LEAVE</span>${esc(x.name)}</span>`).join('')}</span></div>`;
-    }).join('') || '<p class="muted">No working days to show this month.</p>'}</div>
+    ${days.length ? `<ol class="days">${days.map(dayRow).join('')}</ol>` : '<p class="muted">No working days to show this month.</p>'}
   </section>`;
   const other = document.getElementById('share-other');
   if (other) other.onclick = () => navigator.share({ text: state.shareText }).catch(() => {});
@@ -319,7 +327,8 @@ function renderRoster() {
   const go = month => { const key = focusKey(document.activeElement); state.month = month; renderView(); restoreFocus(key); };
   document.getElementById('prev').onclick = () => go(toISO(new Date(y, m - 2, 1, 12)).slice(0, 7));
   document.getElementById('next').onclick = () => go(toISO(new Date(y, m, 1, 12)).slice(0, 7));
-  document.getElementById('this').onclick = () => go(today().slice(0, 7));
+  const back = document.getElementById('this');
+  if (back) back.onclick = () => go(today().slice(0, 7));
 }
 
 /* ---------- Leave ---------- */

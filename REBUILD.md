@@ -54,7 +54,6 @@ src/
   store.js                 SupabaseStore and DemoStore, same methods
   connect.js               createStore(): Supabase if configured, else Demo
   engineer.js              animated SVG "infra engineer" scene, picked by Singapore time
-  faces.js                 cartoon face SVG generated from a name (public card avatars)
   holidays-sg.js           Singapore public holidays 2026–2027 for demo mode
   live.js                  keepFresh(): auto-refresh plus a "new version available" bar
   swipe.js                 swipe left or right on phones to change tabs, plus a one-time peek hint
@@ -116,7 +115,7 @@ Changing the team must never rewrite past days. A **rota checkpoint** is `{ effe
 - `whatsappLink(text)`: `'https://wa.me/?text=' + encodeURIComponent(text)` (the user picks the chat).
 - `WHATSAPP_ICON`: inline SVG of the WhatsApp logo (Simple Icons, CC0), class `wa-icon`.
 - `initials(name)`: up to two initials, uppercase.
-- `avatarColor(name)`: a stable pick from `['#be123c','#b45309','#047857','#1d4ed8','#6d28d9','#be185d','#0f766e','#c2410c']` using a `h*31+codepoint` hash.
+- `shortName(name, names)`: the first name, for tight spaces; the full name when two people in `names` share that first name.
 
 ### Tests to write (`tests/schedule.test.mjs`, about 15)
 - Basic rotation order.
@@ -206,7 +205,7 @@ Two classes with **identical methods**:
 
 ### Shared
 - **Header** (sticky, blurred background): a single row with no title text.
-  - On the left, a **pill-shaped tab bar**; the selected tab is filled with a cyan gradient.
+  - On the left, a **pill-shaped tab bar**; the selected tab is filled with a calm deep teal (`#1b4459`), not the accent.
   - On the right: "Sign in" (public page), or a round **initials avatar button** (app). The avatar opens a menu showing "Signed in as \<name\>" (with an "Admin" badge for admins), Calendar and Sign out. The menu closes on Escape or a click outside.
   - Long tab labels have a phone version: `<span class="tab-long">Calendar Forecast</span><span class="tab-short">Forecast</span>`; admins' "Team & settings" becomes "Team".
 - **Swiping (phones):** a horizontal swipe clicks the next or previous `[data-tab]`.
@@ -226,39 +225,38 @@ Two classes with **identical methods**:
 ### Public page (`calendar.html`)
 Two tabs: **2FA Login** and **Calendar Forecast** (`#calendar` in the URL opens the second).
 
-**2FA Login tab**, from top to bottom:
-1. **The engineer scene** (`engineer.js`): an animated SVG (viewBox 360×172) of an infra engineer, chosen by Singapore time:
-   - before 6:00 or from 23:00: sleeping (bed, phone glowing, "zzz")
-   - morning (to 12:00): typing at code, with a coffee mug
-   - lunch (12–14): eating noodles, screen says "Lunch break, Back at 2pm"
-   - afternoon (to 17:30): dashboards with moving bars
-   - evening (to 19:00): stretching and yawning, "Shutting down…"
-   - after work: on the sofa with a lamp and the on-call phone
-   - weekends and public holidays: lights-off room
+**2FA Login tab.** One card leads, with the rest beside it on wide screens (880px and up) and under it on phones:
+1. **The card** (`.hero-card`), from top to bottom:
+   - **The engineer scene** (`engineer.js`): an animated SVG (viewBox 358×196) of one room, chosen by Singapore time:
+     - before 6:00 or from 23:00: lights off, the on-call phone glowing on the desk
+     - morning (to 12:00): typing at code, with a steaming mug
+     - lunch (12–14): eating noodles, screen says "Lunch break, Back at 2pm"
+     - afternoon (to 17:30): dashboards with moving bars
+     - evening (to 19:00): stretching and yawning, "Shutting down…"
+     - after work: the room dim, a desk lamp on, the on-call phone in hand
+     - weekends and public holidays: lights off, nobody in
 
-   The window shows a sky that matches the time of day (sunrise, sun, sunset, moon, stars). A server rack with blinking LEDs and a pulsing padlock sits on the right. Each scene has a one-line caption, for example "Good morning! Coffee first, then the servers." `?scene=lunch` forces a scene for previews. The hoodie colour comes from CSS variables `--hoodie`, `--hoodie-light` and `--hoodie-dark`, set as an inline `style="fill:var(--hoodie)"` because SVG attributes can't hold `var()`. All animation stops under reduced motion.
-2. **The "2FA Login" card:**
-   - A gradient header band (blue to cyan) reading "2FA Login", with the date in a translucent pill on the right and a slow light-ripple animation.
-   - Then a **grouped list**:
-     - The **Primary row is large**: a cartoon face (`faces.js`) with a glowing cyan ring, the name in big bold type, and "Primary · ask for OTP" in cyan under it.
-     - Secondaries follow on thin-ruled rows: a face, the name, and the role in grey under it.
-   - On a weekend or holiday, show "No duty today. It's the weekend." (or "Public holiday: X."), then a label "NEXT DUTY DAY · MON, 16 NOV", then that day's list.
-   - Under the list: "**UP NEXT** Tomorrow · **Chloe Ng** is Primary". Use the date instead of "Tomorrow" if the next duty day isn't tomorrow.
-   - A big green button, "Click for OTP on WhatsApp", opens `whatsappLink(rosterMessage(day, calendarUrl))`. It has a gentle breathing green glow.
-3. **"No one is available on:" card**, shown only if some upcoming working day has an empty duty list. It has a red header band, and each date is a row with a "!" icon, the full date, and how soon it is ("in 9 days").
+     The window shows a sky that matches the time of day (sunrise, sun, sunset, moon, stars) and its light falls across the floor. The wall clock shows the real Singapore time. A server rack with blinking LEDs and a pulsing padlock sits on the right. Each scene has a one-line caption, for example "Good morning! Coffee first, then the servers." `?scene=lunch` forces a scene for previews. The hoodie colour comes from CSS variables `--hoodie`, `--hoodie-light` and `--hoodie-dark`, set as an inline `style="fill:var(--hoodie)"` because SVG attributes can't hold `var()`. All animation stops under reduced motion.
+   - **Today's date** on a small sign over the scene's wall ("MON 16 NOV"): an HTML label positioned over the SVG.
+   - **The Primary**: their initials in a large circle with a cyan ring and a padlock badge, overlapping the bottom of the scene, with the scene's caption beside it. Then the label "Primary · ask for OTP" and the name in very large bold type.
+   - On a weekend or holiday: the line "No duty today. It's the weekend." (or "Public holiday: X."), the label "NEXT DUTY DAY · MON, 16 NOV", that day's Primary, and "Primary · ask for OTP" under the name.
+   - A big green button, "Click for OTP on WhatsApp", opens `whatsappLink(rosterMessage(day, calendarUrl))`. It is bright green with dark text and a slow glow.
+2. **Secondaries**: a small panel headed "Secondaries · in backup order". Each person is a tile with their initials in a circle, a number badge (1, 2, 3…), their name, and "Secondary 1" under it. Two columns on phones, one on wide screens.
+3. **Up next**: a strip of the next five working days, each with the day ("Today", "TUE 17"), the Primary's initials and first name. Today is outlined in cyan.
+4. **"No one is available on:" card**, shown only if some upcoming working day has an empty duty list. It is red, and each date is a row with the full date and how soon it is ("in 9 days").
 
 The page loads `loadPublic(today, today + 60)`. If that returns `null`, show "The public calendar is switched off".
 
 **Calendar Forecast tab:**
-- A month grid of **weekdays only** (Mon–Fri columns), with ‹ › month buttons and "This month".
-- A legend: "ROLES P Primary, S1–S4 Secondaries, in backup order" and "DAYS Today, Public holiday", showing only what that month contains.
+- A month grid of **weekdays only** (Mon–Fri columns), with the month name, ‹ › buttons, and "This month" only when another month is showing. A week with no weekday in the month is left out.
+- A legend showing only what that month contains: a "Primary" pill with "then the backups, in order", and a dashed slot with "someone is away".
 - Each cell shows:
-  - the date number
-  - for a holiday, its name in green
+  - the date number (days from the months either side say "1 Dec")
+  - for a holiday, a star and its name in green
   - for a working day with nobody available, "No one available" in red
-  - otherwise a list of `P Name`, `S1 Name`, … The Primary is bold, with a cyan dot.
-- Today's number sits in a cyan circle, the cell is tinted with a cyan top line, and today's weekday column is lightly tinted all month. Days outside the month are faded.
-- On phones, names print twice (`.full` and `.first` spans) and CSS shows the first name only.
+  - otherwise **everyone available that day, names only**: the Primary first in a pill, then the backups in order. From today on, a dashed empty slot stands for each person missing from the day (team size minus the people listed), so an absence shows at a glance without naming anyone.
+- Today's cell is tinted with a cyan outline, its number sits in a cyan pill and its Primary pill is solid cyan. Days gone by and days outside the month are outlined rather than filled.
+- On phones, names print twice (`.full` and `.first` spans) and CSS shows the short one (`shortName`).
 
 ### Signed-in app (`index.html`)
 **Sign-in screen:**
@@ -268,14 +266,13 @@ The page loads `loadPublic(today, today + 60)`. If that returns `null`, show "Th
 - People awaiting approval see "Waiting for approval" with "Check again" and "Sign out".
 
 **Roster tab:**
-- **"Your role" card:** a gradient band showing "2FA LOGIN · WED, 18 NOV · YOUR ROLE" over a big "Primary", "Secondary 2", "On leave" or "No duty".
-  - Below it, the same grouped list as the public card, but with **initials circles** instead of faces. Your own row is tinted and shows "· You".
+- **"Your role" card:** the label "YOUR ROLE · MON, 16 NOV" over a big "Primary", "Secondary 2", "On leave" or "No duty".
+  - Below it, that day's line-up as a strip: one tile per person with their role (P, S1, S2…), initials circle and first name; purple "LEAVE" tiles for people on leave. Your own tile is outlined in cyan.
   - Then the WhatsApp button, and "Share another way" (`navigator.share`) where the device supports it.
 - **Roster card:**
-  - A heading with month navigation, and the note "Weekdays only. Weekends and public holidays have no duty. P is Primary, S1 is Secondary 1, and so on. People on leave are left out that day."
-  - Columns: Date / Your role / Everyone. Each working day is a row: date, your role, then **chips** "P Alice Tan", "S1 Ben Lim", … plus purple "LEAVE Name" chips.
-  - Your chip is outlined in cyan. Holiday rows are green. Today's row is highlighted.
-  - On phones the chips wrap under the date.
+  - A heading with month navigation, and the note "Weekdays only. Weekends and public holidays have no duty. Each day shows the Primary, then the backups in order. People on leave are left out that day."
+  - Each working day is a row: the weekday and date; the Primary (initials and full name, with "· You" if it's you); "then Ben → Chloe → Dev" for the backups in order, with your own name in cyan; purple "Ben on leave" tags; and your own role as a badge on the right ("Primary" filled, "S2" outlined, "Leave" purple).
+  - Holiday rows are green. Today's row is highlighted and says "Today".
 
 **Leave tab:**
 - **Add leave:**
@@ -347,24 +344,25 @@ Always dark. Fonts: **Plus Jakarta Sans** (UI) and **JetBrains Mono** (role code
 
 ```css
 :root {
-  --bg: #06141c; --panel: #0c1f2a; --raised: #10283a; --ink: #e6f4f8; --soft: #9bb8c4; --line: #1d3a48;
-  --accent: #38bdf8; --accent-ink: #06141c; --accent-soft: #0f2a38;
-  --primary: #7dd3fc; --primary-soft: #0f2a38; --leave: #d0aefc; --leave-soft: #2b2148;
-  --holiday: #6fd3ad; --holiday-soft: #12302a; --danger: #ff8a80;
-  --band: linear-gradient(120deg, #0369a1, #0891b2 55%, #06b6d4);
-  --hoodie: #0891b2; --hoodie-light: #22b8cf; --hoodie-dark: #0e7490;
+  --bg: #06141c; --panel: #0b1e29; --raised: #102a39; --ink: #e6f4f8; --soft: #9bb8c4; --line: #1d3a48; --edge: #2a5468;
+  --accent: #38bdf8; --accent-ink: #06141c; --accent-soft: #12384a;
+  --primary: #7dd3fc; --primary-soft: #1a4a61; --leave: #d0aefc; --leave-soft: #2b2148;
+  --holiday: #6fd3ad; --holiday-soft: #12302a; --danger: #ff8a80; --danger-soft: #2a1620;
+  --wa: #25d366; --wa-ink: #04210f;
+  --hoodie: #f0846a; --hoodie-light: #f59a80; --hoodie-dark: #d96f57;
 }
-body { background: radial-gradient(50rem 30rem at 90% -10%, #0e749066, transparent 60%),
-                   radial-gradient(40rem 25rem at -10% 10%, #1e3a8a44, transparent 60%), var(--bg) fixed; }
+body { background: radial-gradient(50rem 30rem at 90% -10%, #0e749052, transparent 60%),
+                   radial-gradient(40rem 25rem at -10% 10%, #1e3a8a3d, transparent 60%), var(--bg) fixed; }
 ```
 
-- **Cards:** `.panel`, background `#0c1f2ae6`, radius 16px, a faint 1px light ring and a deep shadow.
-- **Selected pill tab:** `linear-gradient(120deg, #0369a1, #0891b2)`.
-- **Primary row:** `linear-gradient(120deg, #0c4a6e, #155e75)`. Its avatar is 3.6rem with a ring `0 0 0 3px #0c4a6e, 0 0 0 5px var(--primary), 0 0 24px #38bdf880`.
-- **WhatsApp button:** `#16a34a`, with a breathing glow animation (`#22c55e`).
-- **"No one available" band:** `linear-gradient(120deg, #e5484d, #be123c)`.
-- **Engineer room:** navy and teal shapes, a cyan padlock (`#7dd3fc` on `#082f49`).
-- Layout: a single column, max-width 62rem, 16px side gutters (respect safe-area insets), and no horizontal scroll at 320px.
+- **One accent.** Cyan means "Primary" or "today" and nothing else. Leave is purple, holidays green, gaps red. Everything else is flat: no gradient bands.
+- **Cards:** `.panel`, background `var(--panel)`, radius 20px, a faint 1px light ring. The two lead cards (the 2FA Login card and "Your role") have radius 24px and a deep shadow.
+- **Selected pill tab:** `#1b4459` with white text.
+- **People:** initials in a circle (`.mono-av`), one calm colour for everyone (`#17404f`). The Primary's is large (5.5rem, 7rem on wide screens) with the ring `0 0 0 4px var(--panel), 0 0 0 6.5px var(--accent), 0 0 30px 4px #38bdf85c` and a small padlock badge.
+- **WhatsApp button:** `#25d366` with dark text `#04210f` (white text on green fails contrast), radius 16px, a slow glow.
+- **"No one available" card:** `#2a1620` with a `#e5484d66` ring; rows `#3a1d2a`.
+- **Engineer room:** deep teal walls, a sky per time of day, a warm coral hoodie as the one warm note, a cyan padlock (`#7dd3fc` on `#082f49`).
+- Layout: a single column, max-width 62rem, 16px side gutters (respect safe-area insets), and no horizontal scroll at 320px. From 880px the 2FA Login tab is two columns.
 - **Every animation stops under `@media (prefers-reduced-motion: reduce)`.**
 
 ---

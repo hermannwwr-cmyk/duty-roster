@@ -1,6 +1,7 @@
-// An infra engineer through the day: an animated illustration for the top of the 2FA Login card.
-// Six scenes, picked by the time in Singapore. Plain SVG and CSS (see .engineer in styles.css);
-// everything holds still for people who turn off animations.
+// An infra engineer through the day: the animated illustration at the top of the 2FA Login card.
+// One room, lit by the time in Singapore: six weekday scenes, and the lights off on weekends and
+// public holidays. Plain SVG and CSS (see .engineer in styles.css); everything holds still for
+// people who turn off animations.
 
 /**
  * What the scene shows now in Singapore: 'weekend' on Saturdays and Sundays, otherwise the part of
@@ -19,240 +20,194 @@ export function periodAt(now = new Date(), { weekdays = true } = {}) {
   return 'afterwork';
 }
 
-const SKIN = '#c98b63', SKIN_DARK = '#b97b55', HAIR = '#1f1a2e';
-// The hoodie (and the blanket at night) follows the theme: --hoodie, --hoodie-light, --hoodie-dark in styles.css.
-const HOODIE = 'var(--hoodie, #6d5df5)', HOODIE_LIGHT = 'var(--hoodie-light, #7c6ff7)', HOODIE_DARK = 'var(--hoodie-dark, #5246d6)';
-const PANTS = '#1e293b', LINE = '#e8ecf8';
+const SKIN = '#f0c4a0', SKIN_DARK = '#dba682', HAIR = '#1c1b2b', INK = '#1b2330', LINE = '#e6f4f8', PANTS = '#2d4f66';
+// The hoodie follows the theme: --hoodie, --hoodie-light and --hoodie-dark in styles.css.
+const HOODIE = 'var(--hoodie, #f0846a)', HOODIE_LIGHT = 'var(--hoodie-light, #f59a80)', HOODIE_DARK = 'var(--hoodie-dark, #d96f57)';
 
-/* ---------- Shared pieces ---------- */
+/* ---------- The window: a sky for each part of the day ---------- */
 
-function sky(period) {
-  const skies = {
-    morning: ['#fde68a', '#93c5fd'], lunch: ['#bae6fd', '#7dd3fc'], afternoon: ['#7dd3fc', '#38bdf8'],
-    evening: ['#fb923c', '#7c3aed'], afterwork: ['#1e1b4b', '#312e81'], sleeping: ['#0b1020', '#1e1b4b']
-  };
-  const [top, bottom] = skies[period];
-  const light = { morning: '<circle class="rise" cx="44" cy="52" r="9" fill="#fbbf24"/>',
-    lunch: '<circle cx="58" cy="28" r="8" fill="#fde047"/>',
-    afternoon: '<circle cx="34" cy="26" r="8" fill="#fde047"/><path class="drift" d="M46 40h18a5 5 0 0 0-6-6 6 6 0 0 0-11 2 4 4 0 0 0-1 4z" fill="#ffffff" opacity=".9"/>',
-    evening: '<circle class="set" cx="40" cy="48" r="10" fill="#fdba74"/>',
-    afterwork: '<path d="M60 24a9 9 0 1 0 6 12 7 7 0 0 1-6-12z" fill="#fef3c7"/>',
-    sleeping: '<path d="M60 24a9 9 0 1 0 6 12 7 7 0 0 1-6-12z" fill="#fef3c7"/>' + [[24, 26], [36, 44], [48, 30], [26, 48]].map(([x, y], i) =>
-      `<circle class="twinkle" style="animation-delay:${i * 0.6}s" cx="${x}" cy="${y}" r="1.2" fill="#ffffff"/>`).join('') }[period];
-  return `
-  <defs><linearGradient id="eng-sky-${period}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${top}"/><stop offset="1" stop-color="${bottom}"/></linearGradient>
-    <clipPath id="eng-win-${period}"><rect x="16" y="14" width="58" height="44" rx="3"/></clipPath></defs>
-  <rect x="16" y="14" width="58" height="44" rx="3" fill="url(#eng-sky-${period})"/>
-  <g clip-path="url(#eng-win-${period})">${light}</g>
-  <rect x="16" y="14" width="58" height="44" rx="3" fill="none" stroke="#2a3560" stroke-width="3"/>
-  <path d="M45 14v44M16 36h58" stroke="#2a3560" stroke-width="2"/>`;
+const CLOUD = 'M72 42h24a6.5 6.5 0 0 0-7.5-7 8 8 0 0 0-14.5 2.2A5 5 0 0 0 72 42z';
+const MOON = '<path d="M90 30a11 11 0 1 0 8.5 16.5A9 9 0 0 1 90 30z" fill="#fef3c7"/>';
+const stars = twinkle => [[36, 32, 1.1], [54, 44, .9], [40, 60, 1], [76, 62, .9], [102, 64, 1]].map(([x, y, r], i) =>
+  `<circle${twinkle ? ` class="twinkle" style="animation-delay:${(i * 0.6).toFixed(1)}s"` : ''} cx="${x}" cy="${y}" r="${r}" fill="#ffffff"/>`).join('');
+// stops: the sky from top to bottom. city: the skyline's colour and strength. light: what comes through the window.
+const SKY = {
+  morning: { stops: ['#6fc2f2', '#bfe4f4', '#ffe2a6'], city: ['#3a7ea6', .6], light: '#ffe7b0', beam: .2,
+    draw: `<g class="rise"><circle cx="46" cy="68" r="19" fill="#ffd166" opacity=".3"/><circle cx="46" cy="68" r="11" fill="#ffd166"/></g><path d="${CLOUD}" fill="#ffffff" opacity=".9"/>` },
+  lunch: { stops: ['#4fb4f0', '#8fd0f5', '#cdecfb'], city: ['#3a7ea6', .55], light: '#fff3c4', beam: .17,
+    draw: '<circle cx="86" cy="36" r="15" fill="#ffe066" opacity=".3"/><circle cx="86" cy="36" r="9" fill="#ffe066"/>' },
+  afternoon: { stops: ['#5ab8f0', '#a8dbf5', '#e4f1dc'], city: ['#3a7ea6', .55], light: '#ffe7b0', beam: .17,
+    draw: `<circle cx="94" cy="44" r="15" fill="#ffd166" opacity=".3"/><circle cx="94" cy="44" r="9" fill="#ffd166"/><g transform="translate(-38 -2)"><path class="drift" d="${CLOUD}" fill="#ffffff" opacity=".9"/></g>` },
+  evening: { stops: ['#4d43a3', '#c95f94', '#fbab6e'], city: ['#33296b', .85], light: '#ffb27a', beam: .2,
+    draw: `<g class="set"><circle cx="60" cy="77" r="21" fill="#ffb057" opacity=".35"/><circle cx="60" cy="77" r="12" fill="#ffb057"/></g><path d="${CLOUD}" fill="#ffd9c8" opacity=".75"/>` },
+  afterwork: { stops: ['#121a4c', '#27307a', '#4b3f8f'], city: ['#0c1436', .92], light: '#bcd7ff', beam: .07, night: true, draw: MOON + stars(false) },
+  sleeping: { stops: ['#081028', '#12245a', '#1d3672'], city: ['#0a1634', .95], light: '#bcd7ff', beam: .13, night: true, draw: MOON + stars(true) }
+};
+
+function defs(sky) {
+  return `<defs>
+  <linearGradient id="eng-wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#16405a"/><stop offset="1" stop-color="#0e2b3b"/></linearGradient>
+  <linearGradient id="eng-floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#081b25"/><stop offset="1" stop-color="#0b1e29"/></linearGradient>
+  <linearGradient id="eng-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky.stops[0]}"/><stop offset=".6" stop-color="${sky.stops[1]}"/><stop offset="1" stop-color="${sky.stops[2]}"/></linearGradient>
+  <linearGradient id="eng-beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky.light}" stop-opacity="${sky.beam}"/><stop offset="1" stop-color="${sky.light}" stop-opacity=".02"/></linearGradient>
+  <radialGradient id="eng-glow" cx="66" cy="54" r="120" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${sky.light}" stop-opacity="${sky.night ? .05 : .16}"/><stop offset="1" stop-color="${sky.light}" stop-opacity="0"/></radialGradient>
+  <radialGradient id="eng-lamp" cx="283" cy="96" r="78" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fde68a" stop-opacity=".4"/><stop offset="1" stop-color="#fde68a" stop-opacity="0"/></radialGradient>
+  <clipPath id="eng-win"><rect x="22" y="20" width="88" height="68" rx="6"/></clipPath>
+  </defs>`;
 }
 
-function rack(dim) {
-  return `
-  <rect x="268" y="40" width="76" height="120" rx="6" fill="#141d36" stroke="#2a3560" stroke-width="2"/>
-  <g${dim ? ' opacity=".55"' : ''}>${[0, 1, 2, 3, 4].map(i => `
-    <rect x="276" y="${50 + i * 21}" width="60" height="15" rx="3" fill="#1c2748"/>
-    <circle class="led" style="animation-delay:${(i * 0.37) % 1.3}s" cx="284" cy="${57.5 + i * 21}" r="2.6" fill="${i % 2 ? '#8b9cff' : '#34d399'}"/>
-    <circle class="led slow" style="animation-delay:${(i * 0.61) % 1.9}s" cx="292" cy="${57.5 + i * 21}" r="2.6" fill="#34d399"/>
-    <path d="M302 ${54 + i * 21}h26M302 ${58 + i * 21}h26M302 ${62 + i * 21}h18" stroke="#2f3c6b" stroke-width="1.6" stroke-linecap="round"/>`).join('')}
+const walls = `<rect width="358" height="196" fill="url(#eng-wall)"/><rect width="358" height="196" fill="url(#eng-glow)"/>
+  <rect y="150" width="358" height="46" fill="url(#eng-floor)"/><rect y="150" width="358" height="1.5" fill="#235066"/>`;
+
+function windowPane(sky) {
+  return `<rect x="22" y="20" width="88" height="68" rx="6" fill="url(#eng-sky)"/>
+  <g clip-path="url(#eng-win)">${sky.draw}
+    <path d="M22 88V77h8v-7h7v11h6V65h9v15h7v-9h8v11h7V69h8v13h6v-8h8v9h4v5z" fill="${sky.city[0]}" opacity="${sky.city[1]}"/>
+    ${sky.night ? '<path d="M46 70h2v2h-2zM47 76h2v2h-2zM61 75h2v2h-2zM85 73h2v2h-2zM86 79h2v2h-2zM33 81h2v2h-2zM98 78h2v2h-2z" fill="#fde68a" opacity=".85"/>' : ''}
   </g>
-  <g class="lock">
-    <circle cx="306" cy="20" r="13" fill="#0891b2" opacity=".25" class="lock-pulse"/>
-    <path d="M300 18v-4a6 6 0 0 1 12 0v4" fill="none" stroke="#7dd3fc" stroke-width="2.4"/>
-    <rect x="297" y="17" width="18" height="13" rx="3" fill="#7dd3fc"/>
-    <circle cx="306" cy="23" r="2" fill="#082f49"/>
-  </g>`;
+  <rect x="22" y="20" width="88" height="68" rx="6" fill="none" stroke="#2a6079" stroke-width="3"/>
+  <path d="M66 20v68M22 54h88" fill="none" stroke="#2a6079" stroke-width="2"/>
+  <rect x="17" y="87" width="98" height="5" rx="2.5" fill="#2a6079"/>`;
 }
 
-const floor = '<line x1="12" y1="160" x2="348" y2="160" stroke="#26304d" stroke-width="2" stroke-linecap="round"/>';
+const beam = sky => `<path d="M24 92h88l62 58H56z" fill="url(#eng-beam)"/><path d="M56 150h118l20 46H68z" fill="${sky.light}" opacity="${(sky.beam / 5).toFixed(3)}"/>`;
 
-/** The head facing right, centred on (92, 62); move it with `at`. */
-function head({ at = [0, 0], headset = true, eyes = 'open', mouth = 'none' } = {}) {
-  const eye = { open: `<circle class="blink" cx="100" cy="62" r="1.5" fill="${HAIR}"/>`,
-    closed: `<path d="M97 63q3 2 6 0" fill="none" stroke="${HAIR}" stroke-width="1.5" stroke-linecap="round"/>`,
-    happy: `<path d="M97 62q3-3 6 0" fill="none" stroke="${HAIR}" stroke-width="1.5" stroke-linecap="round"/>` }[eyes];
-  const mouths = { none: '', yawn: '<ellipse class="yawn" cx="102" cy="70" rx="2.6" ry="3.4" fill="#7a2e2e"/>',
-    smile: `<path d="M98 69q3 2.5 6 0" fill="none" stroke="#7a2e2e" stroke-width="1.4" stroke-linecap="round"/>`,
-    chew: '<ellipse class="chew" cx="102" cy="70" rx="2.2" ry="1.4" fill="#7a2e2e"/>' };
-  return `<g transform="translate(${at[0]} ${at[1]})">
-    <circle cx="92" cy="62" r="14" fill="${SKIN}"/>
-    <path d="M78 63c-1-12 8-19 18-17 7 1 11 6 11 9-5-2-11-1-15 2-3 3-4 6-6 9-3 0-6-1-8-3z" fill="${HAIR}"/>
-    ${eye}${mouths[mouth]}
-    ${headset ? `<path d="M80 57a14 14 0 0 1 24-3" fill="none" stroke="${LINE}" stroke-width="2.6" stroke-linecap="round"/>
-    <rect x="77" y="58" width="7" height="10" rx="3" fill="${LINE}"/>
-    <path d="M82 67c3 6 10 7 18 6" fill="none" stroke="${LINE}" stroke-width="1.6" stroke-linecap="round"/><circle cx="101" cy="73" r="1.8" fill="${LINE}"/>` : ''}
-  </g>`;
+/* ---------- The room ---------- */
+
+/** The wall clock shows the real time in Singapore. */
+function clock(now) {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Singapore', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now);
+  const h = Number(parts.find(p => p.type === 'hour').value), m = Number(parts.find(p => p.type === 'minute').value);
+  const hand = (degrees, length) => { const a = degrees * Math.PI / 180; return `l${(Math.sin(a) * length).toFixed(1)} ${(-Math.cos(a) * length).toFixed(1)}`; };
+  return `<circle cx="154" cy="34" r="11.5" fill="#0b2431" stroke="#2f6a85" stroke-width="2"/>
+  <path d="M154 34${hand(m * 6, 7.5)}M154 34${hand((h % 12) * 30 + m / 2, 5.3)}" fill="none" stroke="${LINE}" stroke-width="1.7" stroke-linecap="round"/>
+  <circle cx="154" cy="34" r="1.3" fill="#7dd3fc"/>`;
 }
 
-/* ---------- Desk scenes (morning, lunch, afternoon, evening) ---------- */
+const plant = `<path d="M48 127c-2-12-10-19-17-19 0 9 6 17 17 19z" fill="#249a84"/><path d="M48 127c2-15 10-23 19-23 0 11-8 20-19 23z" fill="#1c8371"/>
+  <path d="M48 127c-4-14-1-27 3-32 5 7 5 21-3 32z" fill="#33b79c"/><path d="M37 129h22l-2.5 21h-17z" fill="#d9825f"/><rect x="34.5" y="125" width="27" height="5.5" rx="2.5" fill="#eb9d7c"/>`;
 
-function desk({ screen, mug = true, steam = true, bowl = false }) {
-  return `
-  <rect x="112" y="118" width="140" height="8" rx="3" fill="#2a3560"/>
-  <rect x="120" y="126" width="6" height="34" rx="2" fill="#222c4d"/>
-  <rect x="238" y="126" width="6" height="34" rx="2" fill="#222c4d"/>
-  <rect x="158" y="52" width="72" height="52" rx="5" fill="#0b1020" stroke="#3b4a80" stroke-width="3"/>
-  ${screen}
-  <rect x="190" y="104" width="8" height="12" fill="#2f3c6b"/>
-  <rect x="180" y="115" width="28" height="3" rx="1.5" fill="#3b4a80"/>
-  <rect x="${bowl ? 210 : 146}" y="114" width="30" height="4" rx="1.5" fill="#3b4a80"/>
-  ${mug ? `<rect x="236" y="104" width="11" height="14" rx="2.5" fill="#8b9cff"/>
-  <path d="M247 107.5a3.5 3.5 0 0 1 0 7" fill="none" stroke="#8b9cff" stroke-width="2.2"/>` : ''}
-  ${mug && steam ? `<path class="steam" d="M239 100c-2-3 2-5 0-8" fill="none" stroke="#a3adca" stroke-width="1.6" stroke-linecap="round"/>
-  <path class="steam late" d="M244 100c-2-3 2-5 0-8" fill="none" stroke="#a3adca" stroke-width="1.6" stroke-linecap="round"/>` : ''}
-  ${bowl ? `<path d="M134 106h30a15 12 0 0 1-30 0z" fill="#f97316"/><path d="M137 106h24" stroke="#fde68a" stroke-width="3" stroke-linecap="round"/>
-  <path class="steam" d="M143 101c-2-3 2-5 0-8" fill="none" stroke="#a3adca" stroke-width="1.6" stroke-linecap="round"/>
-  <path class="steam late" d="M153 101c-2-3 2-5 0-8" fill="none" stroke="#a3adca" stroke-width="1.6" stroke-linecap="round"/>` : ''}
-  <rect x="54" y="76" width="9" height="48" rx="4" fill="#26305a"/>
-  <rect x="58" y="118" width="46" height="7" rx="3.5" fill="#26305a"/>
-  <rect x="78" y="125" width="5" height="25" fill="#222c4d"/>
-  <path d="M62 152h38" stroke="#222c4d" stroke-width="4" stroke-linecap="round"/>
-  <circle cx="64" cy="156" r="3" fill="#2f3c6b"/><circle cx="98" cy="156" r="3" fill="#2f3c6b"/>`;
+const chair = `<rect x="96" y="82" width="9" height="46" rx="4.5" fill="#1d4a61"/><rect x="100" y="123" width="46" height="7" rx="3.5" fill="#1d4a61"/>
+  <rect x="120" y="130" width="5" height="15" fill="#163c4e"/><path d="M105 147h35" fill="none" stroke="#163c4e" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="106" cy="149.5" r="2.8" fill="#2a6079"/><circle cx="139" cy="149.5" r="2.8" fill="#2a6079"/>`;
+
+const shadow = '<ellipse cx="206" cy="152.5" rx="116" ry="3" fill="#000000" opacity=".28"/>';
+const deskLegs = '<rect x="166" y="124" width="6" height="26" fill="#17394a"/><rect x="280" y="124" width="6" height="26" fill="#17394a"/>';
+const deskTop = '<rect x="158" y="117" width="134" height="7" rx="3" fill="#2a6079"/>';
+const keyboard = '<rect x="168" y="112.5" width="32" height="4.5" rx="2" fill="#3a7690"/>';
+const monitor = screen => `<rect x="202" y="54" width="70" height="50" rx="5" fill="#06131b" stroke="#3a7690" stroke-width="2.5"/>${screen}
+  <rect x="233" y="104" width="8" height="10.5" fill="#2a6079"/><rect x="223" y="113.5" width="28" height="3.5" rx="1.7" fill="#3a7690"/>`;
+
+const SCREEN = {
+  code: `${[[210, 65, 20, '#38bdf8'], [210, 72.5, 34, '#9bb8c4'], [217, 80, 24, '#fbbf24'], [217, 87.5, 16, '#5eead4'], [210, 95, 28, '#38bdf8']].map(([x, y, w, c]) =>
+    `<path d="M${x} ${y}h${w}" fill="none" stroke="${c}" stroke-width="2.6" stroke-linecap="round"/>`).join('')}<rect class="cursor" x="243" y="92.5" width="5" height="5" rx="1" fill="${LINE}"/>`,
+  lunch: `<text x="237" y="77" text-anchor="middle" font-size="8" font-weight="700" fill="#7dd3fc">Lunch break</text>
+    <text x="237" y="89" text-anchor="middle" font-size="7" fill="#9bb8c4">Back at 2pm</text>`,
+  bars: `${[0, 1, 2, 3, 4, 5].map(i => `<rect class="bar" style="animation-delay:${(i * 0.23).toFixed(2)}s" x="${(211 + i * 9.2).toFixed(1)}" y="66" width="6" height="30" rx="1.5" fill="${i % 2 ? '#38bdf8' : '#5eead4'}"/>`).join('')}
+    <path d="M209 97.5h56" fill="none" stroke="#2f6a85" stroke-width="1.2"/>`,
+  shutdown: `<text x="237" y="75" text-anchor="middle" font-size="7.5" font-weight="700" fill="#7dd3fc">Shutting down…</text>
+    <rect x="215" y="83" width="44" height="5" rx="2.5" fill="#123445"/><rect class="progress" x="215" y="83" width="44" height="5" rx="2.5" fill="#38bdf8"/>`,
+  off: ''
+};
+const standby = '<circle class="standby" cx="266.5" cy="99" r="1.6" fill="#5eead4"/>';
+
+const mug = steam => `<rect x="276" y="104.5" width="10" height="12.5" rx="2.5" fill="${LINE}"/><path d="M286 107.5a3.2 3.2 0 0 1 0 6.4" fill="none" stroke="${LINE}" stroke-width="2"/>
+  ${steam ? '<path class="steam" d="M279 100c-2-3 2-5 0-8" fill="none" stroke="#9bb8c4" stroke-width="1.5" stroke-linecap="round"/><path class="steam late" d="M284 100c-2-3 2-5 0-8" fill="none" stroke="#9bb8c4" stroke-width="1.5" stroke-linecap="round"/>' : ''}`;
+const bowl = `<path d="M176 105h30a15 12 0 0 1-30 0z" fill="#f08a4b"/><path d="M179 105h24" fill="none" stroke="#fde68a" stroke-width="3" stroke-linecap="round"/>
+  <path class="steam" d="M186 100c-2-3 2-5 0-8" fill="none" stroke="#9bb8c4" stroke-width="1.5" stroke-linecap="round"/><path class="steam late" d="M196 100c-2-3 2-5 0-8" fill="none" stroke="#9bb8c4" stroke-width="1.5" stroke-linecap="round"/>`;
+const lamp = `<rect x="0" y="0" width="358" height="196" fill="url(#eng-lamp)" class="lamp-glow"/>
+  <path d="M276 117h14" fill="none" stroke="#3a7690" stroke-width="3.5" stroke-linecap="round"/><path d="M283 117V90" fill="none" stroke="#3a7690" stroke-width="2.5"/><path d="M273 91h20l-4-13h-12z" fill="#fde68a"/>`;
+const phoneOnDesk = `<ellipse class="phone-glow" cx="212" cy="108" rx="17" ry="8" fill="#38bdf8" opacity=".3"/>
+  <rect x="203" y="112.5" width="18" height="4.5" rx="1.5" fill="#0b1620"/><rect class="phone" x="204.5" y="113.4" width="15" height="2.2" rx="1" fill="#7dd3fc"/>`;
+
+const LEDS = [0, 1, 2, 3, 4].map(i => {
+  const y = (62.5 + i * 18).toFixed(1), colours = [['#5eead4', '#38bdf8'], ['#5eead4', '#5eead4'], ['#fbbf24', '#5eead4'], ['#5eead4', '#38bdf8'], ['#38bdf8', '#5eead4']][i];
+  return [[312.5, colours[0], 'led', (i * 0.37) % 1.3], [319, colours[1], 'led slow', (i * 0.61) % 1.9]].map(([x, c, cls, delay]) => ({ x, y, c, cls, delay: delay.toFixed(2) }));
+}).flat();
+const rackBody = `<rect x="300" y="48" width="46" height="102" rx="5" fill="#0a202b" stroke="#2a6079" stroke-width="2"/>
+  ${[0, 1, 2, 3, 4].map(i => `<rect x="306" y="${56 + i * 18}" width="34" height="13" rx="3" fill="#123445"/><path d="M326 ${60.5 + i * 18}h10M326 ${64.5 + i * 18}h7" fill="none" stroke="#2f6a85" stroke-width="1.5" stroke-linecap="round"/>`).join('')}`;
+/** The server lights. `glow` adds a halo, for when the room is dark. */
+const rackLeds = glow => LEDS.map(l => (glow ? `<circle cx="${l.x}" cy="${l.y}" r="5" fill="${l.c}" opacity=".2"/>` : '')
+  + `<circle class="${l.cls}" style="animation-delay:${l.delay}s" cx="${l.x}" cy="${l.y}" r="2.2" fill="${l.c}"/>`).join('');
+const padlock = `<circle class="lock-pulse" cx="323" cy="26" r="13" fill="#38bdf8" opacity=".3"/><circle cx="323" cy="26" r="14" fill="#38bdf8" opacity=".16"/>
+  <path d="M317.5 24v-4a5.5 5.5 0 0 1 11 0v4" fill="none" stroke="#7dd3fc" stroke-width="2.4"/><rect x="314.5" y="23" width="17" height="12.5" rx="3" fill="#7dd3fc"/><circle cx="323" cy="29" r="1.9" fill="#082f49"/>`;
+
+/* ---------- The engineer, seated and facing right ---------- */
+
+const arm = (d, colour, width, hand, skin) => `<path d="${d}" fill="none" style="stroke:${colour}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="${hand[0]}" cy="${hand[1]}" r="${width / 2}" fill="${skin}"/>`;
+const POSES = {
+  typing: { headset: true, eyes: 'open', mouth: 'smile',
+    back: `<g class="arm back">${arm('M124 97l22 14.5 22 1.8', HOODIE_DARK, 8, [170.5, 113.3], SKIN_DARK)}</g>`,
+    front: `<g class="arm front">${arm('M127 95l22 14.5 23 2.3', HOODIE_LIGHT, 9, [175, 112], SKIN)}</g>` },
+  eating: { headset: true, eyes: 'open', mouth: 'chew',
+    back: arm('M124 97l22 13 24 1', HOODIE_DARK, 8, [172, 111], SKIN_DARK),
+    front: `<g class="eat">${arm('M129 94L147 106 167 94', HOODIE_LIGHT, 9, [169, 93], SKIN)}
+      <path d="M168 91l14 12M171 90l14 11" fill="none" stroke="#c2853a" stroke-width="1.6" stroke-linecap="round"/><path d="M181 102c1 3 0 6-1 8" fill="none" stroke="#fde68a" stroke-width="1.6" stroke-linecap="round"/></g>` },
+  stretch: { headset: false, eyes: 'closed', mouth: 'yawn',
+    back: `<g class="stretch">${arm('M131 90L124 68 122 50', HOODIE_DARK, 8, [122, 47], SKIN_DARK)}</g>`,
+    front: `<g class="stretch late">${arm('M135 90L143 72 144 55', HOODIE_LIGHT, 8.5, [144, 52], SKIN)}</g>` },
+  phone: { headset: false, eyes: 'happy', mouth: 'smile', back: '',
+    front: `${arm('M126 94l14 14 10-8', HOODIE_LIGHT, 8.5, [150, 100], SKIN)}
+      <rect x="147" y="85" width="9" height="15" rx="2" fill="#0b1620"/><rect class="phone" x="148.5" y="86.5" width="6" height="12" rx="1" fill="#7dd3fc"/><circle class="tap" cx="150" cy="100.5" r="3.6" fill="${SKIN}"/>` }
+};
+const EYES = { open: `<circle class="blink" cx="141.8" cy="64.5" r="1.5" fill="${INK}"/>`,
+  closed: `<path d="M139 65.2q2.8 2 5.6 0" fill="none" stroke="${INK}" stroke-width="1.5" stroke-linecap="round"/>`,
+  happy: `<path d="M139 65.2q2.8-2.8 5.6 0" fill="none" stroke="${INK}" stroke-width="1.5" stroke-linecap="round"/>` };
+const MOUTHS = { smile: '<path d="M139.8 70.8q2.6 1.9 5 0" fill="none" stroke="#8a3b33" stroke-width="1.4" stroke-linecap="round"/>',
+  yawn: '<ellipse class="yawn" cx="143" cy="72" rx="2.6" ry="3.4" fill="#7a2e2e"/>', chew: '<ellipse class="chew" cx="143" cy="72" rx="2.2" ry="1.4" fill="#7a2e2e"/>' };
+
+/** The engineer in one pose: `body` goes behind the desk, `front` (the near arm) goes over it. */
+function person(pose) {
+  const p = POSES[pose];
+  const body = `<rect x="116" y="113" width="44" height="12" rx="6" fill="${PANTS}"/><rect x="150" y="117" width="10.5" height="30" rx="5" fill="${PANTS}"/><rect x="148" y="143.5" width="22" height="7" rx="3.5" fill="${LINE}"/>
+    ${p.back}
+    <rect x="107" y="82" width="33" height="43" rx="13" style="fill:${HOODIE}"/><path d="M109 92c-2.5-6 2-11 8.5-10l9 3.5-10 9.5z" style="fill:${HOODIE_DARK}"/>
+    <rect x="127.5" y="74" width="9.5" height="11" rx="3" fill="${SKIN_DARK}"/><circle cx="133" cy="64" r="14" fill="${SKIN}"/>
+    <path d="M146.5 58.5c-1-6.5-7-10.500-14.500-10.500-9 0-15.500 7-14.500 17 .5 5 1.500 9.500 3.500 13.500h7c-1.500-4-1.500-8.500.5-12 2.500-4.500 8-7.500 18-8z" fill="${HAIR}"/>
+    ${EYES[p.eyes]}${MOUTHS[p.mouth]}
+    ${p.headset ? `<path d="M121.5 59a14 14 0 0 1 23.500-4" fill="none" stroke="${LINE}" stroke-width="2.6" stroke-linecap="round"/><rect x="118.5" y="59.5" width="7" height="10.5" rx="3.2" fill="${LINE}"/>
+    <path d="M123.5 69.5c3 6 9.500 7.200 17 6" fill="none" stroke="${LINE}" stroke-width="1.6" stroke-linecap="round"/><circle cx="141.5" cy="75.3" r="1.8" fill="${LINE}"/>` : ''}`;
+  return { body: `<g class="breathe">${body}</g>`, front: `<g class="breathe">${p.front}</g>` };
 }
 
-const seatedBody = `
-    <rect x="110" y="117" width="10" height="36" rx="5" fill="${PANTS}"/>
-    <rect x="108" y="150" width="22" height="7" rx="3.5" fill="${LINE}"/>
-    <rect x="76" y="111" width="44" height="12" rx="6" fill="${PANTS}"/>
-    <rect x="66" y="80" width="32" height="42" rx="13" style="fill:${HOODIE}"/>
-    <rect x="87" y="72" width="9" height="10" rx="3" fill="${SKIN}"/>`;
+/* ---------- The scenes ---------- */
 
-const typingArms = (cls = '') => ({
-  back: `<path class="arm back${cls}" d="M92 90 L112 104 L146 110" fill="none" style="stroke:${HOODIE_DARK}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle class="arm back${cls}" cx="148" cy="110" r="4.2" fill="${SKIN_DARK}"/>`,
-  front: `<path class="arm front${cls}" d="M88 92 L108 106 L144 114" fill="none" style="stroke:${HOODIE_LIGHT}" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle class="arm front${cls}" cx="146" cy="114" r="4.4" fill="${SKIN}"/>`
-});
-
-const codeScreen = `<clipPath id="eng-screen"><rect x="163" y="57" width="62" height="42" rx="2"/></clipPath>
-  <g clip-path="url(#eng-screen)"><g class="code">
-    ${[0, 1].map(k => [[34, '#8b9cff'], [22, '#34d399'], [44, '#c4b5fd'], [28, '#8b9cff'], [16, '#f9a8d4'], [38, '#34d399'], [26, '#c4b5fd']]
-      .map(([w, c], j) => `<rect x="${j % 3 === 1 ? 172 : 165}" y="${60 + (k * 7 + j) * 7}" width="${w}" height="3" rx="1.5" fill="${c}" opacity=".85"/>`).join('')).join('')}
-  </g></g>
-  <rect class="cursor" x="165" y="93" width="6" height="4" rx="1" fill="${LINE}"/>`;
-
-function morning() {
-  const arms = typingArms();
-  return sky('morning') + floor + rack() + desk({ screen: codeScreen }) +
-    `<g class="breathe">${seatedBody}${arms.back}${head()}${arms.front}</g>`;
+/** A working scene: lights on, the engineer at the desk. */
+function atDesk(period, now, { pose, screen, steam = false, lunch = false }) {
+  const sky = SKY[period], who = person(pose);
+  return defs(sky) + walls + windowPane(sky) + beam(sky) + clock(now) + shadow + plant + chair + deskLegs + who.body + deskTop
+    + monitor(SCREEN[screen]) + (lunch ? bowl : keyboard) + mug(steam) + who.front + rackBody + rackLeds(false) + padlock;
 }
 
-function lunch() {
-  const screen = `<text x="194" y="76" text-anchor="middle" font-size="8" font-weight="700" fill="#c4b5fd">Lunch break</text>
-  <text x="194" y="88" text-anchor="middle" font-size="7" fill="#a3adca">Back at 2pm</text>`;
-  return sky('lunch') + floor + rack() + desk({ screen, steam: false, bowl: true }) +
-    `<g class="breathe">${seatedBody}
-    <path d="M92 90 L110 106 L132 108" fill="none" style="stroke:${HOODIE_DARK}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="134" cy="108" r="4.2" fill="${SKIN_DARK}"/>
-    ${head({ mouth: 'chew' })}
-    <g class="eat">
-      <path d="M88 92 L106 104 L126 92" fill="none" style="stroke:${HOODIE_LIGHT}" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
-      <circle cx="128" cy="91" r="4.4" fill="${SKIN}"/>
-      <path d="M127 89l14 12M130 88l14 11" stroke="#a16207" stroke-width="1.6" stroke-linecap="round"/>
-      <path d="M140 100c1 3 0 6-1 8" fill="none" stroke="#fde68a" stroke-width="1.6" stroke-linecap="round"/>
-    </g></g>`;
+/** After work: the room dim, a lamp on, and the on-call phone in hand. */
+function afterwork(now) {
+  const sky = SKY.afterwork, who = person('phone');
+  return defs(sky) + walls + clock(now) + shadow + plant + chair + deskLegs + deskTop + monitor(SCREEN.off) + keyboard + rackBody
+    + '<rect width="358" height="196" fill="#020a12" opacity=".32"/>' + windowPane(sky) + beam(sky) + lamp + who.body + who.front + standby + rackLeds(true) + padlock;
 }
 
-function afternoon() {
-  const arms = typingArms(' fast');
-  const screen = `${[0, 1, 2, 3, 4, 5].map(i => `<rect class="bar" style="animation-delay:${i * 0.23}s" x="${166 + i * 10}" y="64" width="6" height="32" rx="1.5" fill="${i % 2 ? '#8b9cff' : '#34d399'}"/>`).join('')}
-  <path d="M164 97h60" stroke="#3b4a80" stroke-width="1.2"/>`;
-  return sky('afternoon') + floor + rack() + desk({ screen }) +
-    `<g class="breathe">${seatedBody}${arms.back}${head()}${arms.front}</g>`;
-}
-
-function evening() {
-  const screen = `<text x="194" y="74" text-anchor="middle" font-size="7.5" font-weight="700" fill="#c4b5fd">Shutting down…</text>
-  <rect x="172" y="82" width="44" height="5" rx="2.5" fill="#26305a"/>
-  <rect class="progress" x="172" y="82" width="44" height="5" rx="2.5" fill="#8b9cff"/>`;
-  return sky('evening') + floor + rack() + desk({ screen, steam: false }) +
-    `<g class="breathe">${seatedBody}
-    <g class="stretch">
-      <path d="M90 88 L86 64 L92 42" fill="none" style="stroke:${HOODIE_DARK}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-      <circle cx="93" cy="39" r="4.2" fill="${SKIN_DARK}"/>
-    </g>
-    ${head({ headset: false, eyes: 'closed', mouth: 'yawn' })}
-    <g class="stretch late">
-      <path d="M94 88 L104 66 L104 42" fill="none" style="stroke:${HOODIE_LIGHT}" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
-      <circle cx="104" cy="39" r="4.4" fill="${SKIN}"/>
-    </g></g>`;
-}
-
-/* ---------- After work: on the sofa with the on-call phone ---------- */
-
-function afterwork() {
-  return sky('afterwork') + floor + rack(true) + `
-  <defs><radialGradient id="eng-lamp"><stop offset="0" stop-color="#fde68a" stop-opacity=".32"/><stop offset="1" stop-color="#fde68a" stop-opacity="0"/></radialGradient></defs>
-  <circle class="lamp-glow" cx="226" cy="66" r="62" fill="url(#eng-lamp)"/>
-  <path d="M216 52h20l6 16h-32z" fill="#fde68a"/><rect x="224" y="68" width="4" height="88" fill="#3b4a80"/><rect x="214" y="155" width="24" height="4" rx="2" fill="#3b4a80"/>
-  <rect x="40" y="92" width="152" height="36" rx="12" fill="#4c3d8a"/>
-  <rect x="44" y="118" width="144" height="24" rx="8" fill="#3b2f6b"/>
-  <rect x="30" y="104" width="22" height="40" rx="9" fill="#4c3d8a"/><rect x="180" y="104" width="22" height="40" rx="9" fill="#4c3d8a"/>
-  <rect x="48" y="142" width="6" height="16" fill="#26305a"/><rect x="178" y="142" width="6" height="16" fill="#26305a"/>
-  <g class="breathe">
-    <rect x="128" y="120" width="40" height="12" rx="6" fill="${PANTS}"/>
-    <rect x="158" y="124" width="10" height="32" rx="5" fill="${PANTS}"/>
-    <rect x="156" y="152" width="22" height="7" rx="3.5" fill="${LINE}"/>
-    <rect x="108" y="88" width="32" height="40" rx="13" style="fill:${HOODIE}"/>
-    <rect x="125" y="80" width="9" height="10" rx="3" fill="${SKIN}"/>
-    ${head({ at: [38, 16], headset: false, eyes: 'happy', mouth: 'smile' })}
-    <path d="M126 98 L140 112 L150 104" fill="none" style="stroke:${HOODIE_LIGHT}" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
-    <rect x="148" y="92" width="9" height="15" rx="2" fill="#111827"/>
-    <rect class="phone" x="149.5" y="93.5" width="6" height="12" rx="1" fill="#8b9cff"/>
-    <circle class="tap" cx="151" cy="106" r="3.6" fill="${SKIN}"/>
-  </g>`;
-}
-
-/* ---------- Sleeping: in bed, phone on loud on the nightstand ---------- */
-
-function sleeping() {
-  return sky('sleeping') + floor + rack(true) + `
-  <rect x="34" y="86" width="12" height="74" rx="4" fill="#2a3560"/>
-  <rect x="40" y="118" width="196" height="16" rx="5" fill="#2a3560"/>
-  <rect x="226" y="108" width="12" height="52" rx="4" fill="#2a3560"/>
-  <rect x="48" y="134" width="6" height="24" fill="#222c4d"/><rect x="220" y="134" width="6" height="24" fill="#222c4d"/>
-  <rect x="46" y="108" width="182" height="14" rx="5" fill="#c7d2fe"/>
-  <ellipse cx="72" cy="104" rx="20" ry="8" fill="${LINE}"/>
-  ${head({ at: [-18, 34], headset: false, eyes: 'closed' }).replace('<g transform="translate(-18 34)">', '<g transform="translate(-18 34) rotate(-12 92 62)">')}
-  <path class="blanket" d="M84 110c2-12 24-16 46-14s58 0 76-2 22 6 22 16v6H84z" style="fill:${HOODIE}"/>
-  <path d="M110 104c30-4 70-4 110-6" fill="none" style="stroke:${HOODIE_LIGHT}" stroke-width="3" stroke-linecap="round" opacity=".7"/>
-  <g class="zzz" fill="#c7d2fe" font-weight="800">
-    <text x="92" y="74" font-size="10">z</text><text x="102" y="62" font-size="13">z</text><text x="114" y="48" font-size="16">Z</text>
-  </g>
-  <rect x="242" y="128" width="22" height="32" rx="3" fill="#26305a"/><rect x="246" y="138" width="14" height="2" rx="1" fill="#3b4a80"/>
-  <ellipse class="phone-glow" cx="253" cy="124" rx="13" ry="7" fill="#8b9cff" opacity=".45"/>
-  <rect x="245" y="123" width="16" height="5" rx="1.5" fill="#111827"/><rect class="phone" x="246.5" y="124" width="13" height="3" rx="1" fill="#c7d2fe"/>`;
-}
-
-/* ---------- Weekend: nobody in, room lights off ---------- */
-
-function weekend() {
-  // The window still follows the time of day; the room itself is dark.
-  const outside = periodAt(new Date(), { weekdays: false });
-  const daytime = ['morning', 'lunch', 'afternoon'].includes(outside);
-  const screen = '<circle class="standby" cx="224" cy="99" r="1.4" fill="#34d399"/>';
-  return floor + desk({ screen, steam: false }) + `
-  <rect x="0" y="0" width="360" height="172" fill="#05070f" opacity=".55"/>
-  ${sky(outside)}
-  <path d="M16 58h58l40 102H24z" fill="${daytime ? '#fde68a' : '#c7d2fe'}" opacity="${daytime ? '.07' : '.05'}"/>
-  <rect x="106" y="62" width="10" height="16" rx="2" fill="#1c2748" stroke="#2a3560"/><rect x="109.5" y="70" width="3" height="5" rx="1" fill="#3b4a80"/>
-  ${rack(true)}`;
+/** Lights off: asleep at night, or nobody in on weekends and public holidays. The window still follows the time of day. */
+function lightsOff(now, asleep) {
+  const sky = SKY[asleep ? 'sleeping' : periodAt(now, { weekdays: false })];
+  return defs(sky) + walls + clock(now) + shadow + plant + chair + deskLegs + deskTop + monitor(SCREEN.off) + keyboard + mug(false) + rackBody
+    + '<rect width="358" height="196" fill="#020a12" opacity=".5"/>' + windowPane(sky) + beam(sky) + standby + (asleep ? phoneOnDesk : '') + rackLeds(true) + padlock;
 }
 
 const SCENES = {
-  morning: [morning, 'Good morning! Coffee first, then the servers.'],
-  lunch: [lunch, 'Lunch break. Back at 2pm.'],
-  afternoon: [afternoon, 'Afternoon: deep in the dashboards.'],
-  evening: [evening, 'Wrapping up for the day.'],
+  morning: [now => atDesk('morning', now, { pose: 'typing', screen: 'code', steam: true }), 'Good morning! Coffee first, then the servers.'],
+  lunch: [now => atDesk('lunch', now, { pose: 'eating', screen: 'lunch', lunch: true }), 'Lunch break. Back at 2pm.'],
+  afternoon: [now => atDesk('afternoon', now, { pose: 'typing', screen: 'bars', steam: true }), 'Afternoon: deep in the dashboards.'],
+  evening: [now => atDesk('evening', now, { pose: 'stretch', screen: 'shutdown' }), 'Wrapping up for the day.'],
   afterwork: [afterwork, 'Off duty, still on call.'],
-  sleeping: [sleeping, 'Sleeping. Phone on loud, just in case.'],
-  weekend: [weekend, 'Weekend: lights off. The servers keep watch.'],
-  holiday: [weekend, 'Public holiday: lights off. The servers keep watch.']
+  sleeping: [now => lightsOff(now, true), 'Sleeping. Phone on loud, just in case.'],
+  weekend: [now => lightsOff(now, false), 'Weekend: lights off. The servers keep watch.'],
+  holiday: [now => lightsOff(now, false), 'Public holiday: lights off. The servers keep watch.']
 };
 
 /** The illustration and its caption for a part of the day (default: now in Singapore). */
-export function engineerScene(period = periodAt()) {
+export function engineerScene(period = periodAt(), now = new Date()) {
   const [draw, caption] = SCENES[period] || SCENES.morning;
-  return { period, caption, svg: `<svg class="engineer scene-${period}" viewBox="0 0 360 172" role="img" aria-label="${caption}">${draw()}</svg>` };
+  if (!SCENES[period]) period = 'morning';
+  return { period, caption, svg: `<svg class="engineer scene-${period}" viewBox="0 0 358 196" role="img" aria-label="${caption}">${draw(now)}</svg>` };
 }

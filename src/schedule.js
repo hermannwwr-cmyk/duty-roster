@@ -188,11 +188,12 @@ export function initials(name) {
   return String(name).trim().split(/\s+/).filter(Boolean).slice(0, 2).map(w => [...w][0]).join('').toUpperCase();
 }
 
-// Dark enough for white initials (at least 4.5:1).
-const AVATAR_COLORS = ['#be123c', '#b45309', '#047857', '#1d4ed8', '#6d28d9', '#be185d', '#0f766e', '#c2410c'];
-/** The same colour for the same name every time, so people are easy to spot. */
-export function avatarColor(name) {
-  let h = 0;
-  for (const c of String(name)) h = (h * 31 + c.codePointAt(0)) >>> 0;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+/**
+ * A first name for tight spaces (calendar cells, strips): "Alice Tan" → "Alice". When two people in
+ * `names` share that first name, the full name is kept so they can be told apart.
+ */
+export function shortName(name, names = []) {
+  const first = n => String(n).trim().split(/\s+/)[0] || '';
+  const mine = first(name);
+  return names.filter(n => first(n) === mine).length > 1 ? String(name).trim() : mine;
 }

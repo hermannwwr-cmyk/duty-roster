@@ -137,13 +137,18 @@ test('the share message lists roles and names only, and the WhatsApp link carrie
   assert.match(rosterMessage({ date: '2026-10-21', duties: [] }), /No one is available/);
 });
 
-test('initials and avatar colours', async () => {
-  const { initials, avatarColor } = await import('../src/schedule.js');
+test('initials and short names', async () => {
+  const { initials, shortName } = await import('../src/schedule.js');
   assert.equal(initials('Alice Tan'), 'AT');
   assert.equal(initials('  ben  '), 'B');
   assert.equal(initials('Mary Ann Lee'), 'MA');
-  assert.equal(avatarColor('Alice Tan'), avatarColor('Alice Tan'));
-  assert.match(avatarColor('Ben Lim'), /^#[0-9a-f]{6}$/);
+  const team = ['Alice Tan', 'Ben Lim', 'Ben Koh', 'Chloe Ng'];
+  assert.equal(shortName('Alice Tan', team), 'Alice');
+  assert.equal(shortName('  Chloe Ng ', team), 'Chloe');
+  // Two people called Ben keep their full names, so the calendar can tell them apart.
+  assert.equal(shortName('Ben Lim', team), 'Ben Lim');
+  assert.equal(shortName('Ben Koh', team), 'Ben Koh');
+  assert.equal(shortName('Dev Kumar'), 'Dev');
 });
 
 test('time until midnight in Singapore', async () => {
