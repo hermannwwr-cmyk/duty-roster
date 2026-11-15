@@ -13,9 +13,12 @@ npm start                     # serve on http://localhost:5173 (http-server, no 
 npm test                      # node --test: runs every tests/*.test.mjs (store tests fake localStorage to drive DemoStore)
 node --test --test-name-pattern "midnight" tests/schedule.test.mjs   # one test
 npm run stamp                 # REQUIRED before every commit that changes a page, script or styles.css
+node scripts/ui-check.cjs      # clicks through both pages in a real browser (demo mode); run before publishing UI changes
 ```
 
 There is no linter, formatter or bundler.
+
+`scripts/ui-check.cjs` is the functional check for the pages: it serves the site itself with an empty `config.js`, pins the clock, and uses Playwright to carry out every action (add and remove leave, end leave early, reorder, deactivate, rename, holidays, the public switch, restarting the rotation, sign-up and approval, month and tab navigation, swiping, reduced motion), checking the roster and the public page after each. Playwright is not a dependency of the site; it is preinstalled in Claude Code cloud sessions. It only covers demo mode: nothing here exercises the real database, so changes to `SupabaseStore` or the SQL still need checking against the live project by the owner. When the UI changes, update its selectors and expectations in the same commit.
 
 `npm run stamp` (`scripts/stamp.mjs`) rewrites the `<!-- version:start -->…<!-- version:end -->` block in `index.html` and `calendar.html`: an import map that gives every `src/*.js` and `config.js` a `?v=<YYYYMMDDHHMM>` suffix, plus the stylesheet and entry script. It picks up new files in `src/` automatically. Without it, phones mix cached old modules with new ones. `src/live.js` also reads this `?v=` stamp to detect that a newer version has been published.
 
