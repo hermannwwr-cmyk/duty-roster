@@ -1,4 +1,4 @@
-import { buildSchedule, checkpointFor, toISO, fromISO, addDays, todaySG, onRota, rosterMessage, whatsappLink, WHATSAPP_ICON, shortName } from './schedule.js';
+import { buildSchedule, checkpointFor, toISO, fromISO, addDays, todaySG, onRota, rosterMessage, whatsappLink, WHATSAPP_ICON, shortName, officeHours, msUntilOfficeChange } from './schedule.js';
 import { createStore } from './connect.js';
 import { faceSvg } from './faces.js';
 import { keepFresh } from './live.js';
@@ -127,6 +127,10 @@ const typing = () => unsaved || /^(INPUT|SELECT|TEXTAREA)$/.test(document.active
 let lastDay = today();
 // Swipe left or right on a phone to change tab.
 swipeTabs(() => document.getElementById('view'), typing);
+
+// Switch the "Your role" card over on time at 9am and 6pm (it waits while someone is typing).
+const atOfficeChange = () => setTimeout(() => { if (state.data && !typing()) refresh(); atOfficeChange(); }, msUntilOfficeChange() + 2000);
+atOfficeChange();
 
 keepFresh(async () => {
   // Follow the calendar into a new month if the page was showing the month that just ended.
@@ -257,25 +261,39 @@ function renderRoster() {
   const t = today();
   const names = profiles.map(p => p.display_name);
   const [td] = scheduleFor(t, t);
-  // The next working day's roster (today if it's a working day): shown in the line-up and shared on WhatsApp.
-  const shareDay = scheduleFor(t, addDays(t, 21)).find(d => d.kind === 'work');
-  let mineToday, note = '';
-  if (td.kind === 'work') {
+  // Office hours are 9am to 6pm on working days (same rule as calendar.js). From 6pm the card moves on
+  // to the next working day; before 9am it still shows today, with a note that no one is on duty yet.
+  const hours = officeHours();
+  const closed = td.kind === 'work' && hours !== 'open';
+  const nextShift = closed && hours === 'after';
+  // The day shown in the line-up and shared on WhatsApp: today if it's a working day (until 6pm), otherwise the next one.
+  const shareDay = scheduleFor(t, addDays(t, 21)).find(d => d.kind === 'work' && (!nextShift || d.date > t));
+  let mineToday, note = '', headDate = t;
+  const closedNote = '<p class="muted"><b class="warn-text">Outside office hours.</b> No one is on duty now. Office hours are 9am to 6pm on working days.</p>';
+  if (td.kind === 'work' && !nextShift) {
     const mine = td.duties.find(d => d.member.id === me.id);
     mineToday = mine ? mine.role : td.onLeave.some(m => m.id === me.id) ? 'On leave' : 'No duty';
+    if (closed) note = closedNote;
+  } else if (nextShift && shareDay) {
+    const mine = shareDay.duties.find(d => d.member.id === me.id);
+    mineToday = mine ? mine.role : shareDay.onLeave.some(m => m.id === me.id) ? 'On leave' : 'No duty';
+    headDate = shareDay.date;
+    note = closedNote;
+  } else if (nextShift) {
+    mineToday = 'No duty'; note = closedNote;
   } else {
     mineToday = 'No duty';
     note = `<p class="muted">${td.kind === 'holiday' ? 'Public holiday: ' + esc(td.holiday) + '.' : td.kind === 'weekend' ? 'It’s the weekend.' : 'The rotation starts on ' + fmtDay(settings.rota_start) + '.'}</p>`
       + (shareDay ? `<p class="eyebrow">Next duty day · ${fmtDay(shareDay.date)}</p>` : '');
   }
-  const shown = td.kind === 'work' ? td : shareDay;
+  const shown = td.kind === 'work' && !nextShift ? td : shareDay;
 
   let shareHtml = '';
   if (shareDay) {
     const text = rosterMessage({ date: shareDay.date, duties: shareDay.duties.map(d => ({ role: d.role, name: d.member.name })) },
       new URL('calendar.html', location.href).href);
     // With nobody to ask, the button shares the news instead of offering an OTP (same wording as calendar.js).
-    shareHtml = `<div class="share"><a class="btn wa" id="share-wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">${WHATSAPP_ICON}${shareDay.duties.length ? 'Click for OTP on WhatsApp' : 'Tell the team on WhatsApp'}</a>
+    shareHtml = `<div class="share"><a class="btn wa" id="share-wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">${WHATSAPP_ICON}${shareDay.duties.length && !closed ? 'Click for OTP on WhatsApp' : 'Tell the team on WhatsApp'}</a>
       ${navigator.share ? '<button class="btn ghost" type="button" id="share-other">Share another way</button>' : ''}</div>`;
     state.shareText = text;
   }
@@ -304,7 +322,7 @@ function renderRoster() {
 
   view.innerHTML = `
   <section class="panel role-card" aria-label="2FA Login">
-    <div class="role-head"><span class="eyebrow">Your role · ${fmtDay(t)}</span><span class="role">${esc(mineToday)}</span></div>
+    <div class="role-head"><span class="eyebrow">Your role · ${fmtDay(headDate)}</span><span class="role">${esc(mineToday)}</span></div>
     ${note}
     ${shown ? lineup(shown, me.id, names) : ''}
     ${shareHtml}

@@ -118,6 +118,11 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .hero-name .hero-role { color: var(--soft); font-size: .9rem; font-weight: 600; }
 /* A working day with nobody available: a red label and a plain statement where the name would be. */
 .eyebrow.warn { color: var(--danger); }
+/* Outside office hours: who is next on duty, and from when. */
+.next-cover { display: grid; gap: .5rem; padding: .75rem .85rem; border-radius: 16px; background: var(--raised); }
+.next-cover .who-line { display: flex; align-items: center; gap: .7rem; min-width: 0; }
+.next-cover .person .nm { font-size: 1.05rem; font-weight: 800; }
+.warn-text { color: var(--danger); }
 .hero-name .hero-none { color: #ffffff; font-size: 1.4rem; font-weight: 800; line-height: 1.2; letter-spacing: -.01em; }
 .sub { gap: .65rem; padding: .9rem; }
 .sub-head { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; padding: 0 .15rem; color: var(--soft); font-size: .78rem; }

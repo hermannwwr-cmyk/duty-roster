@@ -1,6 +1,6 @@
 // A functional check of both pages in a real browser, in demo mode: it clicks through every action
 // (leave, team changes, holidays, settings, sign-up and approval, month and tab navigation, swiping,
-// and a day when nobody is available)
+// a day when nobody is available, and outside office hours)
 // and checks what the roster and the public page show afterwards. Run it before publishing a change
 // to a page, script or styles.css:
 //
@@ -226,6 +226,30 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   const still = await pub.evaluate(() => [...document.querySelectorAll('.engineer *, .btn.wa')].every(el => getComputedStyle(el).animationName === 'none'));
   check('G3 reduced motion: nothing on the page animates', still);
   await pub.close(); await app.close();
+
+  /* ---------- I. Outside office hours (9am to 6pm) on a working day ---------- */
+  pub = await open('/calendar.html');
+  const todays = await pub.locator('.hero-name .name').innerText();
+  await tab(pub, 'calendar');
+  const tuesdays = await cell(pub, 17).locator('.duty-list li.p .full').innerText();
+  await pub.close();
+  pub = await open('/calendar.html', '2026-11-16T00:30:00Z');   // 8:30am in Singapore
+  check('I1 before 9am: says no one is on duty now, with no big face', (await pub.locator('.hero-name .eyebrow').textContent()) === 'Outside office hours' && (await pub.locator('.hero-none').innerText()) === 'No one is on duty now.' && await pub.locator('.av.big').count() === 0, await pub.locator('.hero-name').innerText());
+  check('I2 before 9am: next on duty is today\'s Primary, from 9am today', (await pub.locator('.next-cover .eyebrow').textContent()) === 'Next on duty · 9am today' && (await pub.locator('.next-cover .nm').innerText()) === todays, await pub.locator('.next-cover').innerText());
+  check('I3 before 9am: the room is closed and the button shares rather than asks', (await pub.locator('.engineer').getAttribute('class')).includes('scene-closed') && (await pub.locator('a.btn.wa').innerText()).trim() === 'Tell the team on WhatsApp');
+  await pub.close();
+  pub = await open('/calendar.html', '2026-11-16T10:30:00Z');   // 6:30pm in Singapore
+  check('I4 after 6pm: next on duty is tomorrow\'s Primary', (await pub.locator('.next-cover .eyebrow').textContent()) === 'Next on duty · 9am tomorrow' && (await pub.locator('.next-cover .nm').innerText()) === tuesdays, await pub.locator('.next-cover').innerText());
+  check('I5 after 6pm: Up next starts tomorrow, and the message is for tomorrow', !(await pub.locator('.strip').innerText()).includes('Today') && decodeURIComponent(await pub.locator('a.btn.wa').getAttribute('href')).includes('Tue, 17 Nov'));
+  await pub.close();
+  pub = await open('/calendar.html', '2026-11-16T09:59:30Z');   // 5:59:30pm: open, then it switches by itself at 6pm
+  const openBefore = await pub.locator('.av.big').count() === 1;
+  await pub.clock.runFor(35000); await settle(pub);
+  check('I6 at 6pm the card switches over by itself', openBefore && (await pub.locator('.hero-name .eyebrow').textContent()) === 'Outside office hours');
+  await pub.close();
+  app = await open('/index.html', '2026-11-16T10:30:00Z');
+  check('I7 signed-in app after 6pm: shows tomorrow\'s role, the note and the share button', (await app.locator('.role-head .eyebrow').innerText()).toLowerCase().includes('tue, 17 nov') && (await app.locator('.role-card').innerText()).includes('No one is on duty now.') && (await app.locator('#share-wa').innerText()).trim() === 'Tell the team on WhatsApp', await app.locator('.role-card').innerText());
+  await app.close();
 
   /* ---------- H. A working day when nobody is available ---------- */
   pub = await open('/calendar.html');

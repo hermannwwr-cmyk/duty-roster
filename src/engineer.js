@@ -204,7 +204,9 @@ const SCENES = {
   weekend: [now => lightsOff(now, false), 'Weekend: lights off. The servers keep watch.'],
   holiday: [now => lightsOff(now, false), 'Public holiday: lights off. The servers keep watch.'],
   // A working day when everyone is away: nobody at the desk.
-  nobody: [now => lightsOff(now, false), 'No one on duty today. The servers keep watch.']
+  nobody: [now => lightsOff(now, false), 'No one on duty today. The servers keep watch.'],
+  // A working day outside office hours (before 9am or from 6pm): the window still follows the time of day.
+  closed: [now => lightsOff(now, false), 'Office closed. Back at 9am.']
 };
 
 /** The illustration and its caption for a part of the day (default: now in Singapore). */

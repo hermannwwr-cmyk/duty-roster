@@ -1,7 +1,7 @@
 // The public page: today's 2FA Login card and the month calendar. No sign-in needed.
 // The database works out each day's duty list (public_calendar() in supabase/004_stable_history.sql) and
 // returns only names and roles, so no leave data or account ids reach this page.
-import { toISO, fromISO, addDays, todaySG, rosterMessage, whatsappLink, WHATSAPP_ICON, shortName } from './schedule.js';
+import { toISO, fromISO, addDays, todaySG, rosterMessage, whatsappLink, WHATSAPP_ICON, shortName, officeHours, msUntilOfficeChange } from './schedule.js';
 import { createStore } from './connect.js';
 import { engineerScene } from './engineer.js';
 import { faceSvg } from './faces.js';
@@ -126,15 +126,22 @@ async function renderToday() {
   const data = await store.loadPublic(t, addDays(t, 60));
   if (!data) { document.getElementById('today').innerHTML = switchedOff; return; }
   const td = data.days.find(d => d.date === t);
-  const day = data.days.find(d => d.kind === 'work');   // today if it's a working day, otherwise the next one
   const working = !!td && td.kind === 'work';
+  // Office hours are 9am to 6pm on working days. Outside them no one is on duty: before 9am the next
+  // cover is today's, from 6pm it is the next working day's.
+  const hours = officeHours();
+  const closed = working && hours !== 'open';
+  const day = closed && hours === 'after'
+    ? data.days.find(d => d.kind === 'work' && d.date > t)
+    : data.days.find(d => d.kind === 'work');   // today if it's a working day, otherwise the next one
   const fmt = iso => fromISO(iso).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' });
   const primary = day && day.duties[0];
+  const lead = closed ? null : primary;   // the big face is for whoever is on duty now
 
   // The scene follows the time of day in Singapore, with the lights off on public holidays and on a
   // working day when nobody is available; ?scene=lunch (etc.) shows a particular one. Today's date is
   // on the sign on its wall.
-  const scene = engineerScene(new URLSearchParams(location.search).get('scene') || (td && td.kind === 'holiday' ? 'holiday' : working && !primary ? 'nobody' : undefined));
+  const scene = engineerScene(new URLSearchParams(location.search).get('scene') || (td && td.kind === 'holiday' ? 'holiday' : closed ? 'closed' : working && !primary ? 'nobody' : undefined));
   const sign = fmt(t).replace(',', '').toUpperCase();
   const why = working || !td ? '' : td.kind === 'holiday' ? 'Public holiday: ' + esc(td.holiday) + '.' : td.kind === 'weekend' ? 'It’s the weekend.' : 'The rotation hasn’t started yet.';
 
@@ -142,15 +149,22 @@ async function renderToday() {
   if (day) {
     const text = rosterMessage(day, location.href.split('#')[0].split('?')[0]);
     // With nobody to ask, the button no longer offers an OTP: it shares the same message, which says no one is available.
-    share = `<a class="btn wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">${WHATSAPP_ICON}${primary ? 'Click for OTP on WhatsApp' : 'Tell the team on WhatsApp'}</a>`;
+    // Outside office hours too: nobody can give an OTP now, so it shares the next day's roster instead.
+    share = `<a class="btn wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">${WHATSAPP_ICON}${primary && !closed ? 'Click for OTP on WhatsApp' : 'Tell the team on WhatsApp'}</a>`;
   }
-  const who = !day ? '' : `<div class="hero-name"><span class="eyebrow${working && !primary ? ' warn' : ''}">${!working ? 'Next duty day · ' + fmt(day.date) : primary ? 'Primary · ask for OTP' : 'No duty cover today'}</span>
+  // Outside office hours: say no one is on duty now, then who is next and from when.
+  const nextWhen = !day ? '' : day.date === t ? '9am today' : day.date === addDays(t, 1) ? '9am tomorrow' : '9am ' + fmt(day.date);
+  const who = closed ? `<div class="hero-name"><span class="eyebrow warn">Outside office hours</span>
+      <p class="hero-none">No one is on duty now.</p><span class="hero-role">Office hours are 9am to 6pm on working days.</span></div>
+    ${day ? `<div class="next-cover"><span class="eyebrow">Next on duty · ${nextWhen}</span>
+      ${primary ? `<div class="who-line">${avatar(primary.name)}<span class="person"><span class="nm">${esc(primary.name)}</span><span class="rl">Primary · ask for OTP</span></span></div>` : '<p class="hero-note">No one is available that day.</p>'}</div>` : ''}`
+    : !day ? '' : `<div class="hero-name"><span class="eyebrow${working && !primary ? ' warn' : ''}">${!working ? 'Next duty day · ' + fmt(day.date) : primary ? 'Primary · ask for OTP' : 'No duty cover today'}</span>
       ${primary ? `<p class="name">${esc(primary.name)}</p>${working ? '' : '<span class="hero-role">Primary · ask for OTP</span>'}` : '<p class="hero-none">No one is available for duty.</p>'}</div>`;
   const hero = `<section class="hero-card" aria-labelledby="today-h">
     <h2 class="sr-only" id="today-h">2FA Login, ${fmt(t)}</h2>
     <div class="hero-scene">${scene.svg}<span class="wall-date"><i></i>${sign}</span></div>
     <div class="hero-body">
-      <div class="hero-who${primary ? '' : ' plain'}">${primary ? avatar(primary.name, 'big', `<span class="lock">${ICON_LOCK}</span>`) : ''}<p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div>
+      <div class="hero-who${lead ? '' : ' plain'}">${lead ? avatar(lead.name, 'big', `<span class="lock">${ICON_LOCK}</span>`) : ''}<p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div>
       ${working || !td ? '' : `<p class="hero-note">No duty today.${why ? ' ' + why : ''}</p>`}
       ${who}${share}
     </div>
@@ -176,7 +190,8 @@ async function renderToday() {
 
   // Upcoming working days when everyone is away. Only the dates: who is on leave stays private.
   // Left out when every working day is covered.
-  const nobody = data.days.filter(d => d.kind === 'work' && !d.duties.length && d.date >= t);
+  // From 6pm today is over, so the list starts tomorrow.
+  const nobody = data.days.filter(d => d.kind === 'work' && !d.duties.length && d.date >= (closed && hours === 'after' ? addDays(t, 1) : t));
   const gaps = nobody.length ? `<section class="panel gaps" aria-labelledby="gaps-h"><h3 id="gaps-h">${ICON_WARN}No one is available on:</h3>
     <ul class="gap-list">${nobody.map(d => `<li><span class="gap-date">${fromISO(d.date).toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
       <span class="gap-when">${howSoon(t, d.date)}</span></li>`).join('')}</ul></section>` : '';
@@ -205,6 +220,9 @@ try {
   await show(state.month);
   renderToday().catch(() => { /* the month calendar still shows today */ });
   // Fresh duties when you come back to the page, every few minutes, and at midnight for the new day's card.
+  // Switch the card over on time at 9am and 6pm, rather than at the next routine refresh.
+  const atOfficeChange = () => setTimeout(() => { renderToday().catch(() => {}); atOfficeChange(); }, msUntilOfficeChange() + 2000);
+  atOfficeChange();
   keepFresh(async () => {
     Object.keys(cache).forEach(k => delete cache[k]);
     await renderToday();

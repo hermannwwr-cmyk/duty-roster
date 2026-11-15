@@ -154,6 +154,28 @@ export function publicCalendar({ members, leaves, holidays, anchor, checkpoints,
   };
 }
 
+/** Office hours in Singapore, in minutes after midnight: 9am to 6pm. Outside them no one is on duty. */
+export const OFFICE_OPEN = 9 * 60, OFFICE_CLOSE = 18 * 60;
+const DAY_MS = 24 * 60 * 60 * 1000, SG_OFFSET_MS = 8 * 60 * 60 * 1000;   // Singapore is UTC+8 all year
+
+/** Minutes after midnight in Singapore, whatever the viewer's timezone. */
+export function minutesSG(now = Date.now()) {
+  return Math.floor((((+now + SG_OFFSET_MS) % DAY_MS) + DAY_MS) % DAY_MS / 60000);
+}
+
+/** 'before' (before 9am), 'open' (9am to 6pm) or 'after' (from 6pm), by the clock in Singapore. Whether today is a working day is up to the caller. */
+export function officeHours(now = Date.now()) {
+  const m = minutesSG(now);
+  return m < OFFICE_OPEN ? 'before' : m < OFFICE_CLOSE ? 'open' : 'after';
+}
+
+/** Milliseconds from `now` until the next 9am or 6pm in Singapore, so a page can switch over on time. */
+export function msUntilOfficeChange(now = Date.now()) {
+  const sinceMidnight = (((+now + SG_OFFSET_MS) % DAY_MS) + DAY_MS) % DAY_MS;
+  const next = [OFFICE_OPEN, OFFICE_CLOSE, OFFICE_OPEN + 24 * 60].map(m => m * 60000).find(t => t > sinceMidnight);
+  return next - sinceMidnight;
+}
+
 /** Today's date in Singapore as 'YYYY-MM-DD', whatever the viewer's timezone. Matches sg_today() in the database. */
 export function todaySG() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Singapore', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());

@@ -186,3 +186,21 @@ test('the engineer scene follows the time of day in Singapore', async () => {
   assert.match(engineerScene('holiday').caption, /Public holiday/);
   for (const p of ['morning', 'lunch', 'afternoon', 'evening', 'afterwork', 'sleeping', 'weekend', 'holiday']) assert.match(engineerScene(p).svg, /^<svg[^>]*aria-label="[^"]+"/);
 });
+
+test('office hours are 9am to 6pm in Singapore, whatever the viewer\'s timezone', async () => {
+  const { officeHours, minutesSG, msUntilOfficeChange } = await import('../src/schedule.js');
+  const sg = hhmm => Date.parse('2026-11-16T' + hhmm + ':00+08:00');
+  assert.equal(minutesSG(sg('00:00')), 0);
+  assert.equal(minutesSG(sg('23:59')), 23 * 60 + 59);
+  assert.equal(officeHours(sg('08:59')), 'before');
+  assert.equal(officeHours(sg('09:00')), 'open');
+  assert.equal(officeHours(sg('17:59')), 'open');
+  assert.equal(officeHours(sg('18:00')), 'after');
+  assert.equal(officeHours(sg('23:30')), 'after');
+  assert.equal(officeHours(sg('00:30')), 'before');
+  const hour = 60 * 60 * 1000;
+  assert.equal(msUntilOfficeChange(sg('08:00')), hour);
+  assert.equal(msUntilOfficeChange(sg('12:00')), 6 * hour);
+  assert.equal(msUntilOfficeChange(sg('18:00')), 15 * hour);
+  assert.equal(msUntilOfficeChange(sg('23:00')), 10 * hour);
+});
