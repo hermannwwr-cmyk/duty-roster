@@ -184,7 +184,7 @@ async function renderToday() {
     <ol class="strip upnext">${coming.map(d => {
       const p = d.duties[0], dt = fromISO(d.date);
       const when = d.date === t ? 'Today' : dt.toLocaleDateString('en-SG', { weekday: 'short' }) + ' ' + dt.getDate();
-      return `<li class="${d.date === t ? 'is-today' : ''}${p ? '' : ' none'}"${p ? ` title="${esc(p.name)}"` : ''}><span class="when">${when}</span>${p ? avatar(p.name) : '<span class="av" aria-hidden="true">–</span>'}<span class="nm">${p ? esc(shortName(p.name, data.people)) : 'No one'}</span></li>`;
+      return `<li class="${d.date === t ? 'is-today' : ''}${p ? '' : ' none'}"${p ? ` title="${esc(p.name)}"` : ''}><span class="when">${when}</span><span class="nm">${p ? esc(shortName(p.name, data.people)) : 'No one'}</span></li>`;
     }).join('')}</ol>
   </section>` : '';
 
