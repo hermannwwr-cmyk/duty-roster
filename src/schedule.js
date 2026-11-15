@@ -183,11 +183,6 @@ export function whatsappLink(text) {
   return 'https://wa.me/?text=' + encodeURIComponent(text);
 }
 
-/** Up to two initials for a name: "Alice Tan" → "AT", "ben" → "B". */
-export function initials(name) {
-  return String(name).trim().split(/\s+/).filter(Boolean).slice(0, 2).map(w => [...w][0]).join('').toUpperCase();
-}
-
 /**
  * A first name for tight spaces (calendar cells, strips): "Alice Tan" → "Alice". When two people in
  * `names` share that first name, the full name is kept so they can be told apart.

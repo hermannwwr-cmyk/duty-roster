@@ -1,5 +1,6 @@
-import { buildSchedule, checkpointFor, toISO, fromISO, addDays, todaySG, onRota, rosterMessage, whatsappLink, WHATSAPP_ICON, initials, shortName } from './schedule.js';
+import { buildSchedule, checkpointFor, toISO, fromISO, addDays, todaySG, onRota, rosterMessage, whatsappLink, WHATSAPP_ICON, shortName } from './schedule.js';
 import { createStore } from './connect.js';
+import { faceSvg } from './faces.js';
 import { keepFresh } from './live.js';
 import { swipeTabs } from './swipe.js';
 
@@ -186,7 +187,7 @@ function renderAuth() {
 /* ---------- App shell ---------- */
 const ICON_CALENDAR = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>';
 const ICON_SIGNOUT = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M10 16l-4-4 4-4M6 12h10"/></svg>';
-/** The account menu under the initials button: who is signed in, Calendar and Sign out. */
+/** The account menu under your face in the header: who is signed in, Calendar and Sign out. */
 function toggleAccount(open) {
   const btn = document.getElementById('acct-btn'), menu = document.getElementById('acct-menu');
   if (!btn || !menu) return;
@@ -208,7 +209,7 @@ function renderApp() {
     <nav class="tabs" aria-label="Sections">${tabs.map(([id, label]) => `<button type="button" data-tab="${id}"${state.tab === id ? ' aria-current="page"' : ''}>${label}</button>`).join('')}</nav>
     <div class="acct top-end">
       <button type="button" class="acct-btn" id="acct-btn" aria-haspopup="true" aria-expanded="false" aria-controls="acct-menu"
-        aria-label="Account: ${esc(me.display_name)}">${esc(initials(me.display_name))}</button>
+        aria-label="Account: ${esc(me.display_name)}">${faceSvg(me.display_name)}</button>
       <div class="acct-menu" id="acct-menu" hidden>
         <p class="acct-head">Signed in as<b>${esc(me.display_name)}</b>${me.is_admin ? '<span class="acct-role">Admin</span>' : ''}</p>
         <a href="calendar.html">${ICON_CALENDAR}Calendar</a>
@@ -240,11 +241,11 @@ function renderView() {
 /* ---------- Roster ---------- */
 const icon = d => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
 const ICON_PREV = icon('M15 5l-7 7 7 7'), ICON_NEXT = icon('M9 5l7 7-7 7');
-/** A person shown by their initials in a circle. */
-const mono = (name, cls = '') => `<span class="mono-av${cls ? ' ' + cls : ''}" aria-hidden="true">${esc(initials(name))}</span>`;
+/** A person's drawn face in a circle (src/faces.js). */
+const avatar = (name, cls = '') => `<span class="av${cls ? ' ' + cls : ''}" aria-hidden="true">${faceSvg(name)}</span>`;
 /** One working day's line-up as a strip: the Primary, each Secondary in order, then anyone on leave. */
 function lineup(day, meId, names) {
-  const cell = (cls, label, m) => `<li class="${cls}${m.id === meId ? ' me' : ''}" title="${esc(m.name)}"><span class="when">${label}</span>${mono(m.name)}
+  const cell = (cls, label, m) => `<li class="${cls}${m.id === meId ? ' me' : ''}" title="${esc(m.name)}"><span class="when">${label}</span>${avatar(m.name)}
     <span class="nm">${esc(shortName(m.name, names))}${m.id === meId ? '<span class="sr-only"> (you)</span>' : ''}</span></li>`;
   return `<ol class="strip lineup">${day.duties.map(d => cell(d.role === 'Primary' ? 'p' : '', shortRole(d.role), d.member)).join('')}${day.onLeave.map(m => cell('away', 'Leave', m)).join('')}</ol>`
     + (day.duties.length ? '' : '<p class="muted">No one is available for duty.</p>');
@@ -294,7 +295,7 @@ function renderRoster() {
     const [p, ...rest] = d.duties;
     const short = member => member.id === me.id ? `<b>${esc(shortName(member.name, names))}</b>` : esc(shortName(member.name, names));
     return `<li class="day${d.date === t ? ' is-today' : ''}">${date}<span class="who">
-      ${p ? `<span class="lead">${mono(p.member.name, 'sm')}<span class="nm"><span class="sr-only">Primary: </span>${esc(p.member.name)}${p.member.id === me.id ? ' <span class="you">· You</span>' : ''}</span></span>` : '<span class="nobody">No one available</span>'}
+      ${p ? `<span class="lead">${avatar(p.member.name, 'sm')}<span class="nm"><span class="sr-only">Primary: </span>${esc(p.member.name)}${p.member.id === me.id ? ' <span class="you">· You</span>' : ''}</span></span>` : '<span class="nobody">No one available</span>'}
       ${rest.length ? `<span class="then">then ${rest.map(x => short(x.member)).join(' → ')}</span>` : ''}
       ${d.onLeave.length ? `<span class="tags">${d.onLeave.map(x => `<span class="tag leave">${esc(shortName(x.name, names))} on leave</span>`).join('')}</span>` : ''}</span>
       ${mine ? `<span class="badge${mine.role === 'Primary' ? ' p' : ''}"><span class="sr-only">Your role: </span>${mine.role === 'Primary' ? 'Primary' : shortRole(mine.role)}</span>` : away ? '<span class="badge off"><span class="sr-only">You are on </span>Leave</span>' : ''}</li>`;

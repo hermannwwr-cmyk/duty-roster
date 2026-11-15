@@ -137,11 +137,8 @@ test('the share message lists roles and names only, and the WhatsApp link carrie
   assert.match(rosterMessage({ date: '2026-10-21', duties: [] }), /No one is available/);
 });
 
-test('initials and short names', async () => {
-  const { initials, shortName } = await import('../src/schedule.js');
-  assert.equal(initials('Alice Tan'), 'AT');
-  assert.equal(initials('  ben  '), 'B');
-  assert.equal(initials('Mary Ann Lee'), 'MA');
+test('short names', async () => {
+  const { shortName } = await import('../src/schedule.js');
   const team = ['Alice Tan', 'Ben Lim', 'Ben Koh', 'Chloe Ng'];
   assert.equal(shortName('Alice Tan', team), 'Alice');
   assert.equal(shortName('  Chloe Ng ', team), 'Chloe');
@@ -149,6 +146,18 @@ test('initials and short names', async () => {
   assert.equal(shortName('Ben Lim', team), 'Ben Lim');
   assert.equal(shortName('Ben Koh', team), 'Ben Koh');
   assert.equal(shortName('Dev Kumar'), 'Dev');
+});
+
+test('faces: the same name always gets the same face, and the name is not written into it', async () => {
+  const { faceSvg } = await import('../src/faces.js');
+  assert.equal(faceSvg('Alice Tan'), faceSvg('Alice Tan'));
+  assert.equal(faceSvg('Alice Tan'), faceSvg('  alice tan '));
+  assert.notEqual(faceSvg('Alice Tan'), faceSvg('Ben Lim'));
+  assert.match(faceSvg('Chloe Ng'), /^<svg class="face" viewBox="0 0 64 64"/);
+  assert.doesNotMatch(faceSvg('Chloe Ng'), /Chloe/);
+  // Odd input still draws a face rather than throwing.
+  assert.match(faceSvg(''), /^<svg/);
+  assert.match(faceSvg(null), /^<svg/);
 });
 
 test('time until midnight in Singapore', async () => {

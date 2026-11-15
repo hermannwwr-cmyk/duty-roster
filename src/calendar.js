@@ -1,9 +1,10 @@
 // The public page: today's 2FA Login card and the month calendar. No sign-in needed.
 // The database works out each day's duty list (public_calendar() in supabase/004_stable_history.sql) and
 // returns only names and roles, so no leave data or account ids reach this page.
-import { toISO, fromISO, addDays, todaySG, rosterMessage, whatsappLink, WHATSAPP_ICON, initials, shortName } from './schedule.js';
+import { toISO, fromISO, addDays, todaySG, rosterMessage, whatsappLink, WHATSAPP_ICON, shortName } from './schedule.js';
 import { createStore } from './connect.js';
 import { engineerScene } from './engineer.js';
+import { faceSvg } from './faces.js';
 import { keepFresh } from './live.js';
 import { swipeTabs } from './swipe.js';
 
@@ -16,8 +17,8 @@ const ICON_PREV = icon('<path d="M15 5l-7 7 7 7"/>'), ICON_NEXT = icon('<path d=
 const ICON_STAR = icon('<path d="M12 3l2.2 5.3 5.8.5-4.4 3.800 1.3 5.600L12 15.300 7.100 18.200l1.300-5.600L4 8.800l5.800-.5z"/>', 20, 2);
 const ICON_WARN = icon('<path d="M12 3.5l9.500 16.500h-19z"/><path d="M12 10v4.500M12 17.300v.2"/>', 18, 2.2);
 const ICON_LOCK = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10.5" rx="2.5" fill="currentColor"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>';
-/** A person shown by their initials in a circle. `extra` goes inside it (a number badge, the padlock). */
-const mono = (name, cls = '', extra = '') => `<span class="mono-av${cls ? ' ' + cls : ''}" aria-hidden="true">${esc(initials(name))}${extra}</span>`;
+/** A person's drawn face in a circle (src/faces.js). `extra` sits on its edge (a number badge, the padlock). */
+const avatar = (name, cls = '', extra = '') => `<span class="av${cls ? ' ' + cls : ''}" aria-hidden="true">${faceSvg(name)}${extra}</span>`;
 
 const cache = {};
 let store;
@@ -147,7 +148,7 @@ async function renderToday() {
     <h2 class="sr-only" id="today-h">2FA Login, ${fmt(t)}</h2>
     <div class="hero-scene">${scene.svg}<span class="wall-date"><i></i>${sign}</span></div>
     <div class="hero-body">
-      <div class="hero-who${primary ? '' : ' plain'}">${primary ? mono(primary.name, 'big', `<span class="lock">${ICON_LOCK}</span>`) : ''}<p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div>
+      <div class="hero-who${primary ? '' : ' plain'}">${primary ? avatar(primary.name, 'big', `<span class="lock">${ICON_LOCK}</span>`) : ''}<p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div>
       ${working || !td ? '' : `<p class="hero-note">No duty today.${why ? ' ' + why : ''}</p>`}
       ${who}${share}
     </div>
@@ -157,7 +158,7 @@ async function renderToday() {
   const secondaries = day ? day.duties.slice(1) : [];
   const backups = secondaries.length ? `<section class="panel sub" aria-labelledby="sec-h">
     <div class="sub-head"><h3 id="sec-h">${secondaries.length === 1 ? 'Secondary' : 'Secondaries'}</h3>${secondaries.length > 1 ? '<span>in backup order</span>' : ''}</div>
-    <ol class="backups">${secondaries.map((x, i) => `<li>${mono(x.name, '', `<b class="n">${i + 1}</b>`)}<span class="person"><span class="nm">${esc(x.name)}</span><span class="rl">${esc(x.role)}</span></span></li>`).join('')}</ol>
+    <ol class="backups">${secondaries.map((x, i) => `<li>${avatar(x.name, '', `<b class="n">${i + 1}</b>`)}<span class="person"><span class="nm">${esc(x.name)}</span><span class="rl">${esc(x.role)}</span></span></li>`).join('')}</ol>
   </section>` : '';
 
   // Who is Primary over the next five working days, so people know who to ask next.
@@ -167,7 +168,7 @@ async function renderToday() {
     <ol class="strip">${coming.map(d => {
       const p = d.duties[0], dt = fromISO(d.date);
       const when = d.date === t ? 'Today' : dt.toLocaleDateString('en-SG', { weekday: 'short' }) + ' ' + dt.getDate();
-      return `<li class="${d.date === t ? 'is-today' : ''}${p ? '' : ' none'}"${p ? ` title="${esc(p.name)}"` : ''}><span class="when">${when}</span>${p ? mono(p.name) : '<span class="mono-av" aria-hidden="true">–</span>'}<span class="nm">${p ? esc(shortName(p.name, data.people)) : 'No one'}</span></li>`;
+      return `<li class="${d.date === t ? 'is-today' : ''}${p ? '' : ' none'}"${p ? ` title="${esc(p.name)}"` : ''}><span class="when">${when}</span>${p ? avatar(p.name) : '<span class="av" aria-hidden="true">–</span>'}<span class="nm">${p ? esc(shortName(p.name, data.people)) : 'No one'}</span></li>`;
     }).join('')}</ol>
   </section>` : '';
 
