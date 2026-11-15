@@ -22,6 +22,12 @@ There is no linter, formatter or bundler.
 
 `npm run stamp` (`scripts/stamp.mjs`) rewrites the `<!-- version:start -->…<!-- version:end -->` block in `index.html` and `calendar.html`: an import map that gives every `src/*.js` and `config.js` a `?v=<YYYYMMDDHHMM>` suffix, plus the stylesheet and entry script. It picks up new files in `src/` automatically. Without it, phones mix cached old modules with new ones. `src/live.js` also reads this `?v=` stamp to detect that a newer version has been published.
 
+## Publishing and going back
+
+- `main` is the live site. A push to `main` is published within about a minute by the "pages build and deployment" Actions run. There is no staging copy, so build on a branch and let the owner see the change first (screenshots, or the pages served in demo mode) before anything goes to `main`.
+- The `v1` branch is a checkpoint of the site as it was before the November 2026 redesign. Keep it. To go back, restore the site files from it in a new commit on `main` and run `npm run stamp`; don't rewrite `main`'s history. It is a branch because a tag push was refused from a cloud session.
+- Cloud sessions may be unable to reach the live site, Supabase, or the jsdelivr CDN the Supabase client loads from. If so, confirm a publish from the Actions run, say plainly that the live site and real database were not checked, and ask the owner to check them.
+
 ## Architecture
 
 **Two pages, two entry scripts**
@@ -35,7 +41,9 @@ There is no linter, formatter or bundler.
   - On phones the Calendar Forecast prints each name twice (`.full` and `.first` spans) and CSS shows the short one only; wording changes touch both. `shortName()` in `schedule.js` gives the first name, or the full name when two people share a first name.
 - Headers have no title: one row with the tab pill, then on the right a "Sign in" link (calendar.html) or, in the app, a round button with your face whose menu (`toggleAccount` in app.js) holds who is signed in, Calendar and Sign out. Tab labels too long for phones carry `.tab-long`/`.tab-short` spans (e.g. "Calendar Forecast"/"Forecast", admins' "Team & settings"/"Team").
 
-**Shared UI pieces across the two pages** — the WhatsApp button label is written in both `app.js` and `calendar.js` ("Click for OTP on WhatsApp", or "Tell the team on WhatsApp" when the day shown has nobody on duty); its icon (`WHATSAPP_ICON`), link and message text (`rosterMessage`) live in `schedule.js`. People are shown the same way on both pages: a drawn face in a circle (`.av`), made from their name by `src/faces.js` (the same name always gets the same face, and nothing is sent to an outside avatar service), with a cyan ring for the Primary. The Calendar Forecast uses names only, with no faces. The signed-in Roster tab shows your role with that day's line-up as a strip (`lineup()` in `app.js`), then one row per working day: the Primary, "then" the backups in order, anyone on leave, and your own role as a badge.
+**Shared UI pieces across the two pages** — the WhatsApp button label is written in both `app.js` and `calendar.js` ("Click for OTP on WhatsApp", or "Tell the team on WhatsApp" when the day shown has nobody on duty); its icon (`WHATSAPP_ICON`), link and message text (`rosterMessage`) live in `schedule.js`. People are shown the same way on both pages: a drawn face in a circle (`.av`), made from their name by `src/faces.js` (the same name always gets the same face, and nothing is sent to an outside avatar service), with a cyan ring for the Primary. `faces.js` picks each part by a hash of the name, modulo the length of that part's list, starting from a fixed `SEED`: changing `SEED`, or adding, removing or reordering entries in its palettes or style lists, changes almost everyone's face. The Calendar Forecast uses names only, with no faces. The signed-in Roster tab shows your role with that day's line-up as a strip (`lineup()` in `app.js`), then one row per working day: the Primary, "then" the backups in order, anyone on leave, and your own role as a badge.
+
+**Wording** — all UI text is plain, friendly, sentence case and short. Several strings are asserted exactly, so a wording change means updating them too: `rosterMessage()` in `tests/schedule.test.mjs`; toasts, labels and the WhatsApp button in `scripts/ui-check.cjs`; and `DemoStore`'s error messages, which copy the database's.
 
 **Data layer** — `src/connect.js` returns `SupabaseStore` when `config.js` has a URL and anon key, otherwise `DemoStore` (localStorage, five example people). Both live in `src/store.js` and expose the same methods. `DemoStore` deliberately mirrors the database's row-level security and triggers (admin checks, leave rules) so demo mode fails the same way production does; keep them in step. In `SupabaseStore`, updates and deletes end in `.select()` and go through `changed()`, because RLS silently skips forbidden rows and `protect_profile_fields()` silently reverts non-admin field changes — `updateProfile` compares the returned row to the patch to catch that.
 
@@ -51,9 +59,13 @@ There is no linter, formatter or bundler.
 
 **Styles** — one `styles.css`, the "Ocean" theme: always dark, deep sea blue, flat panels, tokens on `:root`, Plus Jakarta Sans + JetBrains Mono from Google Fonts. Cyan (`--accent`, `--primary`) means "Primary" or "today" and nothing else; leave is purple, holidays green, gaps red, and the WhatsApp button is bright green with dark text (`--wa`, `--wa-ink`). Animations must stop under `prefers-reduced-motion`. A theme change is more than the `:root` tokens: `styles.css` also hard-codes a few colours (header, selected tab, the red gaps card), `faces.js` hard-codes the face palettes, and `engineer.js` hard-codes the room, sky and padlock colours; only the engineer's hoodie follows the tokens (`--hoodie*`).
 
+## REBUILD.md
+
+`REBUILD.md` is a standalone spec for recreating the app from scratch (rotation rules, schema, UI, theme). Nothing loads it. When behaviour, layout or theme changes, update its matching section in the same commit so it doesn't drift.
+
 ## Database (supabase/)
 
-SQL is not applied automatically: the project owner pastes each file into the Supabase SQL Editor. New installs run `schema.sql`, then `003_private_data.sql`, `004_stable_history.sql`, `006_hardening.sql`, `011_leave_invites.sql` (the README lists the order). Numbers 005, 007 and 009 were features that were later removed; `008_remove_calendar_sync.sql` and `010_remove_daily_email.sql` undo them on databases that ran them, which is why those files are absent.
+SQL is not applied automatically: the project owner pastes each file into the Supabase SQL Editor. New installs run `schema.sql`, then `003_private_data.sql`, `004_stable_history.sql`, `006_hardening.sql`, `011_leave_invites.sql` (the README lists the order). `002_public_calendar.sql` is only for databases created before the public calendar became part of `schema.sql`. Numbers 005, 007 and 009 were features that were later removed; `008_remove_calendar_sync.sql` and `010_remove_daily_email.sql` undo them on databases that ran them, which is why those files are absent.
 
 - Never edit a migration the owner may already have run; add the next numbered file, make it safe to run twice (`if exists`, `create or replace`, `drop policy if exists`), and update the README's setup list.
 - Front-end code that depends on a new migration should be published only after the owner confirms it ran.
