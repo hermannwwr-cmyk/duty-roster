@@ -131,19 +131,21 @@ async function renderToday() {
   const fmt = iso => fromISO(iso).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' });
   const primary = day && day.duties[0];
 
-  // The scene follows the time of day in Singapore, with the lights off on public holidays;
-  // ?scene=lunch (etc.) shows a particular one. Today's date is on the sign on its wall.
-  const scene = engineerScene(new URLSearchParams(location.search).get('scene') || (td && td.kind === 'holiday' ? 'holiday' : undefined));
+  // The scene follows the time of day in Singapore, with the lights off on public holidays and on a
+  // working day when nobody is available; ?scene=lunch (etc.) shows a particular one. Today's date is
+  // on the sign on its wall.
+  const scene = engineerScene(new URLSearchParams(location.search).get('scene') || (td && td.kind === 'holiday' ? 'holiday' : working && !primary ? 'nobody' : undefined));
   const sign = fmt(t).replace(',', '').toUpperCase();
   const why = working || !td ? '' : td.kind === 'holiday' ? 'Public holiday: ' + esc(td.holiday) + '.' : td.kind === 'weekend' ? 'It’s the weekend.' : 'The rotation hasn’t started yet.';
 
   let share = '';
   if (day) {
     const text = rosterMessage(day, location.href.split('#')[0].split('?')[0]);
-    share = `<a class="btn wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">${WHATSAPP_ICON}Click for OTP on WhatsApp</a>`;
+    // With nobody to ask, the button no longer offers an OTP: it shares the same message, which says no one is available.
+    share = `<a class="btn wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">${WHATSAPP_ICON}${primary ? 'Click for OTP on WhatsApp' : 'Tell the team on WhatsApp'}</a>`;
   }
-  const who = !day ? '' : `<div class="hero-name"><span class="eyebrow">${working ? 'Primary · ask for OTP' : 'Next duty day · ' + fmt(day.date)}</span>
-      ${primary ? `<p class="name">${esc(primary.name)}</p>${working ? '' : '<span class="hero-role">Primary · ask for OTP</span>'}` : '<p class="hero-note">No one is available for duty.</p>'}</div>`;
+  const who = !day ? '' : `<div class="hero-name"><span class="eyebrow${working && !primary ? ' warn' : ''}">${!working ? 'Next duty day · ' + fmt(day.date) : primary ? 'Primary · ask for OTP' : 'No duty cover today'}</span>
+      ${primary ? `<p class="name">${esc(primary.name)}</p>${working ? '' : '<span class="hero-role">Primary · ask for OTP</span>'}` : '<p class="hero-none">No one is available for duty.</p>'}</div>`;
   const hero = `<section class="hero-card" aria-labelledby="today-h">
     <h2 class="sr-only" id="today-h">2FA Login, ${fmt(t)}</h2>
     <div class="hero-scene">${scene.svg}<span class="wall-date"><i></i>${sign}</span></div>

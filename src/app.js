@@ -274,7 +274,8 @@ function renderRoster() {
   if (shareDay) {
     const text = rosterMessage({ date: shareDay.date, duties: shareDay.duties.map(d => ({ role: d.role, name: d.member.name })) },
       new URL('calendar.html', location.href).href);
-    shareHtml = `<div class="share"><a class="btn wa" id="share-wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">${WHATSAPP_ICON}Click for OTP on WhatsApp</a>
+    // With nobody to ask, the button shares the news instead of offering an OTP (same wording as calendar.js).
+    shareHtml = `<div class="share"><a class="btn wa" id="share-wa" href="${esc(whatsappLink(text))}" target="_blank" rel="noopener">${WHATSAPP_ICON}${shareDay.duties.length ? 'Click for OTP on WhatsApp' : 'Tell the team on WhatsApp'}</a>
       ${navigator.share ? '<button class="btn ghost" type="button" id="share-other">Share another way</button>' : ''}</div>`;
     state.shareText = text;
   }

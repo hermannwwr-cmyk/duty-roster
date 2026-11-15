@@ -1,5 +1,6 @@
 // A functional check of both pages in a real browser, in demo mode: it clicks through every action
-// (leave, team changes, holidays, settings, sign-up and approval, month and tab navigation, swiping)
+// (leave, team changes, holidays, settings, sign-up and approval, month and tab navigation, swiping,
+// and a day when nobody is available)
 // and checks what the roster and the public page show afterwards. Run it before publishing a change
 // to a page, script or styles.css:
 //
@@ -225,6 +226,25 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   const still = await pub.evaluate(() => [...document.querySelectorAll('.engineer *, .btn.wa')].every(el => getComputedStyle(el).animationName === 'none'));
   check('G3 reduced motion: nothing on the page animates', still);
   await pub.close(); await app.close();
+
+  /* ---------- H. A working day when nobody is available ---------- */
+  pub = await open('/calendar.html');
+  await pub.evaluate(() => { const db = JSON.parse(localStorage.getItem('duty-roster-demo'));
+    db.profiles.forEach((person, i) => db.leaves.push({ id: 900 + i, user_id: person.id, start_date: '2026-11-16', end_date: '2026-11-16', note: '' }));
+    localStorage.setItem('duty-roster-demo', JSON.stringify(db)); });
+  await pub.close();
+  pub = await open('/calendar.html');
+  check('H1 nobody today: the card says so, with no face and no Secondaries', (await pub.locator('.hero-name .eyebrow').textContent()) === 'No duty cover today' && (await pub.locator('.hero-none').innerText()) === 'No one is available for duty.' && await pub.locator('.av.big, .backups').count() === 0, await pub.locator('.hero-name').innerText());
+  check('H2 nobody today: the room has its lights off', (await pub.locator('.engineer').getAttribute('class')).includes('scene-nobody') && (await pub.locator('.hero-caption').innerText()) === 'No one on duty today. The servers keep watch.');
+  const news = decodeURIComponent((await pub.locator('a.btn.wa').getAttribute('href')).replace('https://wa.me/?text=', ''));
+  check('H3 nobody today: the button shares the news instead of offering an OTP', (await pub.locator('a.btn.wa').innerText()).trim() === 'Tell the team on WhatsApp' && news.includes('No one is available for duty.'), await pub.locator('a.btn.wa').innerText());
+  check('H4 nobody today: the red card lists today, and Up next shows "No one"', (await pub.locator('.gap-list li').first().innerText()).replace(/\s+/g, ' ') === 'Monday, 16 November Today' && (await pub.locator('.strip li').first().innerText()).includes('No one'), await pub.locator('.gap-list').innerText());
+  await tab(pub, 'calendar');
+  check('H5 nobody today: the calendar says "No one available"', (await cell(pub, 16).locator('.nobody').innerText()) === 'No one available' && await cell(pub, 16).locator('.duty-list').count() === 0);
+  await pub.close();
+  app = await open('/index.html');
+  check('H6 nobody today: the signed-in page says so too', (await app.locator('.role-head .role').innerText()) === 'On leave' && (await app.locator('#share-wa').innerText()).trim() === 'Tell the team on WhatsApp' && await app.locator('.lineup li.away').count() === await app.locator('.lineup li').count() && (await app.locator('.role-card').innerText()).includes('No one is available for duty.'));
+  await app.close();
 
   check('Z no errors in the browser console during the whole pass', errors.length === 0, [...new Set(errors)].join(' || '));
   const failed = results.filter(r => !r.ok);

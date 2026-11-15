@@ -116,6 +116,9 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .hero-name { display: grid; gap: .3rem; }
 .hero-name .name { color: #ffffff; font-size: 2.1rem; font-weight: 800; line-height: 1.08; letter-spacing: -.02em; overflow-wrap: anywhere; }
 .hero-name .hero-role { color: var(--soft); font-size: .9rem; font-weight: 600; }
+/* A working day with nobody available: a red label and a plain statement where the name would be. */
+.eyebrow.warn { color: var(--danger); }
+.hero-name .hero-none { color: #ffffff; font-size: 1.4rem; font-weight: 800; line-height: 1.2; letter-spacing: -.01em; }
 .sub { gap: .65rem; padding: .9rem; }
 .sub-head { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; padding: 0 .15rem; color: var(--soft); font-size: .78rem; }
 .sub-head h3 { font: 700 .72rem var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--soft); }

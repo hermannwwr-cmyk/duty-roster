@@ -241,6 +241,7 @@ Two tabs: **2FA Login** and **Calendar Forecast** (`#calendar` in the URL opens 
    - **The Primary**: their drawn face (`faces.js`) in a large circle with a cyan ring and a padlock badge, overlapping the bottom of the scene, with the scene's caption beside it. Then the label "Primary · ask for OTP" and the name in very large bold type.
    - On a weekend or holiday: the line "No duty today. It's the weekend." (or "Public holiday: X."), the label "NEXT DUTY DAY · MON, 16 NOV", that day's Primary, and "Primary · ask for OTP" under the name.
    - A big green button, "Click for OTP on WhatsApp", opens `whatsappLink(rosterMessage(day, calendarUrl))`. It is bright green with dark text and a slow glow.
+   - On a working day when nobody is available: the lights-off room with the caption "No one on duty today. The servers keep watch.", no face, a red label "NO DUTY COVER TODAY", the line "No one is available for duty." in bold, and the button reads "Tell the team on WhatsApp" (the same link; its message says "No one is available for duty.").
 2. **Secondaries**: a small panel headed "Secondaries · in backup order". Each person is a tile with their face in a circle, a number badge (1, 2, 3…), their name, and "Secondary 1" under it. Two columns on phones, one on wide screens.
 3. **Up next**: a strip of the next five working days, each with the day ("Today", "TUE 17"), the Primary's face and first name. Today is outlined in cyan.
 4. **"No one is available on:" card**, shown only if some upcoming working day has an empty duty list. It is red, and each date is a row with the full date and how soon it is ("in 9 days").
@@ -268,7 +269,7 @@ The page loads `loadPublic(today, today + 60)`. If that returns `null`, show "Th
 **Roster tab:**
 - **"Your role" card:** the label "YOUR ROLE · MON, 16 NOV" over a big "Primary", "Secondary 2", "On leave" or "No duty".
   - Below it, that day's line-up as a strip: one tile per person with their role (P, S1, S2…), face and first name; purple "LEAVE" tiles for people on leave. Your own tile is outlined in cyan.
-  - Then the WhatsApp button, and "Share another way" (`navigator.share`) where the device supports it.
+  - Then the WhatsApp button ("Tell the team on WhatsApp" when that day has nobody on duty), and "Share another way" (`navigator.share`) where the device supports it.
 - **Roster card:**
   - A heading with month navigation, and the note "Weekdays only. Weekends and public holidays have no duty. Each day shows the Primary, then the backups in order. People on leave are left out that day."
   - Each working day is a row: the weekday and date; the Primary (a small face and full name, with "· You" if it's you); "then Ben → Chloe → Dev" for the backups in order, with your own name in cyan; purple "Ben on leave" tags; and your own role as a badge on the right ("Primary" filled, "S2" outlined, "Leave" purple).

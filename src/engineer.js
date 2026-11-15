@@ -202,7 +202,9 @@ const SCENES = {
   afterwork: [afterwork, 'Off duty, still on call.'],
   sleeping: [now => lightsOff(now, true), 'Sleeping. Phone on loud, just in case.'],
   weekend: [now => lightsOff(now, false), 'Weekend: lights off. The servers keep watch.'],
-  holiday: [now => lightsOff(now, false), 'Public holiday: lights off. The servers keep watch.']
+  holiday: [now => lightsOff(now, false), 'Public holiday: lights off. The servers keep watch.'],
+  // A working day when everyone is away: nobody at the desk.
+  nobody: [now => lightsOff(now, false), 'No one on duty today. The servers keep watch.']
 };
 
 /** The illustration and its caption for a part of the day (default: now in Singapore). */
