@@ -239,6 +239,13 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .cell.past, .cell.out, .cell.empty { background: none; box-shadow: inset 0 0 0 1px #17323f; color: var(--soft); }
 /* Days gone by step back, so today and the days ahead stand out. */
 .cell.past { opacity: .5; }
+/* At the weekend: the next weekday, outlined but without the glow that means "today". */
+.cell.is-next { background: var(--accent-soft); box-shadow: inset 0 0 0 1.5px var(--accent); color: #ffffff; }
+.cell.is-next .d { color: var(--primary); font-weight: 700; }
+.today-note { padding: 0 .4rem; color: var(--primary); font-size: .85rem; font-weight: 600; }
+@media (min-width: 761px) { .today-note { padding: 0; } }
+/* A public holiday that is today keeps the today outline over its green. */
+.cell.holiday.is-today { box-shadow: inset 0 0 0 2px var(--accent), 0 0 0 1px var(--accent), 0 0 18px #38bdf866; }
 /* Today: a brighter cell, a thick cyan outline with a soft glow, and the word "Today" next to the date. */
 .cell.is-today { position: relative; z-index: 1; background: #164a60; box-shadow: inset 0 0 0 2px var(--accent), 0 0 0 1px var(--accent), 0 0 18px #38bdf866; color: #ffffff; }
 .cell.is-today .num { padding-left: 2px; }

@@ -57,6 +57,9 @@ function render(data) {
 
   // Every day lists everyone available, Primary first, so the month reads in one look. From today on, a
   // dashed slot stands for each person who is away. (Earlier days may simply have had a smaller team.)
+  // At the weekend today has no cell (the grid is weekdays only), so the next weekday is marked "Next" instead.
+  const weekendToday = [0, 6].includes(fromISO(t).getDay());
+  let nextDay = t; while ([0, 6].includes(fromISO(nextDay).getDay())) nextDay = addDays(nextDay, 1);
   const cells = [];
   let anyone = false, someoneAway = false;
   for (let monday = g.start; monday <= g.end; monday = addDays(monday, 7)) {
@@ -67,7 +70,8 @@ function render(data) {
       const d = byDate[date], dt = fromISO(date);
       const out = date.slice(0, 7) !== state.month;
       const kind = d ? d.kind : 'unavailable';
-      const cls = ['cell', out ? 'out' : date < t ? 'past' : '', date === t ? 'is-today' : '', kind === 'holiday' ? 'holiday' : kind === 'work' ? '' : 'empty'].filter(Boolean).join(' ');
+      const next = weekendToday && date === nextDay;
+      const cls = ['cell', out ? 'out' : date < t ? 'past' : '', date === t ? 'is-today' : '', next ? 'is-next' : '', kind === 'holiday' ? 'holiday' : kind === 'work' ? '' : 'empty'].filter(Boolean).join(' ');
       // Days from the months either side say which month they belong to.
       const num = out ? dt.toLocaleDateString('en-SG', { day: 'numeric', month: 'short' }) : dt.getDate();
       let body = '';
@@ -79,13 +83,14 @@ function render(data) {
         body = `<ol class="duty-list">${d.duties.map(x => `<li${x.role === 'Primary' ? ' class="p"' : ''} title="${esc(x.role + ': ' + x.name)}"><span class="sr-only">${esc(x.role)}: </span><span class="full">${esc(x.name)}</span><span class="first">${esc(shortName(x.name, data.people))}</span></li>`).join('')}${'<li class="away" role="img" aria-label="Someone is away"></li>'.repeat(away)}</ol>`;
       }
       // Today says so in words next to its date, so it can't be missed.
-      cells.push(`<li class="${cls}"${date === t ? ' aria-current="date"' : ''}><span class="num"><span class="sr-only">${dt.toLocaleDateString('en-SG', { weekday: 'long' })} </span><span class="d">${num}</span>${date === t ? '<span class="today-tag">Today</span>' : ''}</span>${body}</li>`);
+      cells.push(`<li class="${cls}"${date === t ? ' aria-current="date"' : ''}><span class="num"><span class="sr-only">${dt.toLocaleDateString('en-SG', { weekday: 'long' })} </span><span class="d">${num}</span>${date === t ? '<span class="today-tag">Today</span>' : next ? '<span class="today-tag next-tag">Next</span>' : ''}</span>${body}</li>`);
     }
   }
 
   // The legend lists only what this month shows.
   const legend = anyone ? `<div class="legend" role="group" aria-label="Legend"><span class="key"><span class="pill">Primary</span>then the backups, in order</span>${someoneAway ? '<span class="key"><span class="slot" aria-hidden="true"></span>someone is away</span>' : ''}</div>` : '';
-  const thisMonth = t.slice(0, 7), todayColumn = state.month === thisMonth ? fromISO(t).getDay() : -1;
+  const thisMonth = t.slice(0, 7), todayColumn = state.month === nextDay.slice(0, 7) ? fromISO(nextDay).getDay() : -1;
+  const weekendNote = weekendToday && state.month === thisMonth ? `<p class="today-note">Today is ${fromISO(t).toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long' })}. No duty at weekends.</p>` : '';
 
   view.innerHTML = `
   <section class="panel cal-panel">
@@ -97,7 +102,7 @@ function render(data) {
         <button class="btn icon" id="next" aria-label="Next month">${ICON_NEXT}</button>
       </div>
     </div>
-    ${legend}
+    ${legend}${weekendNote}
     <div class="dows" aria-hidden="true">${['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((d, i) => `<span${i + 1 === todayColumn ? ' class="now"' : ''}>${d.toUpperCase()}</span>`).join('')}</div>
     <ol class="cal">${cells.join('')}</ol>
   </section>`;

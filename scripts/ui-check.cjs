@@ -252,6 +252,15 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   check('I7 signed-in app after 6pm: shows tomorrow\'s role, the note and the share button', (await app.locator('.role-head .eyebrow').innerText()).toLowerCase().includes('tue, 17 nov') && (await app.locator('.role-card').innerText()).includes('No one is on duty now.') && (await app.locator('#share-wa').innerText()).trim() === 'Tell the team on WhatsApp', await app.locator('.role-card').innerText());
   await app.close();
 
+  /* ---------- J. At the weekend the calendar marks the next weekday ---------- */
+  pub = await open('/calendar.html#calendar', '2026-11-21T03:00:00Z');   // Saturday 21 Nov, 11am
+  check('J1 weekend: a note says today is the weekend', (await pub.locator('.today-note').innerText()) === 'Today is Saturday, 21 November. No duty at weekends.', await pub.locator('.today-note').innerText().catch(() => 'none'));
+  check('J2 weekend: Monday is marked "Next", and nothing claims to be today', (await cell(pub, 23).locator('.next-tag').innerText()).toLowerCase() === 'next' && await pub.locator('.cal .is-next').count() === 1 && await pub.locator('.cal .is-today').count() === 0);
+  await pub.close();
+  pub = await open('/calendar.html#calendar');
+  check('J3 weekday: no weekend note and no "Next" mark', await pub.locator('.today-note, .cal .is-next').count() === 0);
+  await pub.close();
+
   /* ---------- H. A working day when nobody is available ---------- */
   pub = await open('/calendar.html');
   await pub.evaluate(() => { const db = JSON.parse(localStorage.getItem('duty-roster-demo'));
