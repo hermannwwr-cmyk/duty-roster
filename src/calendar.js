@@ -181,7 +181,7 @@ async function renderToday() {
   const coming = day ? data.days.filter(d => d.kind === 'work' && d.date >= day.date).slice(0, 5) : [];
   const upNext = coming.length > 1 ? `<section class="panel sub" aria-labelledby="next-h">
     <div class="sub-head"><h3 id="next-h">Up next</h3><span>Primary each day</span></div>
-    <ol class="strip">${coming.map(d => {
+    <ol class="strip upnext">${coming.map(d => {
       const p = d.duties[0], dt = fromISO(d.date);
       const when = d.date === t ? 'Today' : dt.toLocaleDateString('en-SG', { weekday: 'short' }) + ' ' + dt.getDate();
       return `<li class="${d.date === t ? 'is-today' : ''}${p ? '' : ' none'}"${p ? ` title="${esc(p.name)}"` : ''}><span class="when">${when}</span>${p ? avatar(p.name) : '<span class="av" aria-hidden="true">–</span>'}<span class="nm">${p ? esc(shortName(p.name, data.people)) : 'No one'}</span></li>`;
