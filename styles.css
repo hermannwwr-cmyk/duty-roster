@@ -92,67 +92,77 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .av { position: relative; flex: none; display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 50%; background: #17404f; color: var(--soft); font-size: .9rem; font-weight: 800; }
 .av .face, .acct-btn .face { display: block; width: 100%; height: 100%; border-radius: 50%; }
 .av.sm { width: 1.75rem; height: 1.75rem; }
-.av.big { width: 5.5rem; height: 5.5rem; box-shadow: 0 0 0 4px var(--panel), 0 0 0 6.5px var(--accent), 0 0 30px 4px #38bdf85c; }
+.av.big { z-index: 1; width: var(--av, 5.5rem); height: var(--av, 5.5rem); box-shadow: 0 0 0 4px var(--panel), 0 0 0 6.5px var(--accent), 0 0 30px 4px #38bdf85c; }
 .av .n { position: absolute; right: -5px; bottom: -4px; display: grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; background: var(--bg); box-shadow: 0 0 0 1.5px #3a7690; font: 700 10px var(--mono); letter-spacing: 0; }
 .av .lock { position: absolute; right: -5px; bottom: -3px; display: grid; place-items: center; width: 1.75rem; height: 1.75rem; border-radius: 50%; background: var(--accent); color: var(--accent-ink); box-shadow: 0 0 0 3px var(--panel); }
 .person { display: grid; min-width: 0; }
 .person .nm { font-size: .92rem; font-weight: 700; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .person .rl { font-size: .74rem; line-height: 1.3; color: var(--soft); }
 
-/* The 2FA Login tab (calendar.html): one card (the room scene, today's Primary, and the Secondaries on a rail under the
-   Primary's name), then Up next and any gaps. */
+/* The 2FA Login tab (calendar.html): one card (the room scene, today's Primary, and the Secondaries on a rail that starts
+   at the Primary), then Up next and any gaps. */
 #today { margin-top: 1rem; padding-bottom: 3rem; }
 .duty { display: grid; gap: .75rem; align-items: start; }
 .duty-side { display: grid; gap: .75rem; min-width: 0; }
-/* The card is a container, so the rail follows the card's own width (the @container rules below), not the screen's. */
+/* The card is a container, so its parts follow the card's own width (the @container rules below), not the screen's. */
 .hero-card { container: card / inline-size; min-width: 0; overflow: hidden; border-radius: 24px; background: var(--panel); box-shadow: 0 0 0 1px #ffffff14, 0 24px 48px -16px #000000c0; }
+/* Sizes the scene and the body share: the side padding, the Primary's face (the size it has always had), how far it
+   stands up into the scene and the space between it and the name, a Secondary's face (a stop on the rail), the radius
+   of the rail's turn, its thickness, and the space between the rows. */
+.hero-scene, .hero-body { --pad: 1.25rem; --av: 5.5rem; --lift: 2.5rem; --beside: .95rem; --stop: 2.375rem; --turn: .875rem; --thick: 3px; --gap: .9rem; }
 .hero-scene { position: relative; container-type: inline-size; }
 /* Today's date, on a small sign on the wall above the screen. */
 .wall-date { position: absolute; left: 48%; top: 7%; display: inline-flex; align-items: center; gap: .45em; padding: .32em .7em; border-radius: .6em; background: #06131b; box-shadow: inset 0 0 0 1.5px #2f6a85;
   color: var(--ink); font: 700 .72rem var(--mono); font-size: clamp(.66rem, 3.2cqw, .84rem); letter-spacing: .04em; white-space: nowrap; }
 .wall-date i { width: .5em; height: .5em; border-radius: 50%; background: #5eead4; }
-/* Sizes the body's parts share: the side padding, the space between rows, a Secondary's face (a stop on the rail), the
-   radius of the rail's turn, its thickness, and where the stem stands (--stemx, measured from the body's left edge:
-   on the stroke of the Primary's ring). */
-.hero-body { --pad: 1.25rem; --gap: .9rem; --stop: 2.375rem; --turn: .875rem; --thick: 3px; --stemx: -5.25px; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); padding: 0 var(--pad) var(--pad); }
-/* The Primary: the face on the edge of the scene with the caption beside it, then the label and the name. */
-.hero-lead { --stemtop: .25rem; position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
-/* With Secondaries, a line runs down from the ring past the name (the stem), so the name stands a little in from it. */
-.hero-lead.linked .hero-name { padding-left: .5rem; }
-.hero-who { display: flex; align-items: flex-end; gap: 1rem; margin-top: -2.5rem; }
-.hero-who.plain { margin-top: .9rem; }
-.hero-caption { margin-bottom: .1rem; color: var(--soft); font-size: .8rem; line-height: 1.4; text-wrap: pretty; }
+/* The floor of the scene melts into the card, so there is no edge where the picture ends. */
+.hero-scene::after { content: ""; position: absolute; inset: auto 0 0; height: 23.5%; background: linear-gradient(180deg, #0b1e2900, var(--panel)); pointer-events: none; }
+/* The scene's caption is written on its floor, like a subtitle. It starts after the Primary's face when there is one. */
+.hero-caption { z-index: 1; position: absolute; left: var(--pad); right: var(--pad); bottom: .45rem; color: var(--soft); font-size: .78rem; line-height: 1.35; text-wrap: pretty; }
+.has-lead .hero-caption { left: calc(var(--pad) + var(--av) + var(--beside)); }
+.hero-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); padding: 0 var(--pad) var(--pad); }
+.hero-body > .hero-name { margin-top: .95rem; }
+/* The Primary: the face stands on the edge of the scene, with the name beside it. */
+.hero-lead { position: relative; display: grid; grid-template-columns: var(--av) minmax(0, 1fr); column-gap: var(--beside); align-items: start; }
+.hero-lead .av.big { margin-top: calc(-1 * var(--lift)); }
+.hero-lead .hero-name { padding-top: .8rem; }
 .hero-note { color: var(--soft); font-size: .93rem; }
 .hero-name { display: grid; gap: .3rem; min-width: 0; }
 .hero-name .name { color: #ffffff; font-size: 2.1rem; font-weight: 800; line-height: 1.08; letter-spacing: -.02em; overflow-wrap: anywhere; }
+/* A long name is set smaller, so it stays on one or two lines beside the face. */
+.hero-name .name.long { font-size: 1.75rem; }
+.hero-name .name.longer { font-size: 1.45rem; line-height: 1.12; letter-spacing: -.015em; }
 .hero-name .hero-role { color: var(--soft); font-size: .9rem; font-weight: 600; }
 /* A working day with nobody available: a red label and a plain statement where the name would be. */
 .eyebrow.warn { color: var(--danger); }
 .warn-text { color: var(--danger); }
 .hero-name .hero-none { color: #ffffff; font-size: 1.4rem; font-weight: 800; line-height: 1.2; letter-spacing: -.01em; }
 
-/* The rail: the Secondaries share the card with the Primary. A line leaves the Primary's ring on its left side, runs
-   down past the name (.stem), turns, and runs through each Secondary in backup order: the dots on a line of Up next,
-   with faces. It leaves the ring cyan and fades to steel along the way; the stops themselves are never cyan. */
-.stem { position: absolute; left: calc(var(--stemx) - var(--thick) / 2); top: var(--stemtop); bottom: calc(var(--turn) - var(--gap) - var(--stop) / 2 - var(--thick) / 2); width: var(--thick); background: linear-gradient(180deg, var(--accent) 2.25rem, var(--steel)); }
+/* The rail: the Secondaries share the card with the Primary. A line drops from the Primary's face (.stem), turns, and runs
+   through each Secondary in backup order: the dots on a line of Up next, with faces. It leaves the Primary cyan and
+   fades to steel along the way; the stops themselves are never cyan. */
+.stem { position: absolute; left: calc(var(--av) / 2 - var(--thick) / 2); top: calc(var(--av) / 2 - var(--lift)); bottom: calc(var(--turn) - var(--gap) - var(--stop) / 2 - var(--thick) / 2); width: var(--thick);
+  background: linear-gradient(180deg, var(--accent) calc(var(--av) / 2 + .6rem), var(--steel)); }
+.stem::before { content: ""; position: absolute; inset: 0 -5px; background: linear-gradient(180deg, #38bdf870 calc(var(--av) / 2 + .6rem), #38bdf800); filter: blur(4px); }
 .stem::after { content: ""; position: absolute; top: 100%; left: 0; box-sizing: border-box; width: var(--turn); height: var(--turn); border: solid var(--steel); border-width: 0 0 var(--thick) var(--thick); border-bottom-left-radius: var(--turn); }
 /* Where the stops stand. --room is the width of the body; --c1 the centre of the first stop, just after the turn; --d the
    distance from one stop to the next, so that the last label ends level with the button below (--half is half a label:
    less room is kept when four share a row), but never further apart than --far. Each stop's cell is --d wide and
-   centred on its face. --trunk is where the stem stands, measured in a row's first cell. */
-.relay { --run: .75rem; --cols: var(--cp); --room: calc(100cqw - 2 * var(--pad)); --half: max(1.8rem, 4.6rem - var(--cols) * .7rem); --far: 11rem; --rowgap: .8rem;
-  --c1: calc(var(--stemx) + var(--turn) + var(--stop) / 2 + var(--run)); --trunk: calc(50% - var(--stop) / 2 - var(--run) - var(--thick) / 2 - var(--turn));
+   centred on its face. */
+.relay { --cols: var(--cp); --room: calc(100cqw - 2 * var(--pad)); --run: .2rem; --half: max(1.8rem, 4.6rem - var(--cols) * .7rem); --far: 8rem; --rowgap: .8rem;
+  --c1: calc(var(--av) / 2 + var(--turn) + var(--stop) / 2 + var(--run));
   --d: min(var(--far), calc((var(--room) - var(--c1) - var(--half)) / max(1, var(--cols) - 1)));
-  position: relative; display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); grid-auto-rows: 1fr; row-gap: var(--rowgap); justify-self: start; width: calc(var(--d) * var(--cols)); margin: 0 0 0 calc(var(--c1) - var(--d) / 2); padding: 0; list-style: none; }
+  display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); grid-auto-rows: 1fr; row-gap: var(--rowgap); justify-self: start; width: calc(var(--d) * var(--cols)); margin: 0 0 0 calc(var(--c1) - var(--d) / 2); padding: 0; list-style: none; }
 /* --s: this stop starts a row. --w: it starts a row after the first (a wrap). */
 .relay li { --s: var(--sp, 0); --w: var(--s); position: relative; display: grid; justify-items: center; align-content: start; gap: .4rem; min-width: 0; padding: 0 .3rem; text-align: center; }
 .relay li:first-child { --w: 0; }
 /* The line into each stop: from the stop before it, or from the turn (the first stop of a row). */
 .relay .rail { position: absolute; top: calc(var(--stop) / 2 - var(--thick) / 2); right: 50%; height: var(--thick); overflow: hidden; background: var(--steel); opacity: max(.72, 1 - var(--i) * .07);
-  left: calc(-50% * (1 - var(--s)) + (var(--trunk) + var(--turn)) * var(--s)); }
+  left: calc(-50% * (1 - var(--s)) + (50% - var(--stop) / 2 - var(--run) - var(--thick) / 2) * var(--s)); }
 /* When the order goes on in a second row, that row leaves the same line: the stem runs on down the side and turns into it. */
-.relay li::before { content: ""; position: absolute; box-sizing: border-box; left: var(--trunk); bottom: calc(100% - var(--stop) / 2 - var(--thick) / 2);
+.relay li::before { content: ""; position: absolute; box-sizing: border-box; left: calc(50% - var(--stop) / 2 - var(--run) - var(--thick) / 2 - var(--turn)); bottom: calc(100% - var(--stop) / 2 - var(--thick) / 2);
   width: calc(var(--w) * var(--turn)); height: calc(var(--w) * (100% + var(--rowgap) + var(--turn))); border: solid var(--steel); border-width: 0 0 calc(var(--w) * var(--thick)) calc(var(--w) * var(--thick)); border-bottom-left-radius: var(--turn); opacity: .72; }
+.relay { position: relative; }
 .relay .av { z-index: 1; width: var(--stop); height: var(--stop); box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--steel); }
 .relay .av .n { width: 18px; height: 18px; font-size: 11px; }
 .relay .person { grid-template-columns: minmax(0, 1fr); justify-items: center; width: 100%; }
@@ -168,29 +178,28 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .relay .rl { font-size: clamp(.64rem, .83rem - var(--cols) * .045rem, .6875rem); line-height: 1.4; color: var(--soft); white-space: nowrap; }
 /* One or two Secondaries: each name stands beside its face, and the line runs on between them (fitNames in
    calendar.js keeps this only while the names fit). */
-.relay.pairs { display: flex; align-items: flex-start; width: auto; justify-self: stretch; margin-left: calc(var(--stemx) - var(--thick) / 2 + var(--turn)); }
+.relay.pairs { display: flex; align-items: flex-start; width: auto; justify-self: stretch; margin-left: calc(var(--av) / 2 - var(--thick) / 2 + var(--turn)); }
 .relay.pairs li { display: flex; align-items: flex-start; flex: 0 1 auto; gap: 0; padding: 0; text-align: left; }
 .relay.pairs li + li { flex: 1 1 auto; }
 .relay.pairs .rail { position: static; flex: 0 0 calc(var(--run) + var(--thick) / 2); margin-top: calc(var(--stop) / 2 - var(--thick) / 2); }
-.relay.pairs li + li .rail { flex: 1 1 .625rem; min-width: .625rem; max-width: 5rem; margin-left: .45rem; }
-.relay.pairs .av { margin-right: .5rem; }
+.relay.pairs li + li .rail { flex: 1 1 .5rem; min-width: .5rem; max-width: 5rem; margin-left: .35rem; }
+.relay.pairs .av { margin-right: .4rem; }
 .relay.pairs .person { flex: 0 1 auto; justify-items: start; align-content: center; width: auto; min-height: var(--stop); }
 .relay.pairs .nm { font-size: .92rem; }
 .relay.pairs .rl { font-size: .6875rem; }
 
-/* Outside office hours: who is next on duty and from when, with that day's Secondaries on a smaller, quieter rail.
-   Here the stem drops from the middle of the next Primary's small face. */
-.next-cover { --box: .85rem; --av: 2.5rem; display: grid; gap: var(--gap); padding: .75rem var(--box) .85rem; border-radius: 16px; background: var(--raised); }
-.next-cover, .next-cover .relay { --stop: 1.75rem; --turn: .7rem; --thick: 2px; --run: .7rem; --gap: .6rem; --stemx: calc(var(--av) / 2); }
+/* Outside office hours: who is next on duty and from when, with that day's Secondaries on a smaller, quieter rail. */
+.next-cover { --box: .85rem; --av: 2.5rem; --lift: 0px; --stop: 1.75rem; --turn: .7rem; --thick: 2px; --gap: .6rem; display: grid; gap: var(--gap); padding: .75rem var(--box) .85rem; border-radius: 16px; background: var(--raised); }
 .next-cover .who-line { position: relative; display: grid; grid-template-columns: var(--av) minmax(0, 1fr); column-gap: .7rem; align-items: center; min-width: 0; }
 .next-cover .who-line > .av { z-index: 1; width: var(--av); height: var(--av); box-shadow: 0 0 0 2px var(--raised), 0 0 0 3.5px var(--accent); }
 .next-cover .who-line .nm { font-size: 1.05rem; font-weight: 800; }
-.next-cover .stem { top: 50%; background: linear-gradient(180deg, var(--accent) .3rem, var(--edge)); }
-.next-cover .stem::after { border-color: var(--edge); }
-.next-cover .relay { --room: calc(100cqw - 2 * var(--pad) - 2 * var(--box)); --half: max(1.7rem, 4.2rem - var(--cols) * .65rem); --far: 7.5rem; --rowgap: .6rem; }
+.next-cover .stem { background: linear-gradient(180deg, var(--accent) calc(var(--av) / 2 + .3rem), var(--edge)); }
+.next-cover .stem::before { content: none; }
+.next-cover .stem::after, .next-cover .relay li::before { border-color: var(--edge); }
 .next-cover .relay .rail { background: var(--edge); opacity: 1; }
-.next-cover .relay li::before { border-color: var(--edge); opacity: 1; }
+.next-cover .relay { --room: calc(100cqw - 2 * var(--pad) - 2 * var(--box)); --run: .7rem; --half: max(1.7rem, 4.2rem - var(--cols) * .65rem); --far: 7.5rem; --rowgap: .6rem; }
 .next-cover .relay li { gap: .3rem; }
+.next-cover .relay li::before { opacity: 1; }
 .next-cover .relay .av { box-shadow: 0 0 0 2px var(--raised), 0 0 0 3.5px var(--edge); }
 .next-cover .relay .av .n { right: -5px; bottom: -4px; width: 15px; height: 15px; font-size: 9.5px; }
 .next-cover .relay .nm, .next-cover .relay .nm-short { font-size: .74rem; font-weight: 600; color: #b9cfd8; }
@@ -238,24 +247,50 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .gap-when { color: #ffb4ad; font-size: .78rem; font-weight: 600; }
 .nobody { color: var(--danger); font-size: .85rem; font-weight: 700; }
 
-/* Smaller phones: the button's words on one line. The narrowest phones: three stops to a row. */
-@container card (max-width: 349.98px) { .hero-body > .btn.wa { gap: .5rem; padding-inline: .5rem; font-size: .92rem; white-space: nowrap; } }
-@container card (max-width: 324.98px) {
+/* Smaller phones: slimmer sides. */
+@container card (max-width: 349.98px) { .hero-scene, .hero-body { --pad: 1.1rem; } }
+/* Phones under about 370px wide: three stops to a row, and the button's words a little smaller so they stay on one line. */
+@container card (max-width: 339.98px) {
   .relay { --cols: var(--cn); }
   .relay li { --s: var(--sn, 0); }
+  .hero-body > .btn.wa { gap: .5rem; padding-inline: .5rem; font-size: .92rem; white-space: nowrap; }
 }
-/* Wide cards (tablets and desktops): bigger stops, and six to a row. */
+/* The narrowest phones: a slightly smaller face and name, so the label and the name still fit beside the face. */
+@container card (max-width: 324.98px) {
+  .hero-scene, .hero-body { --av: 5rem; --lift: 2.25rem; --beside: .7rem; }
+  .hero-caption { bottom: .3rem; font-size: .72rem; }
+  .hero-lead .eyebrow { letter-spacing: .04em; }
+  .hero-name .name { font-size: 1.9rem; }
+  .hero-name .name.long { font-size: 1.55rem; }
+  .hero-name .name.longer { font-size: 1.3rem; }
+}
+/* Tablets and desktops: everything a size up, and six stops to a row. The Primary's name and the button stand together
+   beside the face, the line runs down past them, and the rail closes the card across its full width. */
 @container card (min-width: 520px) {
-  .hero-body { --stop: 3.25rem; --turn: 1.25rem; }
-  .relay { --cols: var(--cw); --half: max(2.6rem, 5.4rem - var(--cols) * .7rem); --rowgap: 1.1rem; }
+  .hero-scene, .hero-body { --pad: 1.75rem; --av: 7rem; --lift: 3rem; --beside: 1.25rem; --stop: 3.25rem; --turn: 1.25rem; --gap: 1.1rem; }
+  .hero-caption { font-size: .88rem; }
+  .has-lead .hero-caption { bottom: .8rem; }
+  .hero-body > .hero-name { margin-top: 1.2rem; }
+  .has-lead .hero-body { grid-template-columns: var(--av) minmax(0, 1fr); column-gap: var(--beside); }
+  .hero-lead { display: contents; }
+  .hero-lead .av.big { grid-area: 1 / 1 / 3 / 2; align-self: start; }
+  .hero-lead .hero-name { grid-area: 1 / 2; padding-top: .9rem; }
+  .hero-body > .btn.wa { justify-self: start; padding-inline: 1.75rem; }
+  .has-lead .hero-body > .btn.wa { grid-area: 2 / 2; }
+  .has-lead .hero-body > .relay { grid-area: 3 / 1 / 4 / -1; }
+  .hero-lead .stem { position: relative; grid-area: 1 / 1 / 3 / 2; justify-self: center; left: auto; top: auto; bottom: auto; margin: calc(var(--av) / 2 - var(--lift)) 0 calc(var(--turn) - var(--gap) - var(--stop) / 2 - var(--thick) / 2); }
+  .av.big .lock { width: 2.1rem; height: 2.1rem; }
+  .hero-name .name { font-size: 2.8rem; }
+  .hero-name .name.long { font-size: 2.4rem; }
+  .hero-name .name.longer { font-size: 2rem; }
+  .relay { --cols: var(--cw); --half: max(2.6rem, 5.4rem - var(--cols) * .7rem); --far: 11rem; --rowgap: 1.1rem; }
   .relay li { --s: var(--sw, 0); gap: .5rem; }
   .relay .nm, .relay .nm-short { font-size: 1rem; }
   .relay .rl { font-size: clamp(.68rem, 1.02rem - var(--cols) * .06rem, .78rem); }
   .relay.pairs .nm { font-size: 1.05rem; }
   .relay.pairs .rl { font-size: .8rem; }
   .relay.pairs .av { margin-right: .8rem; }
-  .next-cover { --box: 1rem; --av: 2.75rem; padding: .9rem var(--box) 1rem; }
-  .next-cover, .next-cover .relay { --stop: 2rem; --turn: .8rem; --gap: .7rem; }
+  .next-cover { --box: 1rem; --av: 2.75rem; --stop: 2rem; --turn: .8rem; --gap: .7rem; padding: .9rem var(--box) 1rem; }
   .next-cover .relay { --far: 6.5rem; }
   .next-cover .relay .nm, .next-cover .relay .nm-short { font-size: .8rem; }
   .next-cover .relay .rl { font-size: .68rem; }
@@ -265,14 +300,6 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
   .duty { grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 1.25rem; }
   .duty.solo { grid-template-columns: minmax(0, 44rem); }
   .duty-side { gap: 1rem; }
-  .hero-body { --pad: 1.75rem; --gap: 1.1rem; }
-  .hero-lead { --stemtop: .5rem; }
-  .hero-who { gap: 1.25rem; margin-top: -3rem; }
-  .hero-caption { margin-bottom: .35rem; font-size: .88rem; }
-  .av.big { width: 7rem; height: 7rem; }
-  .av.big .lock { width: 2.1rem; height: 2.1rem; }
-  .hero-name .name { font-size: 2.8rem; }
-  .hero-card .btn.wa { justify-self: start; padding-inline: 1.75rem; }
   .sub, .gaps { padding: 1rem; }
 }
 
@@ -288,9 +315,11 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 @keyframes rail-along { from { transform: scaleX(0); } }
 @keyframes rail-show { from { opacity: 0; } }
 @keyframes stop-in { from { opacity: 0; transform: scale(.82); } }
+.av.big::after { content: ""; position: absolute; inset: -6.5px; border-radius: 50%; box-shadow: 0 0 26px 8px #38bdf873; opacity: 0; animation: halo 9s ease-in-out 1.7s infinite; }
 .relay .rail::after { content: ""; position: absolute; top: 0; left: 0; width: 46%; height: 100%; background: linear-gradient(90deg, #e6f6ff00, #e6f6ff, #e6f6ff00); transform: translateX(-105%); animation: glint 9s linear calc(2.6s + var(--i) * .27s) infinite; }
 .relay .av::after { content: ""; position: absolute; inset: -4.5px; border-radius: 50%; box-shadow: 0 0 0 1.5px #d7e8ee, 0 0 10px 1px #9bb8c466; opacity: 0; animation: ping 9s ease-out calc(2.75s + var(--i) * .27s) infinite; }
 .next-cover .relay .rail::after, .next-cover .relay .av::after { content: none; }
+@keyframes halo { 0%, 22%, 100% { opacity: 0; } 9% { opacity: 1; } }
 @keyframes glint { 0% { transform: translateX(-105%); } 3%, 100% { transform: translateX(225%); } }
 @keyframes ping { 0%, 9%, 100% { opacity: 0; } 2% { opacity: .9; } }
 @media (prefers-reduced-motion: reduce) { .hero-card *, .hero-card *::before, .hero-card *::after { animation: none !important; } }

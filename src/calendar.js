@@ -130,14 +130,13 @@ const perRow = (n, max) => Math.ceil(n / Math.ceil(n / max));
 
 /**
  * The Secondaries as stops on one rail, in the order to try them: a face on the line with its number,
- * then the name and the role. The rail starts at the Primary's face: a line (the .stem next to it) comes
- * down from the face, turns, and runs on through the stops.
+ * then the name and the role. The rail starts at the Primary's face (the .stem next to it).
  * The narrowest phones fit 3 stops on a row, phones 4 and wider cards 6; styles.css picks by the card's
  * width, and --s marks the stops that start a row, so the line knows where to turn into the next one.
  */
 function relay(list, people) {
   const n = list.length, rows = { n: perRow(n, 3), p: perRow(n, 4), w: perRow(n, 6) };
-  const wraps = i => Object.entries(rows).map(([k, c]) => i % c ? '' : `--s${k}:1;`).join('');
+  const wraps = i => Object.entries(rows).map(([k, c]) => i % c === 0 ? `--s${k}:1;` : '').join('');
   return `<h3 class="sr-only" id="sec-h">${n === 1 ? 'Secondary' : 'Secondaries, in backup order'}</h3>
     <ol class="backups relay${n <= 2 ? ' pairs' : ''}" aria-labelledby="sec-h" style="--cn:${rows.n};--cp:${rows.p};--cw:${rows.w}">${list.map((x, i) =>
     `<li style="--i:${i};${wraps(i)}" title="${esc(x.name)}"><i class="rail" aria-hidden="true"></i>${avatar(x.name, '', `<b class="n">${i + 1}</b>`)}<span class="person"><span class="nm">${esc(x.name)}</span><span class="nm-short" aria-hidden="true">${esc(shortName(x.name, people))}</span><span class="rl">${esc(x.role)}</span></span></li>`).join('')}</ol>`;
@@ -207,21 +206,24 @@ async function renderToday() {
   const secondaries = primary ? day.duties.slice(1) : [];
   const rail = secondaries.length ? relay(secondaries, data.people) : '';
   const stem = rail ? '<i class="stem" aria-hidden="true"></i>' : '';
-  // Weekends and holidays read the same way: say why there is no duty, then who is next (a smaller, quieter rail).
+  // A long name, or one with a long word in it, is set a little smaller, so it stays on one or two lines beside the face.
+  const fit = name => { const word = Math.max(...name.split(/\s+/).map(w => w.length)); return name.length > 18 || word > 12 ? ' longer' : name.length > 11 || word > 9 ? ' long' : ''; };
+  // Weekends and holidays read the same way: say why there is no duty, then who is next (a quieter, smaller rail).
   const who = noDutyNow ? `<div class="hero-name"><span class="eyebrow warn">${closed ? 'Outside office hours' : 'No duty today'}</span>
       <p class="hero-none">${closed ? 'No one is on duty now.' : why}</p>${closed ? '<span class="hero-role">Office hours are 9am to 6pm on working days.</span>' : ''}</div>
     ${day ? `<div class="next-cover"><span class="eyebrow">Next on duty · ${nextWhen}</span>
       ${primary ? `<div class="who-line">${stem}${avatar(primary.name)}<span class="person"><span class="nm">${esc(primary.name)}</span><span class="rl">Primary · ask for OTP</span></span></div>${rail}` : '<p class="hero-note">No one is available that day.</p>'}</div>` : ''}`
-    : !day ? '' : `<div class="hero-name"><span class="eyebrow${working && !primary ? ' warn' : ''}">${!working ? 'Next duty day · ' + fmt(day.date) : primary ? 'Primary · ask for OTP' : 'No duty cover today'}</span>
-      ${primary ? `<p class="name">${esc(primary.name)}</p>${working ? '' : '<span class="hero-role">Primary · ask for OTP</span>'}` : '<p class="hero-none">No one is available for duty.</p>'}</div>`;
-  // The Primary's block is as it always was: the big face on the edge of the scene with the caption beside it,
-  // then the label and the name. With Secondaries, the stem comes down its left side from the face's ring.
-  const top = `<div class="hero-who${lead ? '' : ' plain'}">${lead ? avatar(lead.name, 'big', `<span class="lock">${ICON_LOCK}</span>`) : ''}<p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div>`;
-  const hero = `<section class="hero-card" aria-labelledby="today-h">
+    : !day ? '' : lead ? `<div class="hero-lead">${stem}${avatar(lead.name, 'big', `<span class="lock">${ICON_LOCK}</span>`)}
+      <div class="hero-name"><span class="eyebrow">${working ? 'Primary · ask for OTP' : 'Next duty day · ' + fmt(day.date)}</span>
+        <p class="name${fit(lead.name)}">${esc(lead.name)}</p>${working ? '' : '<span class="hero-role">Primary · ask for OTP</span>'}</div></div>${rail}`
+    : `<div class="hero-name"><span class="eyebrow${working ? ' warn' : ''}">${working ? 'No duty cover today' : 'Next duty day · ' + fmt(day.date)}</span>
+      <p class="hero-none">No one is available for duty.</p></div>`;
+  // The scene's caption sits on its floor, like a subtitle, beside the Primary's face when there is one.
+  const hero = `<section class="hero-card${lead ? ' has-lead' : ''}" aria-labelledby="today-h">
     <h2 class="sr-only" id="today-h">2FA Login, ${fmt(t)}</h2>
-    <div class="hero-scene">${scene.svg}<span class="wall-date"><i></i>${sign}</span></div>
+    <div class="hero-scene">${scene.svg}<span class="wall-date"><i></i>${sign}</span><p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div>
     <div class="hero-body">
-      ${lead ? `<div class="hero-lead${rail ? ' linked' : ''}">${stem}${top}${who}</div>${rail}` : top + who}${share}
+      ${who}${share}
     </div>
   </section>`;
 
