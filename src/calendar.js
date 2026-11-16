@@ -102,13 +102,15 @@ function render(data, from) {
   const weekendNote = weekendToday && state.month === thisMonth ? `<p class="today-note">Today is ${fromISO(t).toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long' })}. No duty at weekends.</p>` : '';
 
   // A routine refresh that changes nothing leaves the page alone, so a glow in mid-swell isn't cut off.
+  // On a weekend at the end of a month the button leads to the month about to start, so it names that month.
+  const thisLabel = thisMonth === t.slice(0, 7) ? 'This month' : fromISO(nextDay).toLocaleDateString('en-SG', { month: 'long' });
   const motion = from ? ' from-' + from : calShown ? '' : ' enter';
   const html = motion => `
   <section class="panel cal-panel">
     <div class="cal-head">
       <h2>${monthName}</h2>
       <div class="month-nav">
-        ${state.month === thisMonth ? '' : '<button class="btn small" id="this">This month</button>'}
+        ${state.month === thisMonth ? '' : `<button class="btn small" id="this">${thisLabel}</button>`}
         <button class="btn icon" id="prev" aria-label="Previous month">${ICON_PREV}</button>
         <button class="btn icon" id="next" aria-label="Next month">${ICON_NEXT}</button>
       </div>

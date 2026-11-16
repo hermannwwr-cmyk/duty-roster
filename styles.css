@@ -451,11 +451,11 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
    None of it runs for people who turn off animations. */
 .cal .cell { --d: calc(max(var(--r) - var(--tr), var(--tr) - var(--r)) + max(var(--c) - var(--tc), var(--tc) - var(--c))); }
 .cal.enter .cell { animation: cell-in .34s cubic-bezier(.2, .8, .2, 1) calc(var(--d) * 40ms) backwards; }
-.cal.from-next .cell { animation: month-in-next .26s cubic-bezier(.2, .8, .2, 1) calc((4 - var(--c)) * 25ms) backwards; }
-.cal.from-prev .cell { animation: month-in-prev .26s cubic-bezier(.2, .8, .2, 1) calc(var(--c) * 25ms) backwards; }
+.cal.from-next .cell { animation: month-in-next .3s cubic-bezier(.2, .8, .2, 1) calc((4 - var(--c)) * 25ms) backwards; }
+.cal.from-prev .cell { animation: month-in-prev .3s cubic-bezier(.2, .8, .2, 1) calc(var(--c) * 25ms) backwards; }
 @keyframes cell-in { from { opacity: 0; transform: translateY(8px); } }
-@keyframes month-in-next { from { opacity: .3; transform: translateX(12px); } }
-@keyframes month-in-prev { from { opacity: .3; transform: translateX(-12px); } }
+@keyframes month-in-next { from { opacity: 0; transform: translateX(12px); } }
+@keyframes month-in-prev { from { opacity: 0; transform: translateX(-12px); } }
 .cell.is-next { position: relative; z-index: 1; }
 .cell.is-today::after, .cell.is-next::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 0 22px 5px #38bdf899; opacity: 0; pointer-events: none; animation: halo 5s ease-in-out 1.2s infinite; }
 /* "Next" is not today: its outline brightens, with no glow around it. */

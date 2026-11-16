@@ -306,6 +306,8 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   pub = await open('/calendar.html#calendar', '2026-10-31T03:00:00Z');   // Saturday 31 October: the next working day is in November
   check('M6 weekend at the end of a month: the Forecast opens on the month of the next working day, whose outline pulses without a glow', (await pub.locator('.cal-head h2').innerText()) === 'November 2026' && await pub.locator('.cal .is-next').count() === 1
     && await pub.evaluate(() => { const a = getComputedStyle(document.querySelector('.cell.is-next'), '::after'); return a.animationName === 'halo' && a.boxShadow.includes('inset'); }) && await pub.locator('#this').count() === 0);
+  await pub.click('#prev'); await settle(pub);
+  check('M7 from there, the way back is named after the month it leads to', (await pub.locator('.cal-head h2').innerText()) === 'October 2026' && (await pub.locator('#this').innerText()) === 'November');
   await pub.close();
 
   /* ---------- L. Two Secondaries stand side by side, and the card still looks right after a routine refresh ---------- */
