@@ -248,6 +248,8 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   await pub.close();
   pub = await open('/calendar.html', '2026-11-16T10:30:00Z');   // 6:30pm in Singapore
   check('I4 after 6pm: next on duty is tomorrow\'s Primary', (await pub.locator('.next-cover .eyebrow').textContent()) === 'Next on duty · 9am tomorrow' && (await pub.locator('.next-cover .who-line .nm').innerText()) === tuesdays, await pub.locator('.next-cover').innerText());
+  check('I4b after 6pm: the next line-up has the same glow and glint as in office hours', await pub.evaluate(() => getComputedStyle(document.querySelector('.next-cover .who-line > .av'), '::after').animationName === 'halo'
+    && getComputedStyle(document.querySelector('.next-cover .relay .rail'), '::after').animationName === 'glint' && getComputedStyle(document.querySelector('.next-cover .relay .av'), '::after').animationName === 'ping'));
   check('I5 after 6pm: Up next starts tomorrow, and the message is for tomorrow', !(await pub.locator('.strip').innerText()).includes('Today') && decodeURIComponent(await pub.locator('a.btn.wa').getAttribute('href')).includes('Tue, 17 Nov'));
   await pub.close();
   pub = await open('/calendar.html', '2026-11-16T09:59:30Z');   // 5:59:30pm: open, then it switches by itself at 6pm
@@ -275,6 +277,23 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   await pub.close();
   pub = await open('/calendar.html#calendar');
   check('J3 weekday: no weekend note and no "Next" mark', await pub.locator('.today-note, .cal .is-next').count() === 0);
+  await pub.close();
+
+  /* ---------- L. Two Secondaries stand side by side, and the card still looks right after a routine refresh ---------- */
+  // The entrance plays on the first draw only. A refresh redraws the card without it, which once let the glint escape its line.
+  pub = await open('/calendar.html');
+  await pub.evaluate(() => { const db = JSON.parse(localStorage.getItem('duty-roster-demo'));
+    const keep = [document.querySelector('.hero-name .name').textContent, ...[...document.querySelectorAll('.backups .nm')].slice(0, 2).map(el => el.textContent)];
+    db.profiles.filter(person => !keep.includes(person.display_name)).forEach((person, i) => db.leaves.push({ id: 950 + i, user_id: person.id, start_date: '2026-11-16', end_date: '2026-11-16', note: '' }));
+    localStorage.setItem('duty-roster-demo', JSON.stringify(db)); });
+  await pub.close();
+  pub = await open('/calendar.html');
+  const glintFits = () => pub.evaluate(() => [...document.querySelectorAll('.relay .rail')].every(rail => { const glint = getComputedStyle(rail, '::after'), box = rail.getBoundingClientRect();
+    return parseFloat(glint.height) <= box.height + .5 && parseFloat(glint.width) <= box.width + .5; }));
+  check('L1 two Secondaries: side by side on the card, and the glint stays on the line', await pub.locator('.hero-card .relay.pairs li').count() === 2 && await pub.locator('#today.enter').count() === 1 && await glintFits());
+  await pub.clock.runFor(5 * 60 * 1000 + 2000); await settle(pub);
+  check('L2 after a routine refresh: redrawn without the entrance, and the glint still stays on the line', await pub.locator('.hero-card .relay.pairs li').count() === 2 && await pub.locator('#today.enter').count() === 0 && await glintFits());
+  await pub.evaluate(() => { const db = JSON.parse(localStorage.getItem('duty-roster-demo')); db.leaves = db.leaves.filter(l => !(l.id >= 950 && l.id < 990)); localStorage.setItem('duty-roster-demo', JSON.stringify(db)); });
   await pub.close();
 
   /* ---------- H. A working day when nobody is available ---------- */

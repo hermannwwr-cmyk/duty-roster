@@ -181,7 +181,8 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .relay.pairs { display: flex; align-items: flex-start; width: auto; justify-self: stretch; margin-left: calc(var(--av) / 2 - var(--thick) / 2 + var(--turn)); }
 .relay.pairs li { display: flex; align-items: flex-start; flex: 0 1 auto; gap: 0; padding: 0; text-align: left; }
 .relay.pairs li + li { flex: 1 1 auto; }
-.relay.pairs .rail { position: static; flex: 0 0 calc(var(--run) + var(--thick) / 2); margin-top: calc(var(--stop) / 2 - var(--thick) / 2); }
+/* The line stays positioned (in the row, not moved), so the glint inside it is measured from the line and clipped by it. */
+.relay.pairs .rail { position: relative; top: auto; right: auto; left: auto; flex: 0 0 calc(var(--run) + var(--thick) / 2); margin-top: calc(var(--stop) / 2 - var(--thick) / 2); }
 .relay.pairs li + li .rail { flex: 1 1 .5rem; min-width: .5rem; max-width: 5rem; margin-left: .35rem; }
 .relay.pairs .av { margin-right: .4rem; }
 .relay.pairs .person { flex: 0 1 auto; justify-items: start; align-content: center; width: auto; min-height: var(--stop); }
@@ -319,7 +320,9 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .av.big::after { content: ""; position: absolute; inset: -6.5px; border-radius: 50%; box-shadow: 0 0 26px 8px #38bdf873; opacity: 0; animation: halo 5s ease-in-out 1.7s infinite; }
 .relay .rail::after { content: ""; position: absolute; top: 0; left: 0; width: 46%; height: 100%; background: linear-gradient(90deg, #e6f6ff00, #e6f6ff, #e6f6ff00); transform: translateX(-105%); animation: glint 5s linear calc(2.6s + var(--i) * .27s) infinite; }
 .relay .av::after { content: ""; position: absolute; inset: -4.5px; border-radius: 50%; box-shadow: 0 0 0 1.5px #d7e8ee, 0 0 10px 1px #9bb8c466; opacity: 0; animation: ping 5s ease-out calc(2.75s + var(--i) * .27s) infinite; }
-.next-cover .relay .rail::after, .next-cover .relay .av::after { content: none; }
+/* Outside office hours the same cycle runs on the smaller rail: the next Primary's ring glows, then the glint. */
+.next-cover .who-line > .av::after { content: ""; position: absolute; inset: -3.5px; border-radius: 50%; box-shadow: 0 0 16px 5px #38bdf873; opacity: 0; animation: halo 5s ease-in-out 1.7s infinite; }
+.next-cover .relay .av::after { inset: -3.5px; }
 @keyframes halo { 0%, 40%, 100% { opacity: 0; } 16% { opacity: 1; } }
 @keyframes glint { 0% { transform: translateX(-105%); } 5.4%, 100% { transform: translateX(225%); } }
 @keyframes ping { 0%, 16%, 100% { opacity: 0; } 3.6% { opacity: .9; } }
