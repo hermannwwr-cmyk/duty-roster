@@ -67,6 +67,9 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   let pub = await open('/calendar.html');
   check('A1 public: today\'s Primary is shown', (await pub.locator('.hero-name .name').innerText()) === 'Alice Tan');
   check('A2 public: four Secondaries in order', (await pub.locator('.backups .nm').allTextContents()).join() === 'Ben Lim,Chloe Ng,Dev Kumar,Elena Goh');
+  check('A2b public: the Secondaries are on the Primary\'s card, numbered, each with a name and a role', await pub.locator('.hero-card ol.backups li').count() === 4 && await pub.locator('.duty-side .backups').count() === 0
+    && (await pub.locator('.backups .n').allTextContents()).join() === '1,2,3,4' && (await pub.locator('.backups .rl').allTextContents()).join() === 'Secondary 1,Secondary 2,Secondary 3,Secondary 4');
+  check('A2c public: the button can be tapped without scrolling', await pub.evaluate(() => document.querySelector('a.btn.wa').getBoundingClientRect().bottom + scrollY <= 640));
   check('A3 public: Up next shows three working days', (await pub.locator('.strip li').count()) === 3 && (await pub.locator('.strip .nm').allTextContents()).join() === 'Alice,Ben,Chloe');
   const want = rosterMessage({ date: '2026-11-16', duties: ['Alice Tan', 'Ben Lim', 'Chloe Ng', 'Dev Kumar', 'Elena Goh'].map((name, i) => ({ role: i ? 'Secondary ' + i : 'Primary', name })) }, BASE + '/calendar.html');
   const got = decodeURIComponent((await pub.locator('a.btn.wa').getAttribute('href')).replace('https://wa.me/?text=', ''));
@@ -223,24 +226,28 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   check('G1 swipe: left goes to Forecast, right comes back', fwd === 'page' && (await pub.locator('[data-tab=today]').getAttribute('aria-current')) === 'page');
   await swipe(app, 300, 80); await settle(app);
   check('G2 swipe: works in the signed-in app too', (await app.locator('[data-tab=leave]').getAttribute('aria-current')) === 'page');
+  // With animations on, a glint travels the rail now and then; with reduced motion nothing on the card or in the scene moves.
+  const moving = await pub.evaluate(() => getComputedStyle(document.querySelector('.relay .rail'), '::after').animationName === 'glint');
   await pub.emulateMedia({ reducedMotion: 'reduce' });
-  const still = await pub.evaluate(() => [...document.querySelectorAll('.engineer *, .btn.wa')].every(el => getComputedStyle(el).animationName === 'none'));
+  const still = moving && await pub.evaluate(() => [...document.querySelectorAll('.engineer *, .btn.wa, .hero-card *')].every(el => [null, '::before', '::after'].every(p => getComputedStyle(el, p).animationName === 'none')));
   check('G3 reduced motion: nothing on the page animates', still);
   await pub.close(); await app.close();
 
   /* ---------- I. Outside office hours (9am to 6pm) on a working day ---------- */
   pub = await open('/calendar.html');
   const todays = await pub.locator('.hero-name .name').innerText();
+  const todaysBackups = (await pub.locator('.backups .nm').allTextContents()).join();
   await tab(pub, 'calendar');
   const tuesdays = await cell(pub, 17).locator('.duty-list li.p .full').innerText();
   await pub.close();
   pub = await open('/calendar.html', '2026-11-16T00:30:00Z');   // 8:30am in Singapore
   check('I1 before 9am: says no one is on duty now, with no big face', (await pub.locator('.hero-name .eyebrow').textContent()) === 'Outside office hours' && (await pub.locator('.hero-none').innerText()) === 'No one is on duty now.' && await pub.locator('.av.big').count() === 0, await pub.locator('.hero-name').innerText());
-  check('I2 before 9am: next on duty is today\'s Primary, from 9am today', (await pub.locator('.next-cover .eyebrow').textContent()) === 'Next on duty · 9am today' && (await pub.locator('.next-cover .nm').innerText()) === todays, await pub.locator('.next-cover').innerText());
+  check('I2b before 9am: that day\'s Secondaries are in the same box, in order', todaysBackups.length > 0 && (await pub.locator('.hero-card .next-cover .backups .nm').allTextContents()).join() === todaysBackups);
+  check('I2 before 9am: next on duty is today\'s Primary, from 9am today', (await pub.locator('.next-cover .eyebrow').textContent()) === 'Next on duty · 9am today' && (await pub.locator('.next-cover .who-line .nm').innerText()) === todays, await pub.locator('.next-cover').innerText());
   check('I3 before 9am: the room is closed and the button shares rather than asks', (await pub.locator('.engineer').getAttribute('class')).includes('scene-closed') && (await pub.locator('a.btn.wa').innerText()).trim() === 'Tell the team on WhatsApp');
   await pub.close();
   pub = await open('/calendar.html', '2026-11-16T10:30:00Z');   // 6:30pm in Singapore
-  check('I4 after 6pm: next on duty is tomorrow\'s Primary', (await pub.locator('.next-cover .eyebrow').textContent()) === 'Next on duty · 9am tomorrow' && (await pub.locator('.next-cover .nm').innerText()) === tuesdays, await pub.locator('.next-cover').innerText());
+  check('I4 after 6pm: next on duty is tomorrow\'s Primary', (await pub.locator('.next-cover .eyebrow').textContent()) === 'Next on duty · 9am tomorrow' && (await pub.locator('.next-cover .who-line .nm').innerText()) === tuesdays, await pub.locator('.next-cover').innerText());
   check('I5 after 6pm: Up next starts tomorrow, and the message is for tomorrow', !(await pub.locator('.strip').innerText()).includes('Today') && decodeURIComponent(await pub.locator('a.btn.wa').getAttribute('href')).includes('Tue, 17 Nov'));
   await pub.close();
   pub = await open('/calendar.html', '2026-11-16T09:59:30Z');   // 5:59:30pm: open, then it switches by itself at 6pm

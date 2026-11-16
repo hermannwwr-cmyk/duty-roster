@@ -125,6 +125,43 @@ function howSoon(today, date) {
   return days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : 'in ' + days + ' days';
 }
 
+/** Stops on one row of the rail when at most `max` fit, keeping the rows even (5 people with room for 4 → 3 + 2). */
+const perRow = (n, max) => Math.ceil(n / Math.ceil(n / max));
+
+/**
+ * The Secondaries as stops on one rail, in the order to try them: a face on the line with its number,
+ * then the name and the role. The rail starts at the Primary's face (the .stem next to it).
+ * The narrowest phones fit 3 stops on a row, phones 4 and wider cards 6; styles.css picks by the card's
+ * width, and --s marks the stops that start a row, so the line knows where to turn into the next one.
+ */
+function relay(list, people) {
+  const n = list.length, rows = { n: perRow(n, 3), p: perRow(n, 4), w: perRow(n, 6) };
+  const wraps = i => Object.entries(rows).map(([k, c]) => i % c === 0 ? `--s${k}:1;` : '').join('');
+  return `<h3 class="sr-only" id="sec-h">${n === 1 ? 'Secondary' : 'Secondaries, in backup order'}</h3>
+    <ol class="backups relay${n <= 2 ? ' pairs' : ''}" aria-labelledby="sec-h" style="--cn:${rows.n};--cp:${rows.p};--cw:${rows.w}">${list.map((x, i) =>
+    `<li style="--i:${i};${wraps(i)}" title="${esc(x.name)}"><i class="rail" aria-hidden="true"></i>${avatar(x.name, '', `<b class="n">${i + 1}</b>`)}<span class="person"><span class="nm">${esc(x.name)}</span><span class="nm-short" aria-hidden="true">${esc(shortName(x.name, people))}</span><span class="rl">${esc(x.role)}</span></span></li>`).join('')}</ol>`;
+}
+
+/**
+ * Full names under the stops where every one fits: on its line, and without passing the edge the rail is
+ * measured to (the button's right edge). Otherwise first names for the whole rail, so they match.
+ */
+function fitNames() {
+  for (const list of document.querySelectorAll('#today .relay')) {
+    list.classList.remove('short', 'tight');
+    // One or two Secondaries stand with their names beside them while the names fit; otherwise under them, like a longer rail.
+    list.classList.toggle('pairs', list.children.length <= 2);
+    const box = list.parentElement, edge = box.getBoundingClientRect().right - parseFloat(getComputedStyle(box).paddingRight) + 1;
+    const cut = sel => [...list.querySelectorAll(sel)].some(el => el.scrollWidth > el.clientWidth + 1 || el.getBoundingClientRect().right > edge);
+    if (list.classList.contains('pairs') && cut('.nm, .rl')) list.classList.remove('pairs');
+    if (!list.classList.contains('pairs') && cut('.nm')) { list.classList.add('short'); if (cut('.nm-short')) list.classList.add('tight'); }
+  }
+}
+let fitting = 0;
+addEventListener('resize', () => { cancelAnimationFrame(fitting); fitting = requestAnimationFrame(fitNames); });
+document.fonts.ready.then(fitNames);
+let drawn = false;   // the rail draws itself the first time only, not at every refresh
+
 /** Today's duty at the top of the page, with a one-tap WhatsApp share. On a weekend or holiday, the next working day. */
 async function renderToday() {
   const t = todaySG();
@@ -163,28 +200,31 @@ async function renderToday() {
   }
   // Outside office hours: say no one is on duty now, then who is next and from when.
   const nextWhen = !day ? '' : day.date === t ? '9am today' : day.date === addDays(t, 1) ? '9am tomorrow' : '9am ' + fmt(day.date);
-  // Weekends and holidays read the same way: say why there is no duty, then who is next.
+  // Everyone else on duty that day shares the card with the Primary: one rail that starts at the Primary's
+  // face and runs through each Secondary, in the order to try them.
+  const secondaries = primary ? day.duties.slice(1) : [];
+  const rail = secondaries.length ? relay(secondaries, data.people) : '';
+  const stem = rail ? '<i class="stem" aria-hidden="true"></i>' : '';
+  // A long name is set a little smaller, so it stays on one or two lines beside the face.
+  const fit = name => name.length > 18 ? ' longer' : name.length > 11 ? ' long' : '';
+  // Weekends and holidays read the same way: say why there is no duty, then who is next (a quieter, smaller rail).
   const who = noDutyNow ? `<div class="hero-name"><span class="eyebrow warn">${closed ? 'Outside office hours' : 'No duty today'}</span>
       <p class="hero-none">${closed ? 'No one is on duty now.' : why}</p>${closed ? '<span class="hero-role">Office hours are 9am to 6pm on working days.</span>' : ''}</div>
     ${day ? `<div class="next-cover"><span class="eyebrow">Next on duty · ${nextWhen}</span>
-      ${primary ? `<div class="who-line">${avatar(primary.name)}<span class="person"><span class="nm">${esc(primary.name)}</span><span class="rl">Primary · ask for OTP</span></span></div>` : '<p class="hero-note">No one is available that day.</p>'}</div>` : ''}`
-    : !day ? '' : `<div class="hero-name"><span class="eyebrow${working && !primary ? ' warn' : ''}">${!working ? 'Next duty day · ' + fmt(day.date) : primary ? 'Primary · ask for OTP' : 'No duty cover today'}</span>
-      ${primary ? `<p class="name">${esc(primary.name)}</p>${working ? '' : '<span class="hero-role">Primary · ask for OTP</span>'}` : '<p class="hero-none">No one is available for duty.</p>'}</div>`;
-  const hero = `<section class="hero-card" aria-labelledby="today-h">
+      ${primary ? `<div class="who-line">${stem}${avatar(primary.name)}<span class="person"><span class="nm">${esc(primary.name)}</span><span class="rl">Primary · ask for OTP</span></span></div>${rail}` : '<p class="hero-note">No one is available that day.</p>'}</div>` : ''}`
+    : !day ? '' : lead ? `<div class="hero-lead">${stem}${avatar(lead.name, 'big', `<span class="lock">${ICON_LOCK}</span>`)}
+      <div class="hero-name"><span class="eyebrow">${working ? 'Primary · ask for OTP' : 'Next duty day · ' + fmt(day.date)}</span>
+        <p class="name${fit(lead.name)}">${esc(lead.name)}</p>${working ? '' : '<span class="hero-role">Primary · ask for OTP</span>'}</div></div>${rail}`
+    : `<div class="hero-name"><span class="eyebrow${working ? ' warn' : ''}">${working ? 'No duty cover today' : 'Next duty day · ' + fmt(day.date)}</span>
+      <p class="hero-none">No one is available for duty.</p></div>`;
+  // The scene's caption sits on its floor, like a subtitle, beside the Primary's face when there is one.
+  const hero = `<section class="hero-card${lead ? ' has-lead' : ''}" aria-labelledby="today-h">
     <h2 class="sr-only" id="today-h">2FA Login, ${fmt(t)}</h2>
-    <div class="hero-scene">${scene.svg}<span class="wall-date"><i></i>${sign}</span></div>
+    <div class="hero-scene">${scene.svg}<span class="wall-date"><i></i>${sign}</span><p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div>
     <div class="hero-body">
-      <div class="hero-who${lead ? '' : ' plain'}">${lead ? avatar(lead.name, 'big', `<span class="lock">${ICON_LOCK}</span>`) : ''}<p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div>
       ${who}${share}
     </div>
   </section>`;
-
-  // Everyone else on duty that day, in the order to try them.
-  const secondaries = day ? day.duties.slice(1) : [];
-  const backups = secondaries.length ? `<section class="panel sub" aria-labelledby="sec-h">
-    <div class="sub-head"><h3 id="sec-h">${secondaries.length === 1 ? 'Secondary' : 'Secondaries'}</h3>${secondaries.length > 1 ? '<span>in backup order</span>' : ''}</div>
-    <ol class="backups">${secondaries.map((x, i) => `<li>${avatar(x.name, '', `<b class="n">${i + 1}</b>`)}<span class="person"><span class="nm">${esc(x.name)}</span><span class="rl">${esc(x.role)}</span></span></li>`).join('')}</ol>
-  </section>` : '';
 
   // Who is Primary over the next three working days, so people know who to ask next.
   const coming = day ? data.days.filter(d => d.kind === 'work' && d.date >= day.date).slice(0, 3) : [];
@@ -205,8 +245,12 @@ async function renderToday() {
     <ul class="gap-list">${nobody.map(d => `<li><span class="gap-date">${fromISO(d.date).toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
       <span class="gap-when">${howSoon(t, d.date)}</span></li>`).join('')}</ul></section>` : '';
 
-  const side = backups + upNext + gaps;
-  document.getElementById('today').innerHTML = `<div class="duty${side ? '' : ' solo'}">${hero}${side ? `<div class="duty-side">${side}</div>` : ''}</div>`;
+  const side = upNext + gaps;
+  const root = document.getElementById('today');
+  root.innerHTML = `<div class="duty${side ? '' : ' solo'}">${hero}${side ? `<div class="duty-side">${side}</div>` : ''}</div>`;
+  root.classList.toggle('enter', !drawn);
+  drawn = true;
+  fitNames();
 }
 
 /* Two tabs: today's 2FA Login card and the month calendar. The address remembers which (#calendar). */
@@ -216,6 +260,7 @@ function setTab(tab) {
   document.querySelectorAll('[data-tab]').forEach(b => {
     if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   });
+  if (tab === 'today') fitNames();   // names can't be measured while the tab is hidden
 }
 document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
   history.replaceState(null, '', b.dataset.tab === 'calendar' ? '#calendar' : location.pathname + location.search);
