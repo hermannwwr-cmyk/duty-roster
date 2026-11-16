@@ -15,6 +15,8 @@
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
+/* Nothing may scroll the page sideways, not even a tab sliding in for a moment. */
+html, body { overflow-x: clip; }
 body { margin: 0; min-height: 100vh; color: var(--ink); font: 16px/1.5 var(--sans); -webkit-font-smoothing: antialiased;
   background: radial-gradient(50rem 30rem at 90% -10%, #0e749052 0, transparent 60%), radial-gradient(40rem 25rem at -10% 10%, #1e3a8a3d 0, transparent 60%), var(--bg) fixed; }
 button, input, select { font: inherit; color: inherit; }
@@ -443,7 +445,7 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 /* Motion on the Forecast. The first time it is on screen the days arrive in a ripple that starts at today's cell (--d is
    how many cells away a day is; --tr and --tc are today's row and column), so the eye is led to today. A change of month
    brings the days in from the side it came from, the nearest column first. Every 5 seconds, in step with the 2FA Login
-   card, today's cell (or the "Next" one at weekends) swells its glow and a glint passes under today's Primary's name;
+   card, today's cell swells its glow (the "Next" one at weekends only brightens its outline) and a glint passes under today's Primary's name;
    coming back to this month plays the glow at once. `halo` is the card's keyframes, worked out for 5 seconds.
    Transforms and opacity only, and the entrances fill backwards, so nothing is left transformed afterwards.
    None of it runs for people who turn off animations. */
@@ -452,11 +454,15 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .cal.from-next .cell { animation: month-in-next .26s cubic-bezier(.2, .8, .2, 1) calc((4 - var(--c)) * 25ms) backwards; }
 .cal.from-prev .cell { animation: month-in-prev .26s cubic-bezier(.2, .8, .2, 1) calc(var(--c) * 25ms) backwards; }
 @keyframes cell-in { from { opacity: 0; transform: translateY(8px); } }
-@keyframes month-in-next { from { opacity: .3; transform: translateX(20px); } }
-@keyframes month-in-prev { from { opacity: .3; transform: translateX(-20px); } }
+@keyframes month-in-next { from { opacity: .3; transform: translateX(12px); } }
+@keyframes month-in-prev { from { opacity: .3; transform: translateX(-12px); } }
 .cell.is-next { position: relative; z-index: 1; }
 .cell.is-today::after, .cell.is-next::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 0 22px 5px #38bdf899; opacity: 0; pointer-events: none; animation: halo 5s ease-in-out 1.2s infinite; }
+/* "Next" is not today: its outline brightens, with no glow around it. */
+.cell.is-next::after { box-shadow: inset 0 0 0 2px var(--primary); }
+/* Coming back to this month: the glow at once, and the glint on its peak as always (.8s after the glow starts). */
 .cal.from-next .cell.is-today::after, .cal.from-prev .cell.is-today::after, .cal.from-next .cell.is-next::after, .cal.from-prev .cell.is-next::after { animation-delay: .35s; }
+.cal.from-next .cell.is-today .duty-list li.p::after, .cal.from-prev .cell.is-today .duty-list li.p::after { animation-delay: 1.15s; }
 .cell.is-today .duty-list li.p { position: relative; isolation: isolate; }
 .cell.is-today .duty-list li.p::after { content: ""; position: absolute; z-index: -1; inset: 0 auto 0 0; width: 55%; background: linear-gradient(100deg, #ffffff00, #ffffff80, #ffffff00); transform: translateX(-110%); animation: pill-glint 5s linear 2s infinite; }
 @keyframes pill-glint { 0% { transform: translateX(-110%); } 8%, 100% { transform: translateX(200%); } }

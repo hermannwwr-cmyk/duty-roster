@@ -10,7 +10,10 @@ import { swipeTabs } from './swipe.js';
 
 const view = document.getElementById('view');
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const state = { month: todaySG().slice(0, 7) };
+/** `iso` itself on a weekday, otherwise the Monday after: the day the Forecast marks at a weekend. */
+const nextWeekday = iso => { while ([0, 6].includes(fromISO(iso).getDay())) iso = addDays(iso, 1); return iso; };
+// The Forecast opens on the month of that day, so a weekend at the end of a month shows the month about to start.
+const state = { month: nextWeekday(todaySG()).slice(0, 7) };
 
 const icon = (d, size = 18, width = 2.4) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICON_PREV = icon('<path d="M15 5l-7 7 7 7"/>'), ICON_NEXT = icon('<path d="M9 5l7 7-7 7"/>');
@@ -38,7 +41,7 @@ function gridFor(month) {
 }
 
 // The Forecast has been on screen once: its days arrive in a ripple the first time only, not at every refresh.
-let calShown = false;
+let calShown = false, drawnCal = '';   // drawnCal: what the Forecast last drew, without its motion class
 
 /** Draws `month`. `from` ('next' or 'prev') is the way it was reached, so the days slide in from that side. */
 async function show(month, from) {
@@ -63,7 +66,7 @@ function render(data, from) {
   // dashed slot stands for each person who is away. (Earlier days may simply have had a smaller team.)
   // At the weekend today has no cell (the grid is weekdays only), so the next weekday is marked "Next" instead.
   const weekendToday = [0, 6].includes(fromISO(t).getDay());
-  let nextDay = t; while ([0, 6].includes(fromISO(nextDay).getDay())) nextDay = addDays(nextDay, 1);
+  const nextDay = nextWeekday(t);
   const cells = [];
   let anyone = false, someoneAway = false, row = -1, mark = [0, 0];   // mark: the row and column of today's cell (or the "Next" one)
   for (let monday = g.start; monday <= g.end; monday = addDays(monday, 7)) {
@@ -95,10 +98,12 @@ function render(data, from) {
 
   // The legend lists only what this month shows.
   const legend = anyone ? `<div class="legend" role="group" aria-label="Legend"><span class="key"><span class="pill">Primary</span>then the backups, in order</span>${someoneAway ? '<span class="key"><span class="slot" aria-hidden="true"></span>someone is away</span>' : ''}</div>` : '';
-  const thisMonth = t.slice(0, 7), todayColumn = state.month === nextDay.slice(0, 7) ? fromISO(nextDay).getDay() : -1;
+  const thisMonth = nextDay.slice(0, 7), todayColumn = state.month === nextDay.slice(0, 7) ? fromISO(nextDay).getDay() : -1;
   const weekendNote = weekendToday && state.month === thisMonth ? `<p class="today-note">Today is ${fromISO(t).toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long' })}. No duty at weekends.</p>` : '';
 
-  view.innerHTML = `
+  // A routine refresh that changes nothing leaves the page alone, so a glow in mid-swell isn't cut off.
+  const motion = from ? ' from-' + from : calShown ? '' : ' enter';
+  const html = motion => `
   <section class="panel cal-panel">
     <div class="cal-head">
       <h2>${monthName}</h2>
@@ -110,8 +115,11 @@ function render(data, from) {
     </div>
     ${legend}${weekendNote}
     <div class="dows" aria-hidden="true">${['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((d, i) => `<span${i + 1 === todayColumn ? ' class="now"' : ''}>${d.toUpperCase()}</span>`).join('')}</div>
-    <ol class="cal${from ? ' from-' + from : calShown ? '' : ' enter'}" style="--tr:${mark[0]};--tc:${mark[1]}">${cells.join('')}</ol>
+    <ol class="cal${motion}" style="--tr:${mark[0]};--tc:${mark[1]}">${cells.join('')}</ol>
   </section>`;
+  if (!from && view.querySelector('.cal') && html('') === drawnCal) { if (!view.hidden) calShown = true; return; }
+  drawnCal = html('');
+  view.innerHTML = html(motion);
 
   // Changing month redraws the page; put focus back on the button that was pressed (issue #12).
   // "This month" goes away once you're there, so focus then moves to the next-month button.
@@ -277,7 +285,10 @@ document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
   setTab(b.dataset.tab);
 });
 setTab(location.hash === '#calendar' ? 'calendar' : 'today');
-swipeTabs(() => [document.getElementById('today'), view].find(el => !el.hidden));
+// A swipe brings the Forecast in with its own slide, so the ripple is left out then: one entrance per arrival.
+swipeTabs(() => { const shown = [document.getElementById('today'), view].find(el => !el.hidden);
+  if (shown === view) view.querySelectorAll('.cal.enter').forEach(el => el.classList.remove('enter'));
+  return shown; });
 
 try {
   store = await createStore();

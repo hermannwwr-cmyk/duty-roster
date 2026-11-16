@@ -220,7 +220,10 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
       document.body.dispatchEvent(new TouchEvent(type, { touches: type === 'touchend' ? [] : [touch], changedTouches: [touch], bubbles: true })); };
     t(a, 'touchstart'); t(z, 'touchend');
   }, [from, to]);
-  await swipe(pub, 300, 80); await settle(pub);
+  await swipe(pub, 300, 80);
+  const swipeSteady = await pub.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth && !document.querySelector('.cal.enter'));
+  await settle(pub);
+  check('G0 swipe: the page does not move sideways while the tab slides in, and the Forecast has one entrance, not two', swipeSteady);
   const fwd = await pub.locator('[data-tab=calendar]').getAttribute('aria-current');
   await swipe(pub, 80, 300); await settle(pub);
   check('G1 swipe: left goes to Forecast, right comes back', fwd === 'page' && (await pub.locator('[data-tab=today]').getAttribute('aria-current')) === 'page');
@@ -295,7 +298,14 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   await pub.close();
   pub = await open('/calendar.html');
   await tab(pub, 'calendar');
-  check('M5 forecast opened from the other tab: the ripple plays then, and not again after a refresh', (await calClass()).includes('enter') && await (async () => { await pub.clock.runFor(5 * 60 * 1000 + 2000); await settle(pub); return (await calClass()).trim() === 'cal'; })());
+  const rippled = (await calClass()).includes('enter');
+  await pub.evaluate(() => { window.calBefore = document.querySelector('#view .cal'); });
+  await pub.clock.runFor(5 * 60 * 1000 + 2000); await settle(pub);
+  check('M5 forecast opened from the other tab: the ripple plays then, and a refresh that changes nothing leaves the grid alone', rippled && await pub.evaluate(() => window.calBefore === document.querySelector('#view .cal')));
+  await pub.close();
+  pub = await open('/calendar.html#calendar', '2026-10-31T03:00:00Z');   // Saturday 31 October: the next working day is in November
+  check('M6 weekend at the end of a month: the Forecast opens on the month of the next working day, whose outline pulses without a glow', (await pub.locator('.cal-head h2').innerText()) === 'November 2026' && await pub.locator('.cal .is-next').count() === 1
+    && await pub.evaluate(() => { const a = getComputedStyle(document.querySelector('.cell.is-next'), '::after'); return a.animationName === 'halo' && a.boxShadow.includes('inset'); }) && await pub.locator('#this').count() === 0);
   await pub.close();
 
   /* ---------- L. Two Secondaries stand side by side, and the card still looks right after a routine refresh ---------- */
