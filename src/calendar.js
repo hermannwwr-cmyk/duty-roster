@@ -130,29 +130,32 @@ const perRow = (n, max) => Math.ceil(n / Math.ceil(n / max));
 
 /**
  * The Secondaries as stops on one rail, in the order to try them: a face on the line with its number,
- * then the name and the role. The rail starts at the Primary's face (the .stem next to it).
+ * then the name and the role. During office hours the rail starts at a dot under the Primary's name;
+ * in the "Next on duty" box it drops from the next Primary's face (the .stem next to it).
  * The narrowest phones fit 3 stops on a row, phones 4 and wider cards 6; styles.css picks by the card's
- * width, and --s marks the stops that start a row, so the line knows where to turn into the next one.
+ * width. --s marks the stops that start a row, so the line knows where to turn into the next one, and --x
+ * those that start a third row or later.
  */
 function relay(list, people) {
   const n = list.length, rows = { n: perRow(n, 3), p: perRow(n, 4), w: perRow(n, 6) };
-  const wraps = i => Object.entries(rows).map(([k, c]) => i % c === 0 ? `--s${k}:1;` : '').join('');
+  const wraps = i => Object.entries(rows).map(([k, c]) => i % c ? '' : `--s${k}:1;` + (i >= 2 * c ? `--x${k}:1;` : '')).join('');
   return `<h3 class="sr-only" id="sec-h">${n === 1 ? 'Secondary' : 'Secondaries, in backup order'}</h3>
     <ol class="backups relay${n <= 2 ? ' pairs' : ''}" aria-labelledby="sec-h" style="--cn:${rows.n};--cp:${rows.p};--cw:${rows.w}">${list.map((x, i) =>
     `<li style="--i:${i};${wraps(i)}" title="${esc(x.name)}"><i class="rail" aria-hidden="true"></i>${avatar(x.name, '', `<b class="n">${i + 1}</b>`)}<span class="person"><span class="nm">${esc(x.name)}</span><span class="nm-short" aria-hidden="true">${esc(shortName(x.name, people))}</span><span class="rl">${esc(x.role)}</span></span></li>`).join('')}</ol>`;
 }
 
 /**
- * Full names under the stops where every one fits: on its line, and without passing the edge the rail is
- * measured to (the button's right edge). Otherwise first names for the whole rail, so they match.
+ * Full names under the stops where every one fits: on its line, and without passing the edges the rail is
+ * measured to (the button's left and right edges). Otherwise first names for the whole rail, so they match.
  */
 function fitNames() {
   for (const list of document.querySelectorAll('#today .relay')) {
     list.classList.remove('short', 'tight');
     // One or two Secondaries stand with their names beside them while the names fit; otherwise under them, like a longer rail.
     list.classList.toggle('pairs', list.children.length <= 2);
-    const box = list.parentElement, edge = box.getBoundingClientRect().right - parseFloat(getComputedStyle(box).paddingRight) + 1;
-    const cut = sel => [...list.querySelectorAll(sel)].some(el => el.scrollWidth > el.clientWidth + 1 || el.getBoundingClientRect().right > edge);
+    const box = list.parentElement, style = getComputedStyle(box), rect = box.getBoundingClientRect();
+    const start = rect.left + parseFloat(style.paddingLeft) - 1, edge = rect.right - parseFloat(style.paddingRight) + 1;
+    const cut = sel => [...list.querySelectorAll(sel)].some(el => { const r = el.getBoundingClientRect(); return el.scrollWidth > el.clientWidth + 1 || r.right > edge || r.left < start; });
     if (list.classList.contains('pairs') && cut('.nm, .rl')) list.classList.remove('pairs');
     if (!list.classList.contains('pairs') && cut('.nm')) { list.classList.add('short'); if (cut('.nm-short')) list.classList.add('tight'); }
   }
@@ -200,28 +203,23 @@ async function renderToday() {
   }
   // Outside office hours: say no one is on duty now, then who is next and from when.
   const nextWhen = !day ? '' : day.date === t ? '9am today' : day.date === addDays(t, 1) ? '9am tomorrow' : '9am ' + fmt(day.date);
-  // Everyone else on duty that day shares the card with the Primary: one rail that starts at the Primary's
-  // face and runs through each Secondary, in the order to try them.
+  // Everyone else on duty that day shares the card with the Primary: one rail under the Primary's name that
+  // runs through each Secondary, in the order to try them.
   const secondaries = primary ? day.duties.slice(1) : [];
   const rail = secondaries.length ? relay(secondaries, data.people) : '';
-  const stem = rail ? '<i class="stem" aria-hidden="true"></i>' : '';
-  // A long name is set a little smaller, so it stays on one or two lines beside the face.
-  const fit = name => name.length > 18 ? ' longer' : name.length > 11 ? ' long' : '';
-  // Weekends and holidays read the same way: say why there is no duty, then who is next (a quieter, smaller rail).
+  // Weekends and holidays read the same way: say why there is no duty, then who is next. There the rail is
+  // smaller and quieter, and drops from the next Primary's face (the stem).
   const who = noDutyNow ? `<div class="hero-name"><span class="eyebrow warn">${closed ? 'Outside office hours' : 'No duty today'}</span>
       <p class="hero-none">${closed ? 'No one is on duty now.' : why}</p>${closed ? '<span class="hero-role">Office hours are 9am to 6pm on working days.</span>' : ''}</div>
     ${day ? `<div class="next-cover"><span class="eyebrow">Next on duty · ${nextWhen}</span>
-      ${primary ? `<div class="who-line">${stem}${avatar(primary.name)}<span class="person"><span class="nm">${esc(primary.name)}</span><span class="rl">Primary · ask for OTP</span></span></div>${rail}` : '<p class="hero-note">No one is available that day.</p>'}</div>` : ''}`
-    : !day ? '' : lead ? `<div class="hero-lead">${stem}${avatar(lead.name, 'big', `<span class="lock">${ICON_LOCK}</span>`)}
-      <div class="hero-name"><span class="eyebrow">${working ? 'Primary · ask for OTP' : 'Next duty day · ' + fmt(day.date)}</span>
-        <p class="name${fit(lead.name)}">${esc(lead.name)}</p>${working ? '' : '<span class="hero-role">Primary · ask for OTP</span>'}</div></div>${rail}`
-    : `<div class="hero-name"><span class="eyebrow${working ? ' warn' : ''}">${working ? 'No duty cover today' : 'Next duty day · ' + fmt(day.date)}</span>
-      <p class="hero-none">No one is available for duty.</p></div>`;
-  // The scene's caption sits on its floor, like a subtitle, beside the Primary's face when there is one.
-  const hero = `<section class="hero-card${lead ? ' has-lead' : ''}" aria-labelledby="today-h">
+      ${primary ? `<div class="who-line">${rail ? '<i class="stem" aria-hidden="true"></i>' : ''}${avatar(primary.name)}<span class="person"><span class="nm">${esc(primary.name)}</span><span class="rl">Primary · ask for OTP</span></span></div>${rail}` : '<p class="hero-note">No one is available that day.</p>'}</div>` : ''}`
+    : !day ? '' : `<div class="hero-name"><span class="eyebrow${working && !primary ? ' warn' : ''}">${!working ? 'Next duty day · ' + fmt(day.date) : primary ? 'Primary · ask for OTP' : 'No duty cover today'}</span>
+      ${primary ? `<p class="name">${esc(primary.name)}</p>${working ? '' : '<span class="hero-role">Primary · ask for OTP</span>'}` : '<p class="hero-none">No one is available for duty.</p>'}</div>${rail}`;
+  const hero = `<section class="hero-card" aria-labelledby="today-h">
     <h2 class="sr-only" id="today-h">2FA Login, ${fmt(t)}</h2>
-    <div class="hero-scene">${scene.svg}<span class="wall-date"><i></i>${sign}</span><p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div>
+    <div class="hero-scene">${scene.svg}<span class="wall-date"><i></i>${sign}</span></div>
     <div class="hero-body">
+      <div class="hero-who${lead ? '' : ' plain'}">${lead ? avatar(lead.name, 'big', `<span class="lock">${ICON_LOCK}</span>`) : ''}<p class="hero-caption" aria-hidden="true">${esc(scene.caption)}</p></div>
       ${who}${share}
     </div>
   </section>`;
