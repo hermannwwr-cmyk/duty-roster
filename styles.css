@@ -304,8 +304,9 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 }
 
 /* Motion on the card. The first time it is drawn, the line draws itself from the Primary and each stop arrives in turn;
-   after that a faint glint travels the same way every few seconds. Transforms and opacity only, so it costs a phone
-   next to nothing, and none of it runs for people who turn off animations. */
+   after that, every 5 seconds, the Primary's ring glows and a faint glint travels the same way, lighting each stop's ring
+   as it passes (the glint crosses one stretch of line in .27s, which is also the delay from one stop to the next).
+   Transforms and opacity only, so it costs a phone next to nothing, and none of it runs for people who turn off animations. */
 .enter .stem { transform-origin: top; animation: rail-down .24s ease-out both; }
 .enter .stem::after { animation: rail-show .1s linear .24s both; }
 .enter .relay .rail { transform-origin: left; animation: rail-along .12s linear calc(.32s + var(--i) * .07s) both; }
@@ -315,13 +316,13 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 @keyframes rail-along { from { transform: scaleX(0); } }
 @keyframes rail-show { from { opacity: 0; } }
 @keyframes stop-in { from { opacity: 0; transform: scale(.82); } }
-.av.big::after { content: ""; position: absolute; inset: -6.5px; border-radius: 50%; box-shadow: 0 0 26px 8px #38bdf873; opacity: 0; animation: halo 9s ease-in-out 1.7s infinite; }
-.relay .rail::after { content: ""; position: absolute; top: 0; left: 0; width: 46%; height: 100%; background: linear-gradient(90deg, #e6f6ff00, #e6f6ff, #e6f6ff00); transform: translateX(-105%); animation: glint 9s linear calc(2.6s + var(--i) * .27s) infinite; }
-.relay .av::after { content: ""; position: absolute; inset: -4.5px; border-radius: 50%; box-shadow: 0 0 0 1.5px #d7e8ee, 0 0 10px 1px #9bb8c466; opacity: 0; animation: ping 9s ease-out calc(2.75s + var(--i) * .27s) infinite; }
+.av.big::after { content: ""; position: absolute; inset: -6.5px; border-radius: 50%; box-shadow: 0 0 26px 8px #38bdf873; opacity: 0; animation: halo 5s ease-in-out 1.7s infinite; }
+.relay .rail::after { content: ""; position: absolute; top: 0; left: 0; width: 46%; height: 100%; background: linear-gradient(90deg, #e6f6ff00, #e6f6ff, #e6f6ff00); transform: translateX(-105%); animation: glint 5s linear calc(2.6s + var(--i) * .27s) infinite; }
+.relay .av::after { content: ""; position: absolute; inset: -4.5px; border-radius: 50%; box-shadow: 0 0 0 1.5px #d7e8ee, 0 0 10px 1px #9bb8c466; opacity: 0; animation: ping 5s ease-out calc(2.75s + var(--i) * .27s) infinite; }
 .next-cover .relay .rail::after, .next-cover .relay .av::after { content: none; }
-@keyframes halo { 0%, 22%, 100% { opacity: 0; } 9% { opacity: 1; } }
-@keyframes glint { 0% { transform: translateX(-105%); } 3%, 100% { transform: translateX(225%); } }
-@keyframes ping { 0%, 9%, 100% { opacity: 0; } 2% { opacity: .9; } }
+@keyframes halo { 0%, 40%, 100% { opacity: 0; } 16% { opacity: 1; } }
+@keyframes glint { 0% { transform: translateX(-105%); } 5.4%, 100% { transform: translateX(225%); } }
+@keyframes ping { 0%, 16%, 100% { opacity: 0; } 3.6% { opacity: .9; } }
 @media (prefers-reduced-motion: reduce) { .hero-card *, .hero-card *::before, .hero-card *::after { animation: none !important; } }
 
 /* The room scene on the card (src/engineer.js). */
