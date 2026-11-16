@@ -37,7 +37,11 @@ function gridFor(month) {
   return { first, last, start: addDays(first, -((fromISO(first).getDay() + 6) % 7)), end: addDays(last, (7 - fromISO(last).getDay()) % 7) };
 }
 
-async function show(month) {
+// The Forecast has been on screen once: its days arrive in a cascade the first time only, not at every refresh.
+let calShown = false;
+
+/** Draws `month`. `from` ('next' or 'prev') is the way it was reached, so the days slide in from that side. */
+async function show(month, from) {
   state.month = month;
   if (!(month in cache)) {
     const g = gridFor(month);
@@ -45,10 +49,10 @@ async function show(month) {
   }
   const data = cache[month];
   if (!data) { view.innerHTML = switchedOff; return; }
-  render(data);
+  render(data, from);
 }
 
-function render(data) {
+function render(data, from) {
   const g = gridFor(state.month);
   const byDate = Object.fromEntries(data.days.map(d => [d.date, d]));
   const t = todaySG();
@@ -61,11 +65,12 @@ function render(data) {
   const weekendToday = [0, 6].includes(fromISO(t).getDay());
   let nextDay = t; while ([0, 6].includes(fromISO(nextDay).getDay())) nextDay = addDays(nextDay, 1);
   const cells = [];
-  let anyone = false, someoneAway = false;
+  let anyone = false, someoneAway = false, row = -1;
   for (let monday = g.start; monday <= g.end; monday = addDays(monday, 7)) {
     const week = [0, 1, 2, 3, 4].map(i => addDays(monday, i));
     // A week with no weekday in this month is left out (the 1st fell on a weekend, or the month ended on a Friday).
     if (!week.some(date => date.slice(0, 7) === state.month)) continue;
+    row++;
     for (const date of week) {
       const d = byDate[date], dt = fromISO(date);
       const out = date.slice(0, 7) !== state.month;
@@ -83,7 +88,7 @@ function render(data) {
         body = `<ol class="duty-list">${d.duties.map(x => `<li${x.role === 'Primary' ? ' class="p"' : ''} title="${esc(x.role + ': ' + x.name)}"><span class="sr-only">${esc(x.role)}: </span><span class="full">${esc(x.name)}</span><span class="first">${esc(shortName(x.name, data.people))}</span></li>`).join('')}${'<li class="away" role="img" aria-label="Someone is away"></li>'.repeat(away)}</ol>`;
       }
       // Today says so in words next to its date, so it can't be missed.
-      cells.push(`<li class="${cls}"${date === t ? ' aria-current="date"' : ''}><span class="num"><span class="sr-only">${dt.toLocaleDateString('en-SG', { weekday: 'long' })} </span><span class="d">${num}</span>${date === t ? '<span class="today-tag">Today</span>' : next ? '<span class="today-tag next-tag">Next</span>' : ''}</span>${body}</li>`);
+      cells.push(`<li class="${cls}" style="--r:${row};--c:${week.indexOf(date)}"${date === t ? ' aria-current="date"' : ''}><span class="num"><span class="sr-only">${dt.toLocaleDateString('en-SG', { weekday: 'long' })} </span><span class="d">${num}</span>${date === t ? '<span class="today-tag">Today</span>' : next ? '<span class="today-tag next-tag">Next</span>' : ''}</span>${body}</li>`);
     }
   }
 
@@ -104,12 +109,13 @@ function render(data) {
     </div>
     ${legend}${weekendNote}
     <div class="dows" aria-hidden="true">${['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((d, i) => `<span${i + 1 === todayColumn ? ' class="now"' : ''}>${d.toUpperCase()}</span>`).join('')}</div>
-    <ol class="cal">${cells.join('')}</ol>
+    <ol class="cal${from ? ' from-' + from : calShown ? '' : ' enter'}">${cells.join('')}</ol>
   </section>`;
 
   // Changing month redraws the page; put focus back on the button that was pressed (issue #12).
   // "This month" goes away once you're there, so focus then moves to the next-month button.
-  const go = (month, id) => show(month).then(() => { const b = document.getElementById(id) || document.getElementById('next'); if (b) b.focus({ preventScroll: true }); }).catch(showError);
+  if (!view.hidden) calShown = true;
+  const go = (month, id) => show(month, month > state.month ? 'next' : 'prev').then(() => { const b = document.getElementById(id) || document.getElementById('next'); if (b) b.focus({ preventScroll: true }); }).catch(showError);
   const [y, m] = state.month.split('-').map(Number);
   document.getElementById('prev').onclick = () => go(toISO(new Date(y, m - 2, 1, 12)).slice(0, 7), 'prev');
   document.getElementById('next').onclick = () => go(toISO(new Date(y, m, 1, 12)).slice(0, 7), 'next');
@@ -262,6 +268,8 @@ function setTab(tab) {
     if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   });
   if (tab === 'today') fitNames();   // names can't be measured while the tab is hidden
+  // Coming back to the Forecast doesn't replay how its days arrived.
+  if (tab === 'calendar') calShown = true; else if (calShown) view.querySelectorAll('.cal').forEach(el => el.classList.remove('enter', 'from-next', 'from-prev'));
 }
 document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
   history.replaceState(null, '', b.dataset.tab === 'calendar' ? '#calendar' : location.pathname + location.search);

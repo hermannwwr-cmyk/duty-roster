@@ -25,7 +25,7 @@
 //   --all               every state at each width (a plain run shoots every state on a phone and a few at the other widths;
 //                       pages other than login shoot the ordinary working day only)
 //   --redraw            shoot after the page's 5-minute refresh has redrawn the card (no entrance animation)
-//   --at <ms>           freeze the card's animations at that moment after drawing, so pictures can be compared
+//   --at <ms>           freeze the page's animations (all but the room scene) at that moment after drawing, so pictures can be compared
 //   --still             as seen by people who turn off animations
 //   --as <n>            which demo person signs in for roster, leave and team (0, the default, is the admin)
 const { chromium } = require('playwright');
@@ -151,7 +151,7 @@ const uri = file => 'data:image/png;base64,' + fs.readFileSync(file).toString('b
       }
       if (arg('redraw')) { await p.clock.runFor(5 * 60 * 1000 + 2000); await p.waitForTimeout(500); }
       if (typeof arg('at') === 'string') await p.evaluate(t => document.getAnimations().forEach(a => { const el = a.effect && a.effect.target;
-        if (el && el.closest && el.closest('.hero-card') && !el.closest('.engineer')) { a.pause(); a.currentTime = t; } }), Number(arg('at')));
+        if (el && el.closest && el.closest('#today, #view') && !el.closest('.engineer')) { a.pause(); a.currentTime = t; } }), Number(arg('at')));
       await p.evaluate(() => document.fonts.ready); await p.waitForTimeout(250);
       const m = await p.evaluate(() => {
         const r = sel => { const el = document.querySelector(sel); if (!el) return null; const b = el.getBoundingClientRect(); return { top: Math.round(b.top + scrollY), bottom: Math.round(b.bottom + scrollY), height: Math.round(b.height), width: Math.round(b.width) }; };

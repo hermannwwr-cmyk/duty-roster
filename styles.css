@@ -440,6 +440,21 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
   .duty-list li.away { height: 1rem; margin-inline: 6px; }
 }
 
+/* Motion on the Forecast. The first time it is on screen the days arrive in a cascade, top left to bottom right; a
+   change of month slides them in from the side it came from, a column at a time. Every 5 seconds, in step with the
+   2FA Login card, today's cell (or the "Next" one at weekends) swells its glow and a glint crosses today's Primary.
+   Transforms and opacity only. None of it runs for people who turn off animations. */
+.cal.enter .cell { animation: cell-in .4s cubic-bezier(.2, .8, .2, 1) calc(var(--r) * 45ms + var(--c) * 30ms) both; }
+.cal.from-next .cell { animation: slide-from-right .28s ease-out calc(var(--c) * 22ms) both; }
+.cal.from-prev .cell { animation: slide-from-left .28s ease-out calc((4 - var(--c)) * 22ms) both; }
+@keyframes cell-in { from { opacity: 0; transform: translateY(10px) scale(.96); } }
+.cell.is-next { position: relative; }
+.cell.is-today::after, .cell.is-next::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 0 22px 5px #38bdf899; opacity: 0; pointer-events: none; animation: halo 5s ease-in-out 1.2s infinite; }
+.cell.is-today .duty-list li.p { position: relative; }
+.cell.is-today .duty-list li.p::after { content: ""; position: absolute; inset: 0 auto 0 0; width: 55%; background: linear-gradient(100deg, #ffffff00, #ffffffb0, #ffffff00); transform: translateX(-110%); animation: pill-glint 5s ease-in-out 2s infinite; }
+@keyframes pill-glint { 0% { transform: translateX(-110%); } 12%, 100% { transform: translateX(200%); } }
+@media (prefers-reduced-motion: reduce) { .cal-panel *, .cal-panel *::before, .cal-panel *::after { animation: none !important; } }
+
 /* Signed-in app, Roster tab: your role with the day's line-up, then the month as rows. */
 .role-card { gap: .9rem; padding: 1.1rem .9rem .9rem; border-radius: 24px; box-shadow: 0 0 0 1px #ffffff14, 0 24px 48px -16px #000000c0; }
 .role-head { display: grid; gap: .3rem; padding: 0 .4rem; }
