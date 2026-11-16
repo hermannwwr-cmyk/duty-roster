@@ -416,6 +416,15 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .cell.holiday svg { flex: none; margin-top: .3rem; }
 .cell .hol { max-width: 100%; font-size: .62rem; font-weight: 700; line-height: 1.2; letter-spacing: -.01em; overflow-wrap: break-word; }
 .cell .nobody { padding: 0 6px; font-size: .72rem; line-height: 1.25; }
+/* A working day with nobody available: the whole cell turns red, like the "No one is available on:" card, with the
+   warning sign above the words, so it stands out across the month. Today keeps its cyan outline, inside the red. */
+.cell.gap { align-items: center; gap: 4px; background: var(--danger-soft); box-shadow: inset 0 0 0 1.5px #e5484d99; color: var(--danger); text-align: center; }
+.cell.gap .num { align-self: flex-start; color: #ffb4ad; }
+.cell.gap > svg { flex: none; margin-top: .2rem; color: var(--danger); }
+.cell.gap .nobody { padding: 0; }
+.cell.gap.past { box-shadow: inset 0 0 0 1px #e5484d55; }
+.cell.gap.is-today { background: var(--danger-soft); box-shadow: inset 0 0 0 1.5px #e5484d99, inset 0 0 0 3.5px var(--panel), 0 0 0 2px var(--accent), 0 0 18px #38bdf866; }
+.cell.gap.is-today .d { background: var(--accent); }
 .duty-list { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
 .duty-list li { min-width: 0; padding: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .duty-list li.p { padding-block: 2px; border-radius: 999px; background: var(--primary-soft); color: #ffffff; font-weight: 700; }

@@ -80,12 +80,12 @@ function render(data, from) {
       const out = date.slice(0, 7) !== state.month;
       const kind = d ? d.kind : 'unavailable';
       const next = weekendToday && date === nextDay;
-      const cls = ['cell', out ? 'out' : date < t ? 'past' : '', date === t ? 'is-today' : '', next ? 'is-next' : '', kind === 'holiday' ? 'holiday' : kind === 'work' ? '' : 'empty'].filter(Boolean).join(' ');
+      const cls = ['cell', out ? 'out' : date < t ? 'past' : '', date === t ? 'is-today' : '', next ? 'is-next' : '', kind === 'holiday' ? 'holiday' : kind === 'work' ? (d.duties.length ? '' : 'gap') : 'empty'].filter(Boolean).join(' ');
       // Days from the months either side say which month they belong to.
       const num = out ? dt.toLocaleDateString('en-SG', { day: 'numeric', month: 'short' }) : dt.getDate();
       let body = '';
       if (kind === 'holiday') body = `${ICON_STAR}<span class="hol">${esc(d.holiday)}</span>`;
-      else if (kind === 'work' && !d.duties.length) body = '<span class="nobody">No one available</span>';
+      else if (kind === 'work' && !d.duties.length) body = `${ICON_WARN}<span class="nobody">No one available</span>`;
       else if (kind === 'work') {
         const away = date >= t ? Math.max(0, team - d.duties.length) : 0;
         if (!out) { anyone = true; if (away) someoneAway = true; }
