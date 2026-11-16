@@ -279,6 +279,25 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   check('J3 weekday: no weekend note and no "Next" mark', await pub.locator('.today-note, .cal .is-next').count() === 0);
   await pub.close();
 
+  /* ---------- M. The Forecast's motion ---------- */
+  const calClass = () => pub.locator('#view .cal').getAttribute('class');
+  const noSideways = () => pub.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
+  pub = await open('/calendar.html#calendar');
+  check('M1 forecast link: the days ripple in the first time, and today glows', (await calClass()).includes('enter') && await pub.evaluate(() => getComputedStyle(document.querySelector('.cell.is-today'), '::after').animationName === 'halo'));
+  await pub.click('#next'); const wentNext = await calClass(), steadyNext = await noSideways(); await settle(pub);
+  await pub.click('#prev'); const wentBack = await calClass(), steadyBack = await noSideways(); await settle(pub);
+  check('M2 forecast: a change of month comes in from the side it came from, without the page moving sideways', wentNext.includes('from-next') && wentBack.includes('from-prev') && steadyNext && steadyBack && await noSideways(), wentNext + ' | ' + wentBack);
+  await tab(pub, 'today'); await tab(pub, 'calendar');
+  check('M3 forecast: coming back to the tab does not replay it', (await calClass()).trim() === 'cal');
+  await pub.emulateMedia({ reducedMotion: 'reduce' });
+  check('M4 forecast, reduced motion: nothing animates and no day is left hidden', await pub.evaluate(() => [...document.querySelectorAll('#view *')].every(el => [null, '::before', '::after'].every(p => getComputedStyle(el, p).animationName === 'none'))
+    && [...document.querySelectorAll('.cal .cell:not(.past)')].every(el => getComputedStyle(el).opacity === '1')));
+  await pub.close();
+  pub = await open('/calendar.html');
+  await tab(pub, 'calendar');
+  check('M5 forecast opened from the other tab: the ripple plays then, and not again after a refresh', (await calClass()).includes('enter') && await (async () => { await pub.clock.runFor(5 * 60 * 1000 + 2000); await settle(pub); return (await calClass()).trim() === 'cal'; })());
+  await pub.close();
+
   /* ---------- L. Two Secondaries stand side by side, and the card still looks right after a routine refresh ---------- */
   // The entrance plays on the first draw only. A refresh redraws the card without it, which once let the glint escape its line.
   pub = await open('/calendar.html');

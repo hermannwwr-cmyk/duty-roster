@@ -253,6 +253,8 @@ Two tabs: **2FA Login** and **Calendar Forecast** (`#calendar` in the URL opens 
 2. **Up next**: a small timeline of the next three working days: a dot for each day on one thin line, with the day ("Today", "TUE 17") and the Primary's first name under it. No boxes and no faces. Today's dot is filled cyan and its label and name are cyan; a day with nobody has a red dot and says "No one".
 3. **"No one is available on:" card**, shown only if some upcoming working day has an empty duty list. It is red, and each date is a row with the full date and how soon it is ("in 9 days").
 
+Motion on the Forecast (none of it under reduced motion): the first time the tab is on screen the days ripple in from today's cell outwards (each rises 8px and fades in over .34s, 40ms later per cell of distance); a change of month brings the days in from the side it came from (20px, nearest column first); every 5 seconds today's cell (or "Next") swells its glow and a glint passes under today's Primary's name, and returning to the current month plays the glow at once.
+
 The page loads `loadPublic(today, today + 60)`. If that returns `null`, show "The public calendar is switched off".
 
 **Calendar Forecast tab:**

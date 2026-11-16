@@ -440,19 +440,26 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
   .duty-list li.away { height: 1rem; margin-inline: 6px; }
 }
 
-/* Motion on the Forecast. The first time it is on screen the days arrive in a cascade, top left to bottom right; a
-   change of month slides them in from the side it came from, a column at a time. Every 5 seconds, in step with the
-   2FA Login card, today's cell (or the "Next" one at weekends) swells its glow and a glint crosses today's Primary.
-   Transforms and opacity only. None of it runs for people who turn off animations. */
-.cal.enter .cell { animation: cell-in .4s cubic-bezier(.2, .8, .2, 1) calc(var(--r) * 45ms + var(--c) * 30ms) both; }
-.cal.from-next .cell { animation: slide-from-right .28s ease-out calc(var(--c) * 22ms) both; }
-.cal.from-prev .cell { animation: slide-from-left .28s ease-out calc((4 - var(--c)) * 22ms) both; }
-@keyframes cell-in { from { opacity: 0; transform: translateY(10px) scale(.96); } }
-.cell.is-next { position: relative; }
+/* Motion on the Forecast. The first time it is on screen the days arrive in a ripple that starts at today's cell (--d is
+   how many cells away a day is; --tr and --tc are today's row and column), so the eye is led to today. A change of month
+   brings the days in from the side it came from, the nearest column first. Every 5 seconds, in step with the 2FA Login
+   card, today's cell (or the "Next" one at weekends) swells its glow and a glint passes under today's Primary's name;
+   coming back to this month plays the glow at once. `halo` is the card's keyframes, worked out for 5 seconds.
+   Transforms and opacity only, and the entrances fill backwards, so nothing is left transformed afterwards.
+   None of it runs for people who turn off animations. */
+.cal .cell { --d: calc(max(var(--r) - var(--tr), var(--tr) - var(--r)) + max(var(--c) - var(--tc), var(--tc) - var(--c))); }
+.cal.enter .cell { animation: cell-in .34s cubic-bezier(.2, .8, .2, 1) calc(var(--d) * 40ms) backwards; }
+.cal.from-next .cell { animation: month-in-next .26s cubic-bezier(.2, .8, .2, 1) calc((4 - var(--c)) * 25ms) backwards; }
+.cal.from-prev .cell { animation: month-in-prev .26s cubic-bezier(.2, .8, .2, 1) calc(var(--c) * 25ms) backwards; }
+@keyframes cell-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes month-in-next { from { opacity: .3; transform: translateX(20px); } }
+@keyframes month-in-prev { from { opacity: .3; transform: translateX(-20px); } }
+.cell.is-next { position: relative; z-index: 1; }
 .cell.is-today::after, .cell.is-next::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 0 22px 5px #38bdf899; opacity: 0; pointer-events: none; animation: halo 5s ease-in-out 1.2s infinite; }
-.cell.is-today .duty-list li.p { position: relative; }
-.cell.is-today .duty-list li.p::after { content: ""; position: absolute; inset: 0 auto 0 0; width: 55%; background: linear-gradient(100deg, #ffffff00, #ffffffb0, #ffffff00); transform: translateX(-110%); animation: pill-glint 5s ease-in-out 2s infinite; }
-@keyframes pill-glint { 0% { transform: translateX(-110%); } 12%, 100% { transform: translateX(200%); } }
+.cal.from-next .cell.is-today::after, .cal.from-prev .cell.is-today::after, .cal.from-next .cell.is-next::after, .cal.from-prev .cell.is-next::after { animation-delay: .35s; }
+.cell.is-today .duty-list li.p { position: relative; isolation: isolate; }
+.cell.is-today .duty-list li.p::after { content: ""; position: absolute; z-index: -1; inset: 0 auto 0 0; width: 55%; background: linear-gradient(100deg, #ffffff00, #ffffff80, #ffffff00); transform: translateX(-110%); animation: pill-glint 5s linear 2s infinite; }
+@keyframes pill-glint { 0% { transform: translateX(-110%); } 8%, 100% { transform: translateX(200%); } }
 @media (prefers-reduced-motion: reduce) { .cal-panel *, .cal-panel *::before, .cal-panel *::after { animation: none !important; } }
 
 /* Signed-in app, Roster tab: your role with the day's line-up, then the month as rows. */

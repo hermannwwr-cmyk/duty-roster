@@ -37,7 +37,7 @@ function gridFor(month) {
   return { first, last, start: addDays(first, -((fromISO(first).getDay() + 6) % 7)), end: addDays(last, (7 - fromISO(last).getDay()) % 7) };
 }
 
-// The Forecast has been on screen once: its days arrive in a cascade the first time only, not at every refresh.
+// The Forecast has been on screen once: its days arrive in a ripple the first time only, not at every refresh.
 let calShown = false;
 
 /** Draws `month`. `from` ('next' or 'prev') is the way it was reached, so the days slide in from that side. */
@@ -65,13 +65,14 @@ function render(data, from) {
   const weekendToday = [0, 6].includes(fromISO(t).getDay());
   let nextDay = t; while ([0, 6].includes(fromISO(nextDay).getDay())) nextDay = addDays(nextDay, 1);
   const cells = [];
-  let anyone = false, someoneAway = false, row = -1;
+  let anyone = false, someoneAway = false, row = -1, mark = [0, 0];   // mark: the row and column of today's cell (or the "Next" one)
   for (let monday = g.start; monday <= g.end; monday = addDays(monday, 7)) {
     const week = [0, 1, 2, 3, 4].map(i => addDays(monday, i));
     // A week with no weekday in this month is left out (the 1st fell on a weekend, or the month ended on a Friday).
     if (!week.some(date => date.slice(0, 7) === state.month)) continue;
     row++;
     for (const date of week) {
+      if (date === t || weekendToday && date === nextDay) mark = [row, week.indexOf(date)];
       const d = byDate[date], dt = fromISO(date);
       const out = date.slice(0, 7) !== state.month;
       const kind = d ? d.kind : 'unavailable';
@@ -109,7 +110,7 @@ function render(data, from) {
     </div>
     ${legend}${weekendNote}
     <div class="dows" aria-hidden="true">${['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((d, i) => `<span${i + 1 === todayColumn ? ' class="now"' : ''}>${d.toUpperCase()}</span>`).join('')}</div>
-    <ol class="cal${from ? ' from-' + from : calShown ? '' : ' enter'}">${cells.join('')}</ol>
+    <ol class="cal${from ? ' from-' + from : calShown ? '' : ' enter'}" style="--tr:${mark[0]};--tc:${mark[1]}">${cells.join('')}</ol>
   </section>`;
 
   // Changing month redraws the page; put focus back on the button that was pressed (issue #12).
@@ -269,7 +270,7 @@ function setTab(tab) {
   });
   if (tab === 'today') fitNames();   // names can't be measured while the tab is hidden
   // Coming back to the Forecast doesn't replay how its days arrived.
-  if (tab === 'calendar') calShown = true; else if (calShown) view.querySelectorAll('.cal').forEach(el => el.classList.remove('enter', 'from-next', 'from-prev'));
+  if (tab === 'calendar') { if (view.querySelector('.cal')) calShown = true; } else if (calShown) view.querySelectorAll('.cal').forEach(el => el.classList.remove('enter', 'from-next', 'from-prev'));
 }
 document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
   history.replaceState(null, '', b.dataset.tab === 'calendar' ? '#calendar' : location.pathname + location.search);
