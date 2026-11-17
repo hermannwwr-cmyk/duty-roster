@@ -225,33 +225,18 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .strip .away { background: var(--leave-soft); }
 .strip .away .when, .strip .away .nm { color: var(--leave); }
 .strip .none .nm { color: var(--danger); }
-/* Up next (2FA Login tab): one open row, no box per day. It starts the day after the card's, so nothing in it is cyan. */
+/* Up next (2FA Login tab): one open row, no box per day. Today is marked by a cyan label and a ring on the face. */
 .upnext { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; padding-top: .2rem; }
 .upnext li { position: relative; gap: .3rem; padding: 1.5rem .2rem .15rem; background: none; }
 .upnext .nm { font-size: .97rem; font-weight: 700; }
-/* A small timeline: a dot for each day, on one line running through them. A day with nobody has a red dot. */
-.upnext li::before { content: ""; position: absolute; top: .2rem; left: 50%; z-index: 1; width: .75rem; height: .75rem; margin-left: -.375rem; border-radius: 50%; background: var(--panel); box-shadow: inset 0 0 0 2px var(--ring); }
+.upnext .is-today { background: none; box-shadow: none; }
+.upnext .is-today .nm { color: var(--primary); }
+/* A small timeline: a dot for each day, on one line running through them. Today's dot is filled. */
+.upnext li::before { content: ""; position: absolute; top: .2rem; left: 50%; z-index: 1; width: .75rem; height: .75rem; margin-left: -.375rem; border-radius: 50%; background: var(--panel); box-shadow: inset 0 0 0 2px var(--steel); }
 .upnext li::after { content: ""; position: absolute; top: calc(.2rem + .375rem - 1px); left: 50%; width: 100%; height: 2px; background: var(--line); }
 .upnext li:last-child::after { display: none; }
-/* Motion on Up next. The first time the card is drawn, just after the card's own entrance, the line draws itself from
-   day to day and each dot and name arrives in turn. Then every 5 seconds, once the glint has run along the card's
-   Secondaries, a glint carries on along Up next from day to day and each dot swells as it passes, as if the duty were
-   being handed on. Same 5-second cycle as the card. Transforms and opacity only; entrances fill backwards, so nothing is
-   left transformed; none of it under reduced motion. */
-/* --ring is a dot's outline, --lit the colour it lights up in: white, or red on a day with nobody. */
-.upnext li { --ring: var(--steel); --lit: #d7e8ee; }
-.upnext .none { --ring: var(--danger); --lit: var(--danger); }
-/* The beam is taller than the line so the glint's soft glow shows; the glint itself is the line's 2px. */
-.upnext .beam { position: absolute; top: calc(.2rem + .375rem - 5px); left: 50%; width: 100%; height: 10px; overflow: hidden; pointer-events: none; }
-.upnext .beam::after { content: ""; position: absolute; top: 4px; left: 0; width: 55%; height: 2px; border-radius: 2px; background: linear-gradient(90deg, #e6f6ff00, #ffffff, #e6f6ff00); box-shadow: 0 0 6px 1px #e6f6ff80; transform: translateX(-110%); animation: day-glint 5s linear calc(3.5s + var(--i) * .3s) infinite; }
-@keyframes day-glint { 0% { transform: translateX(-110%); } 6%, 100% { transform: translateX(230%); } }
-.upnext li::before { animation: day-pulse 5s ease-out calc(3.5s + var(--i) * .3s) infinite; }
-/* As the glint reaches a day its dot lights up (white, or red on a day with nobody) and swells, then settles. */
-@keyframes day-pulse { 0%, 14%, 100% { transform: scale(1); background: var(--panel); box-shadow: inset 0 0 0 2px var(--ring), 0 0 0 0 #d7e8ee00; } 3%, 6% { transform: scale(1.4); background: var(--lit); box-shadow: inset 0 0 0 2px var(--lit), 0 0 10px 2px #d7e8ee55; } }
-.enter .upnext li::before { animation: stop-in .3s cubic-bezier(.2, .9, .3, 1.2) calc(.55s + var(--i) * .16s) backwards, day-pulse 5s ease-out calc(3.5s + var(--i) * .3s) infinite; }
-.enter .upnext li::after { transform-origin: left; animation: rail-along .2s linear calc(.65s + var(--i) * .16s) backwards; }
-.enter .upnext .when, .enter .upnext .nm { animation: stop-in .3s cubic-bezier(.2, .9, .3, 1.2) calc(.6s + var(--i) * .16s) backwards; }
-@media (prefers-reduced-motion: reduce) { .upnext *, .upnext *::before, .upnext *::after { animation: none !important; } }
+.upnext .is-today::before { background: var(--accent); box-shadow: 0 0 0 4px #38bdf833; }
+.upnext .none::before { box-shadow: inset 0 0 0 2px var(--danger); }
 .lineup { grid-template-columns: repeat(auto-fill, minmax(3.6rem, 1fr)); }
 .lineup .p .av { box-shadow: 0 0 0 2px var(--raised), 0 0 0 3.5px var(--accent); }
 .lineup .p.me .av { box-shadow: 0 0 0 2px var(--accent-soft), 0 0 0 3.5px var(--accent); }
