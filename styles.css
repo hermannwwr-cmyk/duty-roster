@@ -326,7 +326,7 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
    Secondary's ring lights up white and the face swells a little, then settles, as on Up next (the glint crosses one stretch of line in .27s, which is also the delay from one stop to the next).
    Transforms and opacity only, so it costs a phone next to nothing, and none of it runs for people who turn off animations. */
 .enter .stem { transform-origin: top; animation: rail-down .24s ease-out both; }
-.enter .stem::after { animation: rail-show .1s linear .24s both; }
+.enter .stem::after { animation: rail-show .1s linear .24s both, turn-lit 5s linear 2.58s infinite; }
 .enter .relay .rail { transform-origin: left; animation: rail-along .12s linear calc(.32s + var(--i) * .07s) both; }
 .enter .relay li::before { animation: rail-show .15s linear calc(.3s + var(--i) * .07s) both; }
 .enter .relay .person { animation: stop-in .3s cubic-bezier(.2, .9, .3, 1.2) calc(.38s + var(--i) * .07s) both; }
@@ -336,6 +336,14 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 @keyframes rail-show { from { opacity: 0; } }
 @keyframes stop-in { from { opacity: 0; transform: scale(.82); } }
 .av.big::after { content: ""; position: absolute; inset: -6.5px; border-radius: 50%; box-shadow: 0 0 26px 8px #38bdf873; opacity: 0; animation: halo 5s ease-in-out 1.7s infinite; }
+/* The glint starts at the Primary: as their ring glows it comes out from under the face, runs down the line (.flow in the
+   stem), lights the turn, and carries on along the rail to each Secondary. */
+.stem .flow { position: absolute; inset: calc(var(--av) / 2 + 2px) -6px 0; overflow: hidden; }   /* from the face's edge down; wider than the line so the glow shows */
+.stem .flow::after { content: ""; position: absolute; top: 0; left: 6px; width: var(--thick); height: 60%; border-radius: 2px; background: linear-gradient(180deg, #ffffff00, #ffffff, #ffffff00); box-shadow: 0 0 6px 2px #e6f6ff99; transform: translateY(-110%); animation: stem-glint 5s linear 2.3s infinite; }
+@keyframes stem-glint { 0% { transform: translateY(-110%); } 6%, 100% { transform: translateY(230%); } }
+.stem::after { --turn-c: var(--steel); animation: turn-lit 5s linear 2.58s infinite; }
+.next-cover .stem::after { --turn-c: var(--edge); }
+@keyframes turn-lit { 0%, 4%, 100% { border-color: var(--turn-c); } 1%, 2% { border-color: #ffffff; } }
 .relay .rail::after { content: ""; position: absolute; top: 0; left: 0; width: 46%; height: 100%; background: linear-gradient(90deg, #e6f6ff00, #ffffff, #e6f6ff00); transform: translateX(-105%); animation: glint 5s linear calc(2.6s + var(--i) * .27s) infinite; }
 /* As the glint reaches a Secondary, as on Up next: their ring lights up white and their face swells a little, then settles. */
 .relay .av { animation: stop-lit 5s ease-out calc(2.75s + var(--i) * .27s) infinite; }

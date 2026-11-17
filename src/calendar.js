@@ -222,7 +222,8 @@ async function renderToday() {
   // face and runs through each Secondary, in the order to try them.
   const secondaries = primary ? day.duties.slice(1) : [];
   const rail = secondaries.length ? relay(secondaries, data.people) : '';
-  const stem = rail ? '<i class="stem" aria-hidden="true"></i>' : '';
+  // The stem's .flow carries the 5-second glint down from the Primary's face, so it visibly starts at the Primary.
+  const stem = rail ? '<i class="stem" aria-hidden="true"><i class="flow"></i></i>' : '';
   // A long name, or one with a long word in it, is set a little smaller, so it stays on one or two lines beside the face.
   const fit = name => { const word = Math.max(...name.split(/\s+/).map(w => w.length)); return name.length > 18 || word > 12 ? ' longer' : name.length > 11 || word > 9 ? ' long' : ''; };
   // Weekends and holidays read the same way: say why there is no duty, then who is next (a quieter, smaller rail).
