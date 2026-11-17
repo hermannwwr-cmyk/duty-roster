@@ -204,9 +204,9 @@ Two classes with **identical methods**:
 ## 7. UI and behaviour
 
 ### Shared
-- **Header** (sticky, blurred background): a single row with no title text.
-  - On the left, a **pill-shaped tab bar**; the selected tab is filled with a calm deep teal (`#1b4459`), not the accent.
-  - On the right: "Sign in" (public page), or a round **avatar button** showing your face (app). The avatar opens a menu showing "Signed in as \<name\>" (with an "Admin" badge for admins), Calendar and Sign out. The menu closes on Escape or a click outside.
+- **Header** (sticky, blurred background): a single slim row, 44px tall, with no title text, so it covers as little of the page as possible.
+  - On the left, **plain text tabs**: the current one is white and bold with a short white underline (2px, 6px above the bar's bottom); the others are soft grey. Each tab is the full 44px tall, and the first tab's words line up with the content edge. Focus rings sit inside the tab, so they are never clipped. No cyan anywhere in the bar.
+  - On the right: "Sign in" as a quiet grey text link (public page), or a round **avatar button** showing your face (app), 32px with a steel ring and a 44px tap area. The avatar opens a menu showing "Signed in as \<name\>" (with an "Admin" badge for admins), Calendar and Sign out. The menu closes on Escape or a click outside.
   - Long tab labels have a phone version: `<span class="tab-long">Calendar Forecast</span><span class="tab-short">Forecast</span>`; admins' "Team & settings" becomes "Team".
 - **Swiping (phones):** a horizontal swipe clicks the next or previous `[data-tab]`.
   - Thresholds: at least 60px, mostly horizontal, under 700ms.
