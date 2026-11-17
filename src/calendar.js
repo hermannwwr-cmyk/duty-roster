@@ -177,52 +177,40 @@ function fitNames() {
   paceGlints();   // the layout is final now
 }
 /**
- * Paces the 5-second glint so it travels one continuous path at one steady speed: down from the Primary's face (.flow),
- * round the corner (.bend), along the rail through each Secondary, then on along Up next. Each stretch of line gets --at,
- * where it starts on the path; each stop and the corner get --hit, the moment the glint reaches them. Only line counts as
- * path: where names stand between one face and the next line (one or two Secondaries), the glint goes straight on from the
- * face instead of pausing unseen under the name. Rows after the first follow on after a short gap.
+ * Paces the 5-second glint so it travels one continuous path at one steady speed: down from the Primary's face, round the
+ * turn, along the rail through each Secondary, then on along Up next. Each stretch of line gets --at, where it starts on the
+ * path; each stop and the turn get --hit, the moment the glint reaches them. Rows after the first follow on after a short gap.
  */
-const SPEED = (1100 + 44) / 3.5;   // px per second: the path-along keyframes in styles.css (1100px + --g over 70% of 5s)
+const SPEED = (900 + 32) / 1.5;   // px per second: the path-along keyframes in styles.css (900px + --g over 30% of 5s)
 function paceGlints() {
   const root = document.getElementById('today');
   if (!root || !root.offsetParent) return;   // a hidden tab can't be measured; setTab() calls again
   const px = n => n.toFixed(1) + 'px', sec = n => (n / SPEED).toFixed(3) + 's';
-  // Layout boxes, not getBoundingClientRect(): the card's entrance scales the line and the faces while it plays, and a
-  // measurement taken then would be off. offsetLeft/Top/Width/Height ignore transforms.
-  const box = el => { let left = 0, top = 0; for (let e = el; e; e = e.offsetParent) { left += e.offsetLeft; top += e.offsetTop; }
-    return { left, top, width: el.offsetWidth, height: el.offsetHeight, right: left + el.offsetWidth }; };
   let cardEnd = 0;
   for (const relay of root.querySelectorAll('.hero-card .relay')) {
     const stem = relay.parentElement.querySelector('.stem'), flow = stem && stem.querySelector('.flow');
     if (!flow) continue;
-    const s = box(stem), turn = parseFloat(getComputedStyle(stem, '::after').width) || 0;
-    const stemLen = box(flow).height, x0 = s.left + s.width / 2 + turn;
+    const s = stem.getBoundingClientRect(), turn = parseFloat(getComputedStyle(stem, '::after').width) || 0;
+    const stemLen = flow.getBoundingClientRect().height, x0 = s.left + s.width / 2 + turn;
     stem.style.setProperty('--hit', sec(stemLen));
-    // pos: how far along the path the glint is at x (geometric) on the current row.
-    let pos = stemLen + turn * Math.PI / 2, x = x0, rowTop = null, last = pos;
+    let base = stemLen + turn * Math.PI / 2, rowTop = null, last = base;
     for (const li of relay.children) {
-      const rail = li.querySelector('.rail'), face = box(li.querySelector('.av'));
+      const rail = li.querySelector('.rail'), face = li.querySelector('.av').getBoundingClientRect();
       if (rowTop === null) rowTop = face.top;
-      else if (face.top > rowTop + 4) { rowTop = face.top; pos = last + 40; x = x0; }   // a new row: on after a short gap
-      if (rail) {
-        const r = box(rail), at = pos + Math.min(0, r.left - x);   // a gap (a name) is skipped; an overlap is kept
-        rail.style.setProperty('--at', px(at));
-        pos = at + r.width; x = r.right;
-      }
-      last = pos + (face.left + face.width / 2 - x);
+      else if (face.top > rowTop + 4) { rowTop = face.top; base = last + 40 - (face.left - x0); }
+      if (rail) rail.style.setProperty('--at', px(base + rail.getBoundingClientRect().left - x0));
+      last = base + face.left + face.width / 2 - x0;
       li.style.setProperty('--hit', sec(last));
-      pos = last + face.width / 2; x = face.right;
     }
     cardEnd = last;
   }
   const strip = root.querySelector('.upnext');
   if (strip && strip.children.length) {
-    const first = box(strip.children[0]), x = first.left + first.width / 2;
+    const first = strip.children[0].getBoundingClientRect(), x = first.left + first.width / 2;
     // Up next carries the glint on just after it reaches the card's last Secondary.
-    strip.style.setProperty('--t0', (2.3 + (cardEnd ? cardEnd / SPEED + .1 : 1.2)).toFixed(3) + 's');
+    strip.style.setProperty('--t0', (2.3 + (cardEnd ? cardEnd / SPEED + .15 : 1.2)).toFixed(3) + 's');
     for (const li of strip.children) {
-      const b = box(li), at = b.left + b.width / 2 - x;
+      const b = li.getBoundingClientRect(), at = b.left + b.width / 2 - x;
       li.style.setProperty('--hit', sec(at));
       const beam = li.querySelector('.beam');
       if (beam) beam.style.setProperty('--at', px(at));
@@ -277,7 +265,7 @@ async function renderToday() {
   const secondaries = primary ? day.duties.slice(1) : [];
   const rail = secondaries.length ? relay(secondaries, data.people) : '';
   // The stem's .flow carries the 5-second glint down from the Primary's face, so it visibly starts at the Primary.
-  const stem = rail ? '<i class="stem" aria-hidden="true"><i class="flow"></i><i class="bend"></i></i>' : '';
+  const stem = rail ? '<i class="stem" aria-hidden="true"><i class="flow"></i></i>' : '';
   // A long name, or one with a long word in it, is set a little smaller, so it stays on one or two lines beside the face.
   const fit = name => { const word = Math.max(...name.split(/\s+/).map(w => w.length)); return name.length > 18 || word > 12 ? ' longer' : name.length > 11 || word > 9 ? ' long' : ''; };
   // Weekends and holidays read the same way: say why there is no duty, then who is next (a quieter, smaller rail).
