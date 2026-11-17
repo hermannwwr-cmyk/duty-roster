@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 npm start                     # serve on http://localhost:5173 (http-server, no caching)
-npm test                      # node --test: runs every tests/*.test.mjs (store tests fake localStorage to drive DemoStore)
+npm test                      # node --test: runs every tests/*.test.mjs (store tests fake localStorage to drive DemoStore, and a stand-in Supabase client for SupabaseStore)
 node --test --test-name-pattern "midnight" tests/schedule.test.mjs   # one test
 npm run stamp                 # REQUIRED before every commit that changes a page, script or styles.css
 node scripts/ui-check.cjs      # clicks through both pages in a real browser (demo mode); run before publishing UI changes
