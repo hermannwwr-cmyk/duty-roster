@@ -230,9 +230,9 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   await swipe(app, 300, 80); await settle(app);
   check('G2 swipe: works in the signed-in app too', (await app.locator('[data-tab=leave]').getAttribute('aria-current')) === 'page');
   // With animations on, a glint travels the rail now and then; with reduced motion nothing on the card or in the scene moves.
-  const moving = await pub.evaluate(() => getComputedStyle(document.querySelector('.relay .rail'), '::after').animationName === 'glint');
+  const moving = await pub.evaluate(() => getComputedStyle(document.querySelector('.relay .rail'), '::after').animationName === 'glint' && getComputedStyle(document.querySelector('.upnext .beam'), '::after').animationName === 'day-glint');
   await pub.emulateMedia({ reducedMotion: 'reduce' });
-  const still = moving && await pub.evaluate(() => [...document.querySelectorAll('.engineer *, .btn.wa, .hero-card *')].every(el => [null, '::before', '::after'].every(p => getComputedStyle(el, p).animationName === 'none')));
+  const still = moving && await pub.evaluate(() => [...document.querySelectorAll('.engineer *, .btn.wa, .hero-card *, .upnext *')].every(el => [null, '::before', '::after'].every(p => getComputedStyle(el, p).animationName === 'none')));
   check('G3 reduced motion: nothing on the page animates', still);
   await pub.close(); await app.close();
 

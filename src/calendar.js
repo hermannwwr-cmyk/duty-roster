@@ -249,10 +249,11 @@ async function renderToday() {
   const coming = day ? data.days.filter(d => d.kind === 'work' && d.date > day.date).slice(0, 3) : [];
   const upNext = coming.length ? `<section class="panel sub" aria-labelledby="next-h">
     <div class="sub-head"><h3 id="next-h">Up next</h3><span>Primary each day</span></div>
-    <ol class="strip upnext">${coming.map(d => {
+    <ol class="strip upnext">${coming.map((d, i) => {
       const p = d.duties[0], dt = fromISO(d.date);
       const when = d.date === addDays(t, 1) ? 'Tomorrow' : dt.toLocaleDateString('en-SG', { weekday: 'short' }) + ' ' + dt.getDate();
-      return `<li${p ? ` title="${esc(p.name)}"` : ' class="none"'}><span class="when">${when}</span><span class="nm">${p ? esc(shortName(p.name, data.people)) : 'No one'}</span></li>`;
+      // The beam carries the glint along the line to the next day (none after the last day).
+      return `<li style="--i:${i}"${p ? ` title="${esc(p.name)}"` : ' class="none"'}>${i < coming.length - 1 ? '<i class="beam" aria-hidden="true"></i>' : ''}<span class="when">${when}</span><span class="nm">${p ? esc(shortName(p.name, data.people)) : 'No one'}</span></li>`;
     }).join('')}</ol>
   </section>` : '';
 
