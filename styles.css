@@ -225,28 +225,32 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .strip .away { background: var(--leave-soft); }
 .strip .away .when, .strip .away .nm { color: var(--leave); }
 .strip .none .nm { color: var(--danger); }
-/* Up next (2FA Login tab): the Primary on the next working day. A dot and the Primary's name.
-   Every 5 seconds, after the card's own glint, a soft band of light glints across it and the dot glows: the duty that is
-   coming. White light, not cyan (cyan is today). A day with nobody is red, with no glint. */
-.next-duty { position: relative; display: grid; grid-template-columns: .75rem minmax(0, 1fr); align-items: center; gap: .8rem; overflow: hidden; margin: 0 -.15rem; padding: .55rem .9rem; border-radius: 14px; background: var(--raised); }
-.next-duty .dot { width: .75rem; height: .75rem; border-radius: 50%; background: var(--panel); box-shadow: inset 0 0 0 2px var(--steel); }
-.next-duty .who { display: grid; gap: .1rem; min-width: 0; margin: 0; }
-.next-duty .nm { color: #ffffff; font-size: 1.15rem; font-weight: 800; line-height: 1.2; letter-spacing: -.01em; overflow-wrap: anywhere; }
-.sub-head .when { color: var(--soft); font: 500 .72rem var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+/* Up next (2FA Login tab): the Primary on each of the next three working days, side by side, each in its own tile with
+   the day and the name. Every 5 seconds, after the card's own glint, a soft band of light glints across the tiles from
+   left to right; as it passes each one, its dot lights up and its edge glows: the duty that is coming. White light, not
+   cyan (cyan is today). A day with nobody is red, with no glint. */
+.next-days { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; margin: 0; padding: 0; list-style: none; }
+.next-duty { position: relative; display: grid; gap: .3rem; min-width: 0; overflow: hidden; padding: .6rem .7rem .65rem; border-radius: 14px; background: var(--raised); }
+.next-duty .when { display: flex; align-items: center; gap: .45rem; color: var(--soft); font: 500 .66rem var(--mono); letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; }
+.next-duty .dot { flex: none; width: .6rem; height: .6rem; border-radius: 50%; background: var(--panel); box-shadow: inset 0 0 0 2px var(--steel); }
+.next-duty .nm { color: #ffffff; font-size: 1.05rem; font-weight: 800; line-height: 1.2; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .next-duty.none .dot { box-shadow: inset 0 0 0 2px var(--danger); }
-.next-duty.none .nm { color: var(--danger); font-size: 1rem; }
-.next-duty::after { content: ""; position: absolute; inset: 0 auto 0 0; width: 45%; background: linear-gradient(105deg, #ffffff00 15%, #ffffff26 40%, #ffffff66 50%, #ffffff26 60%, #ffffff00 85%); transform: translateX(-110%); pointer-events: none; animation: duty-glint 5s ease-in-out 3.2s infinite; }
-/* As the glint passes, the box glows softly around its edge. */
-.next-duty { animation: duty-halo 5s ease-in-out 3.2s infinite; }
-@keyframes duty-halo { 0%, 26%, 100% { box-shadow: inset 0 0 0 1px #ffffff00, 0 0 0 0 #d7e8ee00; } 9% { box-shadow: inset 0 0 0 1px #d7e8ee66, 0 0 18px 2px #d7e8ee33; } }
-.next-duty .dot { animation: duty-glow 5s ease-out 3.2s infinite; }
+.next-duty.none .nm { color: var(--danger); }
+/* The glint: one band per tile, each a little after the one before, so the light travels across the row. */
+.next-duty { --at: calc(3.2s + var(--i, 0) * .22s); }
+.next-duty::after { content: ""; position: absolute; inset: 0 auto 0 0; width: 70%; background: linear-gradient(105deg, #ffffff00 15%, #ffffff26 40%, #ffffff66 50%, #ffffff26 60%, #ffffff00 85%); transform: translateX(-110%); pointer-events: none; animation: duty-glint 5s ease-in-out var(--at) infinite; }
+.next-duty { animation: duty-halo 5s ease-in-out var(--at) infinite; }
+.next-duty .dot { animation: duty-glow 5s ease-out var(--at) infinite; }
 .next-duty.none::after { content: none; }
-.next-duty.none .dot { animation: none; }
-@keyframes duty-glint { 0% { transform: translateX(-110%); } 16%, 100% { transform: translateX(240%); } }
-@keyframes duty-glow { 0%, 22%, 100% { background: var(--panel); box-shadow: inset 0 0 0 2px var(--steel), 0 0 0 0 #d7e8ee00; } 6%, 10% { background: #d7e8ee; box-shadow: inset 0 0 0 2px #d7e8ee, 0 0 12px 3px #d7e8ee66; } }
-.enter .next-duty { animation: stop-in .35s cubic-bezier(.2, .9, .3, 1.2) .6s backwards, duty-halo 5s ease-in-out 3.2s infinite; }
-.next-duty.none { animation: none; }
+.next-duty.none, .next-duty.none .dot { animation: none; }
+@keyframes duty-glint { 0% { transform: translateX(-110%); } 9%, 100% { transform: translateX(160%); } }
+@keyframes duty-halo { 0%, 22%, 100% { box-shadow: inset 0 0 0 1px #ffffff00, 0 0 0 0 #d7e8ee00; } 7% { box-shadow: inset 0 0 0 1px #d7e8ee66, 0 0 16px 2px #d7e8ee33; } }
+@keyframes duty-glow { 0%, 18%, 100% { background: var(--panel); box-shadow: inset 0 0 0 2px var(--steel), 0 0 0 0 #d7e8ee00; } 4%, 8% { background: #d7e8ee; box-shadow: inset 0 0 0 2px #d7e8ee, 0 0 10px 2px #d7e8ee66; } }
+.enter .next-duty { animation: stop-in .35s cubic-bezier(.2, .9, .3, 1.2) calc(.6s + var(--i, 0) * .1s) backwards, duty-halo 5s ease-in-out var(--at) infinite; }
+.enter .next-duty.none { animation: stop-in .35s cubic-bezier(.2, .9, .3, 1.2) calc(.6s + var(--i, 0) * .1s) backwards; }
 @media (prefers-reduced-motion: reduce) { .next-duty, .next-duty *, .next-duty::after { animation: none !important; } }
+/* The narrowest phones: a little tighter, so "Tomorrow" fits on one line. */
+@media (max-width: 360px) { .next-days { gap: .4rem; } .next-duty { padding-inline: .5rem; } .next-duty .when { gap: .3rem; letter-spacing: 0; } .next-duty .dot { width: .5rem; height: .5rem; } }
 .lineup { grid-template-columns: repeat(auto-fill, minmax(3.6rem, 1fr)); }
 .lineup .p .av { box-shadow: 0 0 0 2px var(--raised), 0 0 0 3.5px var(--accent); }
 .lineup .p.me .av { box-shadow: 0 0 0 2px var(--accent-soft), 0 0 0 3.5px var(--accent); }

@@ -70,8 +70,8 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   check('A2b public: the Secondaries are on the Primary\'s card, numbered, each with a name and a role', await pub.locator('.hero-card ol.backups li').count() === 4 && await pub.locator('.duty-side .backups').count() === 0
     && (await pub.locator('.backups .n').allTextContents()).join() === '1,2,3,4' && (await pub.locator('.backups .rl').allTextContents()).join() === 'Secondary 1,Secondary 2,Secondary 3,Secondary 4');
   check('A2c public: the button can be tapped without scrolling', await pub.evaluate(() => document.querySelector('a.btn.wa').getBoundingClientRect().bottom + scrollY <= 640));
-  check('A3 public: Up next shows only tomorrow\'s Primary', (await pub.locator('.next-duty .nm').textContent()) === 'Ben Lim' && (await pub.locator('.next-duty').innerText()).trim() === 'Ben Lim'
-    && (await pub.locator('#next-h + .when').textContent()) === 'Tomorrow' && await pub.locator('.next-duty').count() === 1);
+  check('A3 public: Up next shows the Primary on the next three working days, from tomorrow', (await pub.locator('.next-duty .nm').allTextContents()).join() === 'Ben,Chloe,Dev'
+    && (await pub.locator('.next-duty .when').first().textContent()) === 'Tomorrow');
   const want = rosterMessage({ date: '2026-11-16', duties: ['Alice Tan', 'Ben Lim', 'Chloe Ng', 'Dev Kumar', 'Elena Goh'].map((name, i) => ({ role: i ? 'Secondary ' + i : 'Primary', name })) }, BASE + '/calendar.html');
   const got = decodeURIComponent((await pub.locator('a.btn.wa').getAttribute('href')).replace('https://wa.me/?text=', ''));
   check('A4 public: WhatsApp button carries the exact message', got === want, JSON.stringify(got));
@@ -255,7 +255,7 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   check('I4 after 6pm: next on duty is tomorrow\'s Primary', (await pub.locator('.next-cover .eyebrow').textContent()) === 'Next on duty · 9am tomorrow' && (await pub.locator('.next-cover .who-line .nm').innerText()) === tuesdays, await pub.locator('.next-cover').innerText());
   check('I4b after 6pm: the next line-up has the same glow and glint as in office hours', await pub.evaluate(() => getComputedStyle(document.querySelector('.next-cover .who-line > .av'), '::after').animationName === 'halo'
     && getComputedStyle(document.querySelector('.next-cover .relay .rail'), '::after').animationName === 'glint' && getComputedStyle(document.querySelector('.next-cover .relay .av'), '::after').animationName === 'ping'));
-  check('I5 after 6pm: Up next shows the day after tomorrow, and the message is for tomorrow', (await pub.locator('.next-duty .nm').textContent()) === wednesdays && (await pub.locator('#next-h + .when').textContent()) === 'Wed 18 Nov' && decodeURIComponent(await pub.locator('a.btn.wa').getAttribute('href')).includes('Tue, 17 Nov'));
+  check('I5 after 6pm: Up next shows the day after tomorrow, and the message is for tomorrow', (await pub.locator('.next-duty').first().getAttribute('title')) === wednesdays && (await pub.locator('.next-duty .when').first().textContent()) === 'Wed 18' && decodeURIComponent(await pub.locator('a.btn.wa').getAttribute('href')).includes('Tue, 17 Nov'));
   await pub.close();
   pub = await open('/calendar.html', '2026-11-16T09:59:30Z');   // 5:59:30pm: open, then it switches by itself at 6pm
   const openBefore = await pub.locator('.av.big').count() === 1;
@@ -340,7 +340,7 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   check('H2 nobody today: the room has its lights off', (await pub.locator('.engineer').getAttribute('class')).includes('scene-nobody') && (await pub.locator('.hero-caption').innerText()) === 'No one on duty today. The servers keep watch.');
   const news = decodeURIComponent((await pub.locator('a.btn.wa').getAttribute('href')).replace('https://wa.me/?text=', ''));
   check('H3 nobody today: the button shares the news instead of offering an OTP', (await pub.locator('a.btn.wa').innerText()).trim() === 'Tell the team on WhatsApp' && news.includes('No one is available for duty.'), await pub.locator('a.btn.wa').innerText());
-  check('H4 nobody today: the red card lists today, and Up next shows tomorrow\'s duty', (await pub.locator('.gap-list li').first().innerText()).replace(/\s+/g, ' ') === 'Monday, 16 November Today' && (await pub.locator('#next-h + .when').textContent()) === 'Tomorrow' && !(await pub.locator('.next-duty').getAttribute('class')).includes('none'), await pub.locator('.gap-list').innerText());
+  check('H4 nobody today: the red card lists today, and Up next shows tomorrow\'s duty', (await pub.locator('.gap-list li').first().innerText()).replace(/\s+/g, ' ') === 'Monday, 16 November Today' && (await pub.locator('.next-duty .when').first().textContent()) === 'Tomorrow' && !(await pub.locator('.next-duty').first().getAttribute('class')).includes('none'), await pub.locator('.gap-list').innerText());
   await tab(pub, 'calendar');
   check('H5 nobody today: the calendar says "No one available"', (await cell(pub, 16).locator('.nobody').innerText()) === 'No one available' && await cell(pub, 16).locator('.duty-list').count() === 0);
   await pub.close();

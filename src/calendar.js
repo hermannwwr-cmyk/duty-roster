@@ -244,18 +244,17 @@ async function renderToday() {
     </div>
   </section>`;
 
-  // Up next: the Primary on the working day after the one the card shows (the card already answers for today), so people
-  // know who to ask next. A glint passes over it every 5 seconds.
-  const after = day ? data.days.find(d => d.kind === 'work' && d.date > day.date) : null;
-  const upNext = after ? (() => {
-    const p = after.duties[0], dt = fromISO(after.date);
-    const when = after.date === addDays(t, 1) ? 'Tomorrow' : dt.toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '');
-    return `<section class="panel sub" aria-labelledby="next-h">
-    <div class="sub-head"><h3 id="next-h">Up next</h3><span class="when">${when}</span></div>
-    <div class="next-duty${p ? '' : ' none'}"><i class="dot" aria-hidden="true"></i>
-      <p class="who"><span class="nm">${p ? esc(p.name) : 'No one is available'}</span></p></div>
-  </section>`;
-  })() : '';
+  // Up next: the Primary on each of the three working days after the one the card shows (the card already answers for
+  // today), side by side, so people know who to ask next. Every 5 seconds a glint passes across them, left to right.
+  const coming = day ? data.days.filter(d => d.kind === 'work' && d.date > day.date).slice(0, 3) : [];
+  const upNext = coming.length ? `<section class="panel sub" aria-labelledby="next-h">
+    <div class="sub-head"><h3 id="next-h">Up next</h3><span>Primary each day</span></div>
+    <ol class="next-days">${coming.map((d, i) => {
+      const p = d.duties[0], dt = fromISO(d.date);
+      const when = d.date === addDays(t, 1) ? 'Tomorrow' : dt.toLocaleDateString('en-SG', { weekday: 'short' }) + ' ' + dt.getDate();
+      return `<li class="next-duty${p ? '' : ' none'}" style="--i:${i}"${p ? ` title="${esc(p.name)}"` : ''}><span class="when"><i class="dot" aria-hidden="true"></i>${when}</span><span class="nm">${p ? esc(shortName(p.name, data.people)) : 'No one'}</span></li>`;
+    }).join('')}</ol>
+  </section>` : '';
 
   // Upcoming working days when everyone is away. Only the dates: who is on leave stays private.
   // Left out when every working day is covered.
