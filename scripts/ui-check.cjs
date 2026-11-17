@@ -230,7 +230,7 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   await swipe(app, 300, 80); await settle(app);
   check('G2 swipe: works in the signed-in app too', (await app.locator('[data-tab=leave]').getAttribute('aria-current')) === 'page');
   // With animations on, a glint travels the rail now and then; with reduced motion nothing on the card or in the scene moves.
-  const moving = await pub.evaluate(() => getComputedStyle(document.querySelector('.stem .flow'), '::after').animationName === 'stem-glint' && getComputedStyle(document.querySelector('.relay .rail'), '::after').animationName === 'glint' && getComputedStyle(document.querySelector('.upnext .beam'), '::after').animationName === 'day-glint');
+  const moving = await pub.evaluate(() => getComputedStyle(document.querySelector('.stem .flow'), '::after').animationName === 'path-down' && getComputedStyle(document.querySelector('.relay .rail'), '::after').animationName === 'path-along' && getComputedStyle(document.querySelector('.upnext .beam'), '::after').animationName === 'path-along');
   await pub.emulateMedia({ reducedMotion: 'reduce' });
   const still = moving && await pub.evaluate(() => [...document.querySelectorAll('.engineer *, .btn.wa, .hero-card *, .upnext *')].every(el => [null, '::before', '::after'].every(p => getComputedStyle(el, p).animationName === 'none')));
   check('G3 reduced motion: nothing on the page animates', still);
@@ -252,7 +252,7 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   pub = await open('/calendar.html', '2026-11-16T10:30:00Z');   // 6:30pm in Singapore
   check('I4 after 6pm: next on duty is tomorrow\'s Primary', (await pub.locator('.next-cover .eyebrow').textContent()) === 'Next on duty · 9am tomorrow' && (await pub.locator('.next-cover .who-line .nm').innerText()) === tuesdays, await pub.locator('.next-cover').innerText());
   check('I4b after 6pm: the next line-up has the same glow and glint as in office hours', await pub.evaluate(() => getComputedStyle(document.querySelector('.next-cover .who-line > .av'), '::after').animationName === 'halo'
-    && getComputedStyle(document.querySelector('.next-cover .relay .rail'), '::after').animationName === 'glint' && getComputedStyle(document.querySelector('.next-cover .relay .av'), '::after').animationName === 'ping'));
+    && getComputedStyle(document.querySelector('.next-cover .relay .rail'), '::after').animationName === 'path-along' && getComputedStyle(document.querySelector('.next-cover .relay .av'), '::after').animationName === 'ping'));
   check('I5 after 6pm: Up next starts the day after tomorrow, and the message is for tomorrow', (await pub.locator('.strip .when').first().innerText()).toLowerCase() === 'wed 18' && decodeURIComponent(await pub.locator('a.btn.wa').getAttribute('href')).includes('Tue, 17 Nov'));
   await pub.close();
   pub = await open('/calendar.html', '2026-11-16T09:59:30Z');   // 5:59:30pm: open, then it switches by itself at 6pm
@@ -319,8 +319,13 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
     localStorage.setItem('duty-roster-demo', JSON.stringify(db)); });
   await pub.close();
   pub = await open('/calendar.html');
-  const glintFits = () => pub.evaluate(() => [...document.querySelectorAll('.relay .rail')].every(rail => { const glint = getComputedStyle(rail, '::after'), box = rail.getBoundingClientRect();
-    return parseFloat(glint.height) <= box.height + .5 && parseFloat(glint.width) <= box.width + .5; }));
+  // The glint is clipped to its line: the line must be its containing block (positioned, overflow hidden) and as tall as it.
+  // It must also be paced: every line knows where it starts on the glint's path (--at), and later lines start further on.
+  const glintFits = () => pub.evaluate(() => { const rails = [...document.querySelectorAll('.hero-card .relay .rail')];
+    const at = rails.map(rail => parseFloat(rail.style.getPropertyValue('--at')));
+    return rails.every(rail => { const cs = getComputedStyle(rail), glint = getComputedStyle(rail, '::after');
+      return cs.position !== 'static' && cs.overflow === 'hidden' && parseFloat(glint.height) <= rail.getBoundingClientRect().height + .5; })
+      && at.every((a, i) => a > 0 && (i === 0 || a > at[i - 1])); });
   check('L1 two Secondaries: side by side on the card, and the glint stays on the line', await pub.locator('.hero-card .relay.pairs li').count() === 2 && await pub.locator('#today.enter').count() === 1 && await glintFits());
   await pub.clock.runFor(5 * 60 * 1000 + 2000); await settle(pub);
   check('L2 after a routine refresh: redrawn without the entrance, and the glint still stays on the line', await pub.locator('.hero-card .relay.pairs li').count() === 2 && await pub.locator('#today.enter').count() === 0 && await glintFits());
