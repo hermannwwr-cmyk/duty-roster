@@ -244,14 +244,15 @@ async function renderToday() {
     </div>
   </section>`;
 
-  // Who is Primary over the next three working days, so people know who to ask next.
-  const coming = day ? data.days.filter(d => d.kind === 'work' && d.date >= day.date).slice(0, 3) : [];
-  const upNext = coming.length > 1 ? `<section class="panel sub" aria-labelledby="next-h">
+  // Who is Primary on the three working days after the one the card shows, so people know who to ask next.
+  // The card already answers for today (or, outside office hours, the next duty day), so Up next starts after it.
+  const coming = day ? data.days.filter(d => d.kind === 'work' && d.date > day.date).slice(0, 3) : [];
+  const upNext = coming.length ? `<section class="panel sub" aria-labelledby="next-h">
     <div class="sub-head"><h3 id="next-h">Up next</h3><span>Primary each day</span></div>
     <ol class="strip upnext">${coming.map(d => {
       const p = d.duties[0], dt = fromISO(d.date);
-      const when = d.date === t ? 'Today' : dt.toLocaleDateString('en-SG', { weekday: 'short' }) + ' ' + dt.getDate();
-      return `<li class="${d.date === t ? 'is-today' : ''}${p ? '' : ' none'}"${p ? ` title="${esc(p.name)}"` : ''}><span class="when">${when}</span><span class="nm">${p ? esc(shortName(p.name, data.people)) : 'No one'}</span></li>`;
+      const when = d.date === addDays(t, 1) ? 'Tomorrow' : dt.toLocaleDateString('en-SG', { weekday: 'short' }) + ' ' + dt.getDate();
+      return `<li${p ? ` title="${esc(p.name)}"` : ' class="none"'}><span class="when">${when}</span><span class="nm">${p ? esc(shortName(p.name, data.people)) : 'No one'}</span></li>`;
     }).join('')}</ol>
   </section>` : '';
 
