@@ -42,23 +42,24 @@ a { color: var(--primary); }
 /* No overflow on the pill above 300px, so the taller tap areas and the focus rings aren't cut off. */
 .tabs { display: flex; flex: 0 1 auto; min-width: 0; gap: 2px; width: fit-content; max-width: 100%; padding: 3px; background: #0a212d; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--line); }
 .tabs button { position: relative; min-height: 2rem; padding: 0 .95rem; border: 0; border-radius: 999px; background: none; font-size: .9rem; font-weight: 600; color: var(--soft); white-space: nowrap; }
-.tabs button::before { content: ""; position: absolute; inset: -6px -1px; }   /* 44px tall; -1px closes the gap between tabs */
+.tabs button::before { content: ""; position: absolute; inset: -8px -1px -4px; }   /* 44px tall, from the top of the bar to 4px above its bottom, so a
+   phone's tap correction doesn't pull taps meant for the content below onto a tab; -1px closes the gap between tabs */
 /* The phone's own tap flash would light up the invisible tap areas, so it is off; a press lights the visible shape instead. */
 .tabs button, .signin, .acct-btn { -webkit-tap-highlight-color: transparent; }
 .tabs button:active:not([aria-current="page"]) { background: #ffffff14; }
 .signin:active { background: #ffffff14; }
-.acct-btn:active { filter: brightness(1.15); }
+.acct-btn:active { transform: scale(.92); }
 .tabs button:focus-visible { outline-offset: 1px; }
 .tabs button[aria-current="page"] { background: #1b4459; color: #ffffff; font-weight: 700; }
 .tab-short { display: none; }
 @media (max-width: 760px) { .tab-long { display: none; } .tab-short { display: inline; } }
 .top-end { flex: none; margin-left: auto; }
 .signin { position: relative; display: inline-flex; align-items: center; min-height: calc(2rem + 6px); padding: 0 .9rem; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--edge); color: var(--ink); font-size: .9rem; font-weight: 600; text-decoration: none; }
-.signin::before { content: ""; position: absolute; inset: -3px 0; }
+.signin::before { content: ""; position: absolute; inset: -5px 0 -1px; }
 .acct { position: relative; }
 /* Your face: with its ring, as tall as the pill. */
 .acct-btn { position: relative; display: block; width: 2rem; height: 2rem; padding: 0; border: 0; border-radius: 50%; background: #17404f; box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--accent); }
-.acct-btn::before { content: ""; position: absolute; inset: -6px; }
+.acct-btn::before { content: ""; position: absolute; inset: -8px -6px -4px; }
 .acct-btn:focus-visible { outline-offset: 5px; }                         /* clear of the cyan ring, so focus shows */
 .acct-menu { position: absolute; right: 0; top: calc(100% + 14px); z-index: 9; display: grid; min-width: 14rem; padding: .4rem; border-radius: 16px; background: var(--raised);
   box-shadow: inset 0 0 0 1px var(--edge), 0 16px 40px #000000a0; }
