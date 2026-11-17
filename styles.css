@@ -50,7 +50,7 @@ a { color: var(--primary); }
 @media (max-width: 760px) { .tab-long { display: none; } .tab-short { display: inline; } }
 @media (max-width: 360px) { .tabs { margin-left: -.55rem; } .tabs button { padding: 0 .55rem; } .tabs button[aria-current="page"]::after { left: .55rem; right: .55rem; } }
 .top-end { flex: none; margin-left: auto; }
-.signin { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0 .4rem; margin-right: -.4rem; border-radius: 10px; color: var(--soft); font-size: .92rem; font-weight: 600; text-decoration: none; transition: color .15s; }
+.signin { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0 .7rem; margin-right: -.7rem; border-radius: 10px; color: var(--soft); font-size: .92rem; font-weight: 600; text-decoration: none; transition: color .15s; }
 .signin:hover { color: var(--ink); }
 .acct { position: relative; }
 /* Your own face: a 32px circle with a steel ring (cyan would say "Primary"), and a 44px tap area around it. */
