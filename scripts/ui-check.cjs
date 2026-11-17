@@ -65,6 +65,13 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
 
   /* ---------- A. The public page ---------- */
   let pub = await open('/calendar.html');
+  // The compact top bar: 48px tall, each tab answers taps over the bar's height, and at 320px nothing in the pill is cut off.
+  const bar = await pub.evaluate(() => { const t = document.querySelector('.top').getBoundingClientRect(), tab = document.querySelector('[data-tab=calendar]').getBoundingClientRect();
+    return { h: Math.round(t.height), tap: document.elementFromPoint(tab.left + tab.width / 2, t.top + 4)?.closest('[data-tab]')?.dataset.tab, below: document.elementFromPoint(tab.left + tab.width / 2, t.bottom + 2)?.closest('.top') === null }; });
+  await pub.setViewportSize({ width: 320, height: 700 }); await pub.waitForTimeout(150);
+  const fits320 = await pub.evaluate(() => { const t = document.querySelector('.tabs'), s = document.querySelector('.signin').getBoundingClientRect(); return t.scrollWidth <= t.clientWidth && t.getBoundingClientRect().right <= s.left; });
+  await pub.setViewportSize({ width: 390, height: 844 }); await pub.waitForTimeout(150);
+  check('A0 top bar: 48px tall, tabs answer taps across its height but not below it, and it fits at 320px', bar.h === 48 && bar.tap === 'calendar' && bar.below && fits320, JSON.stringify({ ...bar, fits320 }));
   check('A1 public: today\'s Primary is shown', (await pub.locator('.hero-name .name').innerText()) === 'Alice Tan');
   check('A2 public: four Secondaries in order', (await pub.locator('.backups .nm').allTextContents()).join() === 'Ben Lim,Chloe Ng,Dev Kumar,Elena Goh');
   check('A2b public: the Secondaries are on the Primary\'s card, numbered, each with a name and a role', await pub.locator('.hero-card ol.backups li').count() === 4 && await pub.locator('.duty-side .backups').count() === 0

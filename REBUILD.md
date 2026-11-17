@@ -204,9 +204,9 @@ Two classes with **identical methods**:
 ## 7. UI and behaviour
 
 ### Shared
-- **Header** (sticky, blurred background): a single row with no title text.
-  - On the left, a **pill-shaped tab bar**; the selected tab is filled with a calm deep teal (`#1b4459`), not the accent.
-  - On the right: "Sign in" (public page), or a round **avatar button** showing your face (app). The avatar opens a menu showing "Signed in as \<name\>" (with an "Admin" badge for admins), Calendar and Sign out. The menu closes on Escape or a click outside.
+- **Header** (sticky, blurred background): a single compact row with no title text, 48px tall.
+  - On the left, a **pill-shaped tab bar**; the selected tab is filled with a calm deep teal (`#1b4459`), not the accent. The tabs look 32px tall (text .9rem) inside a 38px pill, but each takes taps over 44px through an invisible `::before`, kept inside the bar so it never takes taps meant for the content below. The pill has no overflow (so those tap areas and focus rings aren't clipped); at 340px and below the tabs and Sign in get less side padding, and below 300px the pill scrolls sideways.
+  - On the right: "Sign in" (public page; a 38px bordered pill, 44px to tap), or a round **avatar button** showing your face (app; 32px with its ring, 44px to tap, focus ring 5px out so it clears the cyan ring). The avatar opens a menu showing "Signed in as \<name\>" (with an "Admin" badge for admins), Calendar and Sign out. The menu closes on Escape or a click outside.
   - Long tab labels have a phone version: `<span class="tab-long">Calendar Forecast</span><span class="tab-short">Forecast</span>`; admins' "Team & settings" becomes "Team".
 - **Swiping (phones):** a horizontal swipe clicks the next or previous `[data-tab]`.
   - Thresholds: at least 60px, mostly horizontal, under 700ms.
