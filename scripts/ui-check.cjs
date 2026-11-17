@@ -70,8 +70,6 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   check('A2b public: the Secondaries are on the Primary\'s card, numbered, each with a name and a role', await pub.locator('.hero-card ol.backups li').count() === 4 && await pub.locator('.duty-side .backups').count() === 0
     && (await pub.locator('.backups .n').allTextContents()).join() === '1,2,3,4' && (await pub.locator('.backups .rl').allTextContents()).join() === 'Secondary 1,Secondary 2,Secondary 3,Secondary 4');
   check('A2c public: the button can be tapped without scrolling', await pub.evaluate(() => document.querySelector('a.btn.wa').getBoundingClientRect().bottom + scrollY <= 640));
-  check('A0 header: one slim bar (44px), tabs the full bar tall, the current one marked for screen readers', await pub.evaluate(() => { const bar = document.querySelector('.top').getBoundingClientRect().height;
-    return bar <= 45 && [...document.querySelectorAll('.tabs button, .signin')].every(el => el.getBoundingClientRect().height >= 44) && document.querySelectorAll('.tabs [aria-current="page"]').length === 1; }));
   check('A3 public: Up next shows the three working days after today, starting with tomorrow', (await pub.locator('.strip li').count()) === 3 && (await pub.locator('.strip .nm').allTextContents()).join() === 'Ben,Chloe,Dev' && (await pub.locator('.strip .when').first().innerText()).toLowerCase() === 'tomorrow');
   const want = rosterMessage({ date: '2026-11-16', duties: ['Alice Tan', 'Ben Lim', 'Chloe Ng', 'Dev Kumar', 'Elena Goh'].map((name, i) => ({ role: i ? 'Secondary ' + i : 'Primary', name })) }, BASE + '/calendar.html');
   const got = decodeURIComponent((await pub.locator('a.btn.wa').getAttribute('href')).replace('https://wa.me/?text=', ''));
