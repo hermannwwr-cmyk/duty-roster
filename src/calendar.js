@@ -244,17 +244,16 @@ async function renderToday() {
     </div>
   </section>`;
 
-  // Up next: the duty on the working day after the one the card shows (the card already answers for today), so people
-  // know who to ask next: that day's Primary, then their backups in order. A glint passes over it every 5 seconds.
+  // Up next: the Primary on the working day after the one the card shows (the card already answers for today), so people
+  // know who to ask next. A glint passes over it every 5 seconds.
   const after = day ? data.days.find(d => d.kind === 'work' && d.date > day.date) : null;
   const upNext = after ? (() => {
     const p = after.duties[0], dt = fromISO(after.date);
     const when = after.date === addDays(t, 1) ? 'Tomorrow' : dt.toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '');
-    const then = after.duties.slice(1).map(x => esc(shortName(x.name, data.people))).join(', ');
     return `<section class="panel sub" aria-labelledby="next-h">
     <div class="sub-head"><h3 id="next-h">Up next</h3><span class="when">${when}</span></div>
     <div class="next-duty${p ? '' : ' none'}"><i class="dot" aria-hidden="true"></i>
-      <p class="who"><span class="nm">${p ? esc(p.name) : 'No one is available'}</span>${p ? `<span class="rl">Primary${then ? ' · then ' + then : ''}</span>` : ''}</p></div>
+      <p class="who"><span class="nm">${p ? esc(p.name) : 'No one is available'}</span></p></div>
   </section>`;
   })() : '';
 

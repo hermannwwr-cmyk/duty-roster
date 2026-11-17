@@ -70,7 +70,7 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   check('A2b public: the Secondaries are on the Primary\'s card, numbered, each with a name and a role', await pub.locator('.hero-card ol.backups li').count() === 4 && await pub.locator('.duty-side .backups').count() === 0
     && (await pub.locator('.backups .n').allTextContents()).join() === '1,2,3,4' && (await pub.locator('.backups .rl').allTextContents()).join() === 'Secondary 1,Secondary 2,Secondary 3,Secondary 4');
   check('A2c public: the button can be tapped without scrolling', await pub.evaluate(() => document.querySelector('a.btn.wa').getBoundingClientRect().bottom + scrollY <= 640));
-  check('A3 public: Up next shows only tomorrow\'s duty: the Primary, then the backups in order', (await pub.locator('.next-duty .nm').textContent()) === 'Ben Lim' && (await pub.locator('.next-duty .rl').textContent()) === 'Primary · then Chloe, Dev, Elena, Alice'
+  check('A3 public: Up next shows only tomorrow\'s Primary', (await pub.locator('.next-duty .nm').textContent()) === 'Ben Lim' && (await pub.locator('.next-duty').innerText()).trim() === 'Ben Lim'
     && (await pub.locator('#next-h + .when').textContent()) === 'Tomorrow' && await pub.locator('.next-duty').count() === 1);
   const want = rosterMessage({ date: '2026-11-16', duties: ['Alice Tan', 'Ben Lim', 'Chloe Ng', 'Dev Kumar', 'Elena Goh'].map((name, i) => ({ role: i ? 'Secondary ' + i : 'Primary', name })) }, BASE + '/calendar.html');
   const got = decodeURIComponent((await pub.locator('a.btn.wa').getAttribute('href')).replace('https://wa.me/?text=', ''));
