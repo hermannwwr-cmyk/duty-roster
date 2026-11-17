@@ -174,48 +174,6 @@ function fitNames() {
     if (list.classList.contains('pairs') && cut('.nm, .rl')) list.classList.remove('pairs');
     if (!list.classList.contains('pairs') && cut('.nm')) { list.classList.add('short'); if (cut('.nm-short')) list.classList.add('tight'); }
   }
-  paceGlints();   // the layout is final now
-}
-/**
- * Paces the 5-second glint so it travels one continuous path at one steady speed: down from the Primary's face, round the
- * turn, along the rail through each Secondary, then on along Up next. Each stretch of line gets --at, where it starts on the
- * path; each stop and the turn get --hit, the moment the glint reaches them. Rows after the first follow on after a short gap.
- */
-const SPEED = (900 + 32) / 1.5;   // px per second: the path-along keyframes in styles.css (900px + --g over 30% of 5s)
-function paceGlints() {
-  const root = document.getElementById('today');
-  if (!root || !root.offsetParent) return;   // a hidden tab can't be measured; setTab() calls again
-  const px = n => n.toFixed(1) + 'px', sec = n => (n / SPEED).toFixed(3) + 's';
-  let cardEnd = 0;
-  for (const relay of root.querySelectorAll('.hero-card .relay')) {
-    const stem = relay.parentElement.querySelector('.stem'), flow = stem && stem.querySelector('.flow');
-    if (!flow) continue;
-    const s = stem.getBoundingClientRect(), turn = parseFloat(getComputedStyle(stem, '::after').width) || 0;
-    const stemLen = flow.getBoundingClientRect().height, x0 = s.left + s.width / 2 + turn;
-    stem.style.setProperty('--hit', sec(stemLen));
-    let base = stemLen + turn * Math.PI / 2, rowTop = null, last = base;
-    for (const li of relay.children) {
-      const rail = li.querySelector('.rail'), face = li.querySelector('.av').getBoundingClientRect();
-      if (rowTop === null) rowTop = face.top;
-      else if (face.top > rowTop + 4) { rowTop = face.top; base = last + 40 - (face.left - x0); }
-      if (rail) rail.style.setProperty('--at', px(base + rail.getBoundingClientRect().left - x0));
-      last = base + face.left + face.width / 2 - x0;
-      li.style.setProperty('--hit', sec(last));
-    }
-    cardEnd = last;
-  }
-  const strip = root.querySelector('.upnext');
-  if (strip && strip.children.length) {
-    const first = strip.children[0].getBoundingClientRect(), x = first.left + first.width / 2;
-    // Up next carries the glint on just after it reaches the card's last Secondary.
-    strip.style.setProperty('--t0', (2.3 + (cardEnd ? cardEnd / SPEED + .15 : 1.2)).toFixed(3) + 's');
-    for (const li of strip.children) {
-      const b = li.getBoundingClientRect(), at = b.left + b.width / 2 - x;
-      li.style.setProperty('--hit', sec(at));
-      const beam = li.querySelector('.beam');
-      if (beam) beam.style.setProperty('--at', px(at));
-    }
-  }
 }
 let fitting = 0;
 addEventListener('resize', () => { cancelAnimationFrame(fitting); fitting = requestAnimationFrame(fitNames); });

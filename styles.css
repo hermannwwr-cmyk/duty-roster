@@ -243,11 +243,12 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .upnext .none { --ring: var(--danger); --lit: var(--danger); }
 /* The beam is taller than the line so the glint's soft glow shows; the glint itself is the line's 2px. */
 .upnext .beam { position: absolute; top: calc(.2rem + .375rem - 5px); left: 50%; width: 100%; height: 10px; overflow: hidden; pointer-events: none; }
-.upnext .beam::after { content: ""; position: absolute; top: 4px; left: 0; width: var(--g); height: 2px; border-radius: 2px; background: linear-gradient(90deg, #e6f6ff00, #ffffff, #e6f6ff00); box-shadow: 0 0 6px 1px #e6f6ff80; transform: translateX(calc(-1 * var(--g))); animation: path-along 5s linear var(--t0) infinite; }
-.upnext li::before { animation: day-pulse 5s ease-out var(--lit-at) infinite; }
+.upnext .beam::after { content: ""; position: absolute; top: 4px; left: 0; width: 55%; height: 2px; border-radius: 2px; background: linear-gradient(90deg, #e6f6ff00, #ffffff, #e6f6ff00); box-shadow: 0 0 6px 1px #e6f6ff80; transform: translateX(-110%); animation: day-glint 5s linear calc(3.5s + var(--i) * .3s) infinite; }
+@keyframes day-glint { 0% { transform: translateX(-110%); } 6%, 100% { transform: translateX(230%); } }
+.upnext li::before { animation: day-pulse 5s ease-out calc(3.5s + var(--i) * .3s) infinite; }
 /* As the glint reaches a day its dot lights up (white, or red on a day with nobody) and swells, then settles. */
 @keyframes day-pulse { 0%, 14%, 100% { transform: scale(1); background: var(--panel); box-shadow: inset 0 0 0 2px var(--ring), 0 0 0 0 #d7e8ee00; } 3%, 6% { transform: scale(1.4); background: var(--lit); box-shadow: inset 0 0 0 2px var(--lit), 0 0 10px 2px #d7e8ee55; } }
-.enter .upnext li::before { animation: stop-in .3s cubic-bezier(.2, .9, .3, 1.2) calc(.55s + var(--i) * .16s) backwards, day-pulse 5s ease-out var(--lit-at) infinite; }
+.enter .upnext li::before { animation: stop-in .3s cubic-bezier(.2, .9, .3, 1.2) calc(.55s + var(--i) * .16s) backwards, day-pulse 5s ease-out calc(3.5s + var(--i) * .3s) infinite; }
 .enter .upnext li::after { transform-origin: left; animation: rail-along .2s linear calc(.65s + var(--i) * .16s) backwards; }
 .enter .upnext .when, .enter .upnext .nm { animation: stop-in .3s cubic-bezier(.2, .9, .3, 1.2) calc(.6s + var(--i) * .16s) backwards; }
 @media (prefers-reduced-motion: reduce) { .upnext *, .upnext *::before, .upnext *::after { animation: none !important; } }
@@ -322,14 +323,14 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 
 /* Motion on the card. The first time it is drawn, the line draws itself from the Primary and each stop arrives in turn;
    after that, every 5 seconds, the Primary's ring glows and a glint travels the same way; as it reaches each stop that
-   Secondary's ring lights up white and the face swells a little, then settles, as on Up next. The glint moves at one steady speed (see path-along).
+   Secondary's ring lights up white and the face swells a little, then settles, as on Up next (the glint crosses one stretch of line in .27s, which is also the delay from one stop to the next).
    Transforms and opacity only, so it costs a phone next to nothing, and none of it runs for people who turn off animations. */
 .enter .stem { transform-origin: top; animation: rail-down .24s ease-out both; }
-.enter .stem::after { animation: rail-show .1s linear .24s both, turn-lit 5s linear calc(var(--t0) + var(--hit, .07s)) infinite; }
+.enter .stem::after { animation: rail-show .1s linear .24s both, turn-lit 5s linear 2.58s infinite; }
 .enter .relay .rail { transform-origin: left; animation: rail-along .12s linear calc(.32s + var(--i) * .07s) both; }
 .enter .relay li::before { animation: rail-show .15s linear calc(.3s + var(--i) * .07s) both; }
 .enter .relay .person { animation: stop-in .3s cubic-bezier(.2, .9, .3, 1.2) calc(.38s + var(--i) * .07s) both; }
-.enter .relay .av { animation: stop-in .3s cubic-bezier(.2, .9, .3, 1.2) calc(.38s + var(--i) * .07s) both, stop-lit 5s ease-out var(--lit-at) infinite; }
+.enter .relay .av { animation: stop-in .3s cubic-bezier(.2, .9, .3, 1.2) calc(.38s + var(--i) * .07s) both, stop-lit 5s ease-out calc(2.75s + var(--i) * .27s) infinite; }
 @keyframes rail-down { from { transform: scaleY(0); } }
 @keyframes rail-along { from { transform: scaleX(0); } }
 @keyframes rail-show { from { opacity: 0; } }
@@ -338,29 +339,20 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 /* The glint starts at the Primary: as their ring glows it comes out from under the face, runs down the line (.flow in the
    stem), lights the turn, and carries on along the rail to each Secondary. */
 .stem .flow { position: absolute; inset: calc(var(--av) / 2 + 2px) -6px 0; overflow: hidden; }   /* from the face's edge down; wider than the line so the glow shows */
-.stem .flow::after { content: ""; position: absolute; top: 0; left: 6px; width: var(--thick); height: var(--g); border-radius: 2px; background: linear-gradient(180deg, #ffffff00, #ffffff, #ffffff00); box-shadow: 0 0 6px 2px #e6f6ff99; transform: translateY(calc(-1 * var(--g))); animation: path-down 5s linear var(--t0) infinite; }
-.stem::after { --turn-c: var(--steel); animation: turn-lit 5s linear calc(var(--t0) + var(--hit, .07s)) infinite; }
+.stem .flow::after { content: ""; position: absolute; top: 0; left: 6px; width: var(--thick); height: 60%; border-radius: 2px; background: linear-gradient(180deg, #ffffff00, #ffffff, #ffffff00); box-shadow: 0 0 6px 2px #e6f6ff99; transform: translateY(-110%); animation: stem-glint 5s linear 2.3s infinite; }
+@keyframes stem-glint { 0% { transform: translateY(-110%); } 6%, 100% { transform: translateY(230%); } }
+.stem::after { --turn-c: var(--steel); animation: turn-lit 5s linear 2.58s infinite; }
 .next-cover .stem::after { --turn-c: var(--edge); }
 @keyframes turn-lit { 0%, 4%, 100% { border-color: var(--turn-c); } 1%, 2% { border-color: #ffffff; } }
-.relay .rail::after { content: ""; position: absolute; top: 0; left: 0; width: var(--g); height: 100%; background: linear-gradient(90deg, #e6f6ff00, #ffffff, #e6f6ff00); transform: translateX(calc(-1 * var(--g))); animation: path-along 5s linear var(--t0) infinite; }
+.relay .rail::after { content: ""; position: absolute; top: 0; left: 0; width: 46%; height: 100%; background: linear-gradient(90deg, #e6f6ff00, #ffffff, #e6f6ff00); transform: translateX(-105%); animation: glint 5s linear calc(2.6s + var(--i) * .27s) infinite; }
 /* As the glint reaches a Secondary, as on Up next: their ring lights up white and their face swells a little, then settles. */
-.relay .av { animation: stop-lit 5s ease-out var(--lit-at) infinite; }
-.relay .av::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; box-shadow: inset 0 0 0 2px #ffffff, 0 0 12px 3px #d7e8ee66; opacity: 0; animation: ping 5s ease-out var(--lit-at) infinite; }
+.relay .av { animation: stop-lit 5s ease-out calc(2.75s + var(--i) * .27s) infinite; }
+.relay .av::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; box-shadow: inset 0 0 0 2px #ffffff, 0 0 12px 3px #d7e8ee66; opacity: 0; animation: ping 5s ease-out calc(2.75s + var(--i) * .27s) infinite; }
 /* Outside office hours the same cycle runs on the smaller rail: the next Primary's ring glows, then the glint. */
 .next-cover .who-line > .av::after { content: ""; position: absolute; inset: -3.5px; border-radius: 50%; box-shadow: 0 0 16px 5px #38bdf873; opacity: 0; animation: halo 5s ease-in-out 1.7s infinite; }
 .next-cover .relay .av::after { inset: -3.5px; }
 @keyframes halo { 0%, 40%, 100% { opacity: 0; } 16% { opacity: 1; } }
-/* One glint travels the whole way at one steady speed, on the card and on Up next alike. Every stretch of line runs the
-   same keyframes: at time t after --t0 the glint's front edge is (900px + --g) / 1.5s * t along the path, and each stretch
-   shows it shifted by --at, where that stretch starts on the path (paceGlints() in calendar.js measures it; its SPEED must
-   match these numbers). A stop lights up when the glint reaches its centre (--hit, also measured). */
-#today { --t0: 2.3s; --g: 32px; }
-.relay li { --hit: calc(.1s + var(--i) * .15s); }
-.upnext { --t0: 3.5s; }
-.upnext li { --hit: calc(var(--i) * .18s); }
-.relay li, .upnext li { --lit-at: calc(var(--t0) + var(--hit) - .12s); }
-@keyframes path-along { 0% { transform: translateX(calc(-1 * var(--at, 0px) - var(--g))); } 30%, 100% { transform: translateX(calc(900px - var(--at, 0px))); } }
-@keyframes path-down { 0% { transform: translateY(calc(-1 * var(--at, 0px) - var(--g))); } 30%, 100% { transform: translateY(calc(900px - var(--at, 0px))); } }
+@keyframes glint { 0% { transform: translateX(-105%); } 5.4%, 100% { transform: translateX(225%); } }
 @keyframes ping { 0%, 14%, 100% { opacity: 0; } 3%, 6% { opacity: 1; } }
 @keyframes stop-lit { 0%, 14%, 100% { transform: scale(1); } 3%, 6% { transform: scale(var(--swell, 1.14)); } }
 /* Names beside the faces sit close: a smaller swell, so the ring never touches them. */
