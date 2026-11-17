@@ -103,11 +103,14 @@ export class SupabaseStore {
   async updateLeave(id, patch) { changed(await this.sb.from('leaves').update(patch).eq('id', id).select('id')); }
   /** Save the rotation from a date onwards (see checkpointFor in schedule.js). Replaces any checkpoint on that date. */
   async saveCheckpoint(cp) { check(await this.sb.from('rota_checkpoints').upsert(cp)); }
-  /** Restart the rotation on `start`: clears all history and begins with order[0]. */
+  /** Restart the rotation on `start`: clears all history and begins with order[0].
+   *  Three separate requests, ordered so that a dropped connection never leaves the rotation without history: the new
+   *  starting point goes in first (replacing any on that date), then the start date, and the older checkpoints are cleared
+   *  last. If one fails, the error shows and saving again finishes the restart. */
   async resetRotation(start, order) {
-    check(await this.sb.from('rota_checkpoints').delete().gte('effective_date', '1900-01-01'));
-    check(await this.sb.from('rota_checkpoints').insert({ effective_date: start, member_order: order, next_primary: order[0] || null }));
+    check(await this.sb.from('rota_checkpoints').upsert({ effective_date: start, member_order: order, next_primary: order[0] || null }));
     await this.updateSettings({ rota_start: start });
+    check(await this.sb.from('rota_checkpoints').delete().neq('effective_date', start));
   }
 }
 

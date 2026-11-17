@@ -60,3 +60,31 @@ test('admins can set anyone\'s work email; others only their own', async () => {
   await s.setWorkEmail('demo-1', 'ben.lim@company.com');
   assert.equal(s.db.profiles.find(p => p.id === 'demo-1').work_email, 'ben.lim@company.com');
 });
+
+// SupabaseStore against a stand-in for the Supabase client: just the calls resetRotation makes, with a way to drop the
+// connection on the nth write.
+function fakeSupabase(db, failAt) {
+  let writes = 0;
+  const reply = (apply) => (++writes === failAt ? { data: null, error: { message: 'Failed to fetch' } } : { data: apply(), error: null });
+  const done = res => ({ then: (ok, bad) => Promise.resolve(res).then(ok, bad) });
+  return () => ({
+    from: table => ({
+      upsert: row => done(reply(() => { db[table] = db[table].filter(r => r.effective_date !== row.effective_date).concat(row); return null; })),
+      delete: () => ({ neq: (col, v) => done(reply(() => { db[table] = db[table].filter(r => r[col] === v); return null; })) }),
+      update: patch => ({ eq: () => ({ select: () => done(reply(() => { Object.assign(db[table][0], patch); return [{ id: 1 }]; })) }) })
+    })
+  });
+}
+
+test('restarting the rotation never loses the history if the connection drops part way, and saving again finishes it', async () => {
+  const { SupabaseStore } = await import('../src/store.js');
+  const old = [{ effective_date: '2026-01-05', member_order: ['a', 'b'], next_primary: 'a' }, { effective_date: '2026-06-01', member_order: ['b', 'a'], next_primary: 'b' }];
+  for (const failAt of [1, 2, 3]) {
+    const db = { rota_checkpoints: old.map(c => ({ ...c })), settings: [{ id: 1, rota_start: '2026-01-05' }] };
+    await assert.rejects(new SupabaseStore(fakeSupabase(db, failAt), 'u', 'k').resetRotation('2026-11-02', ['c', 'a', 'b']), /Failed to fetch/);
+    assert.ok(old.every(o => db.rota_checkpoints.some(c => c.effective_date === o.effective_date)), 'the earlier history is still there after a failure at write ' + failAt);
+    await new SupabaseStore(fakeSupabase(db, 0), 'u', 'k').resetRotation('2026-11-02', ['c', 'a', 'b']);
+    assert.deepEqual(db.rota_checkpoints, [{ effective_date: '2026-11-02', member_order: ['c', 'a', 'b'], next_primary: 'c' }]);
+    assert.equal(db.settings[0].rota_start, '2026-11-02');
+  }
+});

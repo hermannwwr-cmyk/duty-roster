@@ -91,7 +91,7 @@ Changing the team must never rewrite past days. A **rota checkpoint** is `{ effe
   - Find whose turn it would be today.
   - Keep that person next, or the next person after them who is still in the new order.
   - If the change is before the rotation has started, just use the new order with its first person next.
-- **"Restart rotation"** (admin) replaces all checkpoints with a single one: `{ start, order, order[0] }`.
+- **"Restart rotation"** (admin) replaces all checkpoints with a single one: `{ start, order, order[0] }`. Against the database it is three requests, ordered so a dropped connection never leaves the rotation without history: upsert the new checkpoint, set the start date, and only then delete every other checkpoint. Saving again finishes an interrupted restart.
 
 ### Functions to export from `schedule.js`
 - `toISO(date)`, `fromISO(iso)` (noon), `addDays(iso, n)`, `isWeekend(iso)`
