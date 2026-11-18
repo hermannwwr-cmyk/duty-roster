@@ -154,11 +154,17 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 /* A long name is set smaller, so it stays on one or two lines beside the face. */
 .hero-name .name.long { font-size: 1.75rem; }
 .hero-name .name.longer { font-size: 1.45rem; line-height: 1.12; letter-spacing: -.015em; }
+/* fitNames() in calendar.js measures the name with its words kept whole, and sets it smaller if one doesn't fit. */
+.hero-name .name.measure { min-width: 0; overflow-wrap: normal; }
 .hero-name .hero-role { color: var(--soft); font-size: .9rem; font-weight: 600; }
 /* A working day with nobody available: a red label and a plain statement where the name would be. */
 .eyebrow.warn { color: var(--danger); }
 .warn-text { color: var(--danger); }
 .hero-name .hero-none { color: #ffffff; font-size: 1.4rem; font-weight: 800; line-height: 1.2; letter-spacing: -.01em; }
+/* A load that failed (calendar.js): a plain message in the card, or under the month's name in the Forecast, and Try again. */
+.load-fail .hero-body > .btn, .cal-fail .btn { justify-self: start; }
+.cal-fail { display: grid; gap: .75rem; justify-items: start; padding: .4rem .4rem .7rem; color: var(--soft); font-size: .93rem; }
+.cal-fail b { color: var(--ink); }
 
 /* The rail: the Secondaries share the card with the Primary. A line drops from the Primary's face (.stem), turns, and runs
    through each Secondary in backup order: the dots on a line of Up next, with faces. It leaves the Primary cyan and
@@ -198,6 +204,9 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .relay.tight .nm-short { font-size: .72rem; letter-spacing: -.01em; white-space: normal; overflow-wrap: anywhere; }
 /* The role under each name: a touch smaller when four share a row, so the labels never run into each other. */
 .relay .rl { font-size: clamp(.64rem, .83rem - var(--cols) * .045rem, .6875rem); line-height: 1.4; color: var(--soft); white-space: nowrap; }
+/* Roles that would touch their neighbours (the narrowest cards, a phone with its text zoomed) take two lines, with a little
+   space kept at each side (fitNames in calendar.js). */
+.relay.roles-2 .rl { max-width: calc(100% - .4rem); line-height: 1.25; white-space: normal; }
 /* One or two Secondaries: each name stands beside its face, and the line runs on between them (fitNames in
    calendar.js keeps this only while the names fit). */
 .relay.pairs { display: flex; align-items: flex-start; width: auto; justify-self: stretch; margin-left: calc(var(--av) / 2 - var(--thick) / 2 + var(--turn)); }
@@ -269,8 +278,12 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .enter .next-duty { animation: stop-in .35s cubic-bezier(.2, .9, .3, 1.2) calc(.6s + var(--i, 0) * .1s) backwards, duty-halo 5s ease-in-out var(--at) infinite; }
 .enter .next-duty.none { animation: stop-in .35s cubic-bezier(.2, .9, .3, 1.2) calc(.6s + var(--i, 0) * .1s) backwards; }
 @media (prefers-reduced-motion: reduce) { .next-duty, .next-duty *, .next-duty::after { animation: none !important; } }
-/* The narrowest phones: a little tighter, so "Tomorrow" fits on one line. */
+/* The narrowest phones: a little tighter, so "Tomorrow" fits on one line; from 340px down the names are a size smaller,
+   so first names of seven or eight letters (Jonathan, Michelle, Kenneth) fit at 320px. */
 @media (max-width: 360px) { .next-days { gap: .4rem; } .next-duty { padding-inline: .5rem; } .next-duty .when { gap: .3rem; letter-spacing: 0; } .next-duty .dot { width: .5rem; height: .5rem; } }
+@media (max-width: 340px) { .next-duty .nm { font-size: .92rem; letter-spacing: -.02em; } }
+/* Narrower still (a phone with its text zoomed): the three days stack, each tile across the panel, at full size. */
+@media (max-width: 309.98px) { .next-days { grid-template-columns: minmax(0, 1fr); } .next-duty .nm { font-size: 1.05rem; letter-spacing: -.01em; } }
 .lineup { grid-template-columns: repeat(auto-fill, minmax(3.6rem, 1fr)); }
 .lineup .p .av { box-shadow: 0 0 0 2px var(--raised), 0 0 0 3.5px var(--accent); }
 .lineup .p.me .av { box-shadow: 0 0 0 2px var(--accent-soft), 0 0 0 3.5px var(--accent); }
@@ -300,6 +313,17 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
   .hero-name .name { font-size: 1.9rem; }
   .hero-name .name.long { font-size: 1.55rem; }
   .hero-name .name.longer { font-size: 1.3rem; }
+}
+/* The narrowest cards (a phone with its text zoomed: 260 to 310px screens). The button's words take two lines rather than
+   spill out of it. The caption still sits on the scene's floor, but when it needs more lines than the floor has, it starts
+   at the floor's edge and runs on below the scene instead of climbing over the room: row 1 is the scene down to its floor
+   (150 of its 196 units), row 2 the floor, and the caption sits at the foot of row 2, which grows with it. */
+@container card (max-width: 279.98px) {
+  .hero-body > .btn.wa { line-height: 1.2; white-space: normal; text-wrap: balance; }
+  .hero-scene { display: grid; grid-template-rows: calc(100cqw * 150 / 358) auto; }
+  .hero-scene > .engineer { grid-area: 1 / 1 / 3 / 2; align-self: start; }
+  .hero-caption, .has-lead .hero-caption { position: relative; grid-area: 2 / 1; align-self: end; inset: auto; margin: 0 var(--pad) .3rem; }
+  .has-lead .hero-caption { margin-left: calc(var(--pad) + var(--av) + var(--beside)); }
 }
 /* Tablets and desktops: everything a size up, and six stops to a row. The Primary's name and the button stand together
    beside the face, the line runs down past them, and the rail closes the card across its full width. */
@@ -427,7 +451,9 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .cell.is-next { background: var(--accent-soft); box-shadow: inset 0 0 0 1.5px var(--accent); color: #ffffff; }
 .cell.is-next .d { color: var(--primary); font-weight: 700; }
 .today-note { padding: 0 .4rem; color: var(--primary); font-size: .85rem; font-weight: 600; }
-@media (min-width: 761px) { .today-note { padding: 0; } }
+/* Where the public calendar's days end (or start): past it the grid is blank. */
+.cal-note { padding: 0 .4rem; color: var(--soft); font-size: .85rem; }
+@media (min-width: 761px) { .today-note, .cal-note { padding: 0; } }
 /* A public holiday that is today keeps the today outline over its green. */
 .cell.holiday.is-today { box-shadow: inset 0 0 0 2px var(--accent), 0 0 0 1px var(--accent), 0 0 18px #38bdf866; }
 /* Today: a brighter cell, a thick cyan outline with a soft glow, and the word "Today" next to the date. */
@@ -437,8 +463,10 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .today-tag { min-width: 0; overflow: hidden; color: var(--primary); font-weight: 700; font-size: .6rem; letter-spacing: .02em; text-transform: uppercase; }
 .cell.is-today .num { gap: 3px; padding-right: 2px; }
 @media (min-width: 761px) { .today-tag { font-size: .7rem; letter-spacing: .06em; } }
-/* The narrowest phones: "Today" goes on its own line under the date rather than being cut off. */
-@media (max-width: 360px) { .cell.is-today .num { flex-wrap: wrap; row-gap: 2px; } .today-tag { flex-basis: 100%; padding-left: 3px; } }
+/* On phones "Today" (or "Next") goes under the date when the two don't fit side by side ("30 Nov" in December's grid, or
+   375px), rather than being cut off; on the narrowest phones it always does. */
+@media (max-width: 760px) { .cell.is-today .num, .cell.is-next .num { flex-wrap: wrap; row-gap: 2px; } }
+@media (max-width: 360px) { .today-tag { flex-basis: 100%; padding-left: 3px; } }
 .cell.holiday { align-items: center; gap: 6px; background: var(--holiday-soft); box-shadow: none; color: var(--holiday); text-align: center; }
 .cell.holiday .num { align-self: flex-start; color: var(--holiday); }
 .cell.holiday svg { flex: none; margin-top: .3rem; }
@@ -463,11 +491,14 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .duty-list .first { display: none; }
 /* On phones the five weekdays fit across the screen with first names; wider screens show full names. */
 @media (max-width: 760px) { .duty-list .full { display: none; } .duty-list .first { display: inline; } }
-/* The narrowest phones: a little tighter, so five-letter names still fit. */
-@media (max-width: 360px) { .cell { font-size: .72rem; } .cell .num, .duty-list li, .cell .nobody { padding-inline: 3px; } .cell .hol { font-size: .56rem; letter-spacing: -.02em; } }
+/* Phones up to 440px: names a little smaller and tighter, so first names of seven or eight letters (Jonathan, Michelle,
+   Kenneth) fit from 375px up; the narrowest phones also bring the dates and holiday names in, so five-letter names fit there. */
+@media (max-width: 440px) { .cell { font-size: .72rem; } .duty-list li { padding-inline: 3px; letter-spacing: -.02em; } }
+@media (max-width: 360px) { .cell .num, .cell .nobody { padding-inline: 3px; } .cell .hol { font-size: .56rem; letter-spacing: -.02em; } }
 @media (min-width: 761px) {
   .cal-panel { gap: .9rem; padding: 1.1rem 1.2rem 1.2rem; }
   .cal-head, .legend { padding: 0; }
+  .cal-fail { padding-inline: 0; }
   .legend { font-size: .85rem; }
   .dows, .cal { gap: 6px; }
   .dows { font-size: .72rem; }
