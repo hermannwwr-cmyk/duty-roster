@@ -388,9 +388,18 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   await pub.click('#next'); await settle(pub);
   check('N4 a month that fails to load says so under its name, with Try again and the month buttons, and focus on Try again', (await heading(pub)) === 'December 2026' && (await pub.locator('.cal-fail').innerText()).includes('Can’t load this month right now.')
     && await pub.evaluate(() => document.activeElement.id) === 'retry-month' && await pub.locator('#this').count() === 1 && await pub.locator('#today .hero-card').count() === 1, await pub.locator('#view').innerText());
+  await pub.clock.runFor(5 * 60 * 1000 + 2000); await settle(pub);
+  check('N4b while it still fails, the routine refresh tries again and says so, keeping focus on Try again, and the card stays', (await heading(pub)) === 'December 2026' && await pub.locator('.cal-fail').count() === 1
+    && await pub.evaluate(() => document.activeElement.id) === 'retry-month' && await pub.locator('#today .hero-card').count() === 1);
   await pub.evaluate(() => { globalThis.__failLoads = false; });
   await pub.click('#retry-month'); await settle(pub);
   check('N5 Try again draws that month', (await heading(pub)) === 'December 2026' && await pub.locator('.cal .cell').count() > 0 && await pub.locator('.cal-fail').count() === 0);
+  await pub.evaluate(() => { globalThis.__failLoads = true; });
+  await pub.click('#next'); await settle(pub);
+  await pub.evaluate(() => { globalThis.__failLoads = false; });
+  await pub.clock.runFor(5 * 60 * 1000 + 2000); await settle(pub);
+  check('N5b once the connection is back, the routine refresh draws a month that failed, with focus still in the Forecast', (await heading(pub)) === 'January 2027' && await pub.locator('.cal .cell').count() > 0
+    && await pub.evaluate(() => document.getElementById('view').contains(document.activeElement)));
   await pub.close();
   pub = await open('/calendar.html', NOW, failing);
   await pub.evaluate(() => { globalThis.__failStore = false; });

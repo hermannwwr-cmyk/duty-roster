@@ -156,11 +156,20 @@ function drawMonthFailure(month) {
 
 /** The routine refresh of the Forecast. Someone on the current month moves on with the calendar when the month changes. */
 async function refreshMonth() {
-  // Leave the month alone while someone is using its controls; it updates next time.
-  if (view.contains(document.activeElement)) return;
+  // Leave the month alone while someone is using its controls; it updates next time. A month that didn't load is tried
+  // again even then, as there is nothing on screen to lose; focus stays in the Forecast.
+  const focused = view.contains(document.activeElement);
+  if (focused && drawnMonth) return;
   const home = homeMonth();
-  await show(state.month === lastHome ? home : state.month, undefined, true);
-  lastHome = home;
+  try {
+    await show(state.month === lastHome ? home : state.month, undefined, true);
+    lastHome = home;
+  } finally {
+    if (focused && !view.contains(document.activeElement)) {
+      const retry = document.getElementById('retry-month');
+      if (retry) retry.focus({ preventScroll: true }); else focusHeading(view.querySelector('.cal-head h2'));
+    }
+  }
 }
 
 function render(data, month, from) {
