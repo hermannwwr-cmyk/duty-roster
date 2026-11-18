@@ -187,6 +187,24 @@ test('the engineer scene follows the time of day in Singapore', async () => {
   assert.equal(periodAt(new Date('2026-10-24T12:30:00+08:00'), { weekdays: false }), 'lunch');
   assert.match(engineerScene('holiday').caption, /Public holiday/);
   for (const p of ['morning', 'lunch', 'afternoon', 'evening', 'afterwork', 'sleeping', 'weekend', 'holiday']) assert.match(engineerScene(p).svg, /^<svg[^>]*aria-label="[^"]+"/);
+  // With no part of the day given, it is the one `now` falls in; an unknown one is the morning.
+  assert.equal(engineerScene(undefined, new Date('2026-10-21T12:30:00+08:00')).period, 'lunch');
+  assert.equal(engineerScene('nonsense').period, 'morning');
+});
+
+test('the room says when the office opens again, and its clock keeps Singapore time', async () => {
+  const { engineerScene, clockHands } = await import('../src/engineer.js');
+  // Lunch is still duty time: nothing says the Primary is away.
+  assert.doesNotMatch(engineerScene('lunch').caption + engineerScene('lunch').svg, /back at|away/i);
+  assert.equal(engineerScene('lunch').caption, 'Lunch at the desk. Still happy to help.');
+  assert.equal(engineerScene('closed', new Date(), { opens: '9am Monday' }).caption, 'Office closed. Opens at 9am Monday.');
+  assert.match(engineerScene('closed', new Date(), { opens: '9am on Tue, 24 Nov' }).svg, /aria-label="Office closed\. Opens at 9am on Tue, 24 Nov\."/);
+  assert.equal(engineerScene('closed').caption, 'Office closed.');
+  // The hands: minute hand straight up and hour hand at 3 for 3pm, whatever the viewer's timezone.
+  assert.equal(clockHands(new Date('2026-11-16T15:00:00+08:00')), 'M154 34l0.0 -7.5M154 34l5.3 -0.0');
+  assert.notEqual(clockHands(new Date('2026-11-16T15:01:00+08:00')), clockHands(new Date('2026-11-16T15:00:00+08:00')));
+  const now = new Date('2026-11-16T09:30:00+08:00');
+  assert.ok(engineerScene('morning', now).svg.includes(`class="hands" d="${clockHands(now)}"`));
 });
 
 test('office hours are 9am to 6pm in Singapore, whatever the viewer\'s timezone', async () => {

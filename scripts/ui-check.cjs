@@ -1,7 +1,9 @@
 // A functional check of both pages in a real browser, in demo mode: it clicks through every action
 // (leave, team changes, holidays, settings, sign-up and approval, month and tab navigation, swiping,
-// a day when nobody is available, and outside office hours; and in the signed-in app a dropped connection,
-// double taps and refused saves on a slow line, the questions before one-tap changes, and Remove access)
+// a day when nobody is available, and outside office hours), lets the clock run (refreshes, 6pm, noon,
+// midnight), has the public page's requests fail or answer late (a stand-in src/connect.js), and in the
+// signed-in app tries a dropped connection, double taps and refused saves on a slow line, the questions
+// before one-tap changes, and Remove access;
 // and checks what the roster and the public page show afterwards. Run it before publishing a change
 // to a page, script or styles.css:
 //
@@ -32,11 +34,13 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   const b = await chromium.launch();
   const c = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
   await c.addInitScript(() => { try { localStorage.setItem('swipePeekSeen', '1'); } catch {} });
-  const open = async (url, now = NOW) => {
+  // `prep(page)` runs before the page loads (to serve a stand-in file, say).
+  const open = async (url, now = NOW, prep) => {
     const p = await c.newPage();
     p.on('console', m => { if (m.type() === 'error') errors.push(url + ': ' + m.text()); });
     p.on('pageerror', e => errors.push(url + ': ' + e.message));
     p.on('dialog', d => d.accept());
+    if (prep) await prep(p);
     await p.clock.install({ time: new Date(now) });
     await p.goto(BASE + url); await p.clock.runFor(1200); await p.waitForTimeout(600);
     return p;
@@ -70,6 +74,28 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   const signIn = async (p, who) => { await p.click(`[data-demo="${who}@example.com"]`); await settle(p); };
   const signOut = async p => { await p.click('#acct-btn'); await p.click('#signout'); await settle(p); };
   const tab = async (p, t) => { await p.click(`[data-tab=${t}]`); await settle(p); };
+  // A stand-in for src/connect.js (pass it to open() as `prep`). Like the real one in Supabase mode, making the store
+  // downloads the client from the CDN, here a stand-in that is served while `cdn.down` is false and fails as a dropped
+  // connection while it is true (the browser then keeps that failure for as long as the page is open, as it does for
+  // real). The store is the demo store, which the check can reach as __store (to change the data under a page that is
+  // open), and which fails on demand: each load (__failLoads), or answers late (__delay: milliseconds by the first day
+  // asked for, on the page's clock). __asked counts the loads.
+  const CDN = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm', cdn = { down: false, asked: 0 };
+  await c.route(CDN, route => { cdn.asked++; return cdn.down ? route.abort('internetdisconnected')
+    : route.fulfill({ contentType: 'text/javascript', headers: { 'access-control-allow-origin': '*' }, body: 'export const createClient = () => ({});' }); });
+  const flaky = p => p.route('**/src/connect.js*', route => route.fulfill({ contentType: 'text/javascript', body: `import { DemoStore } from './store.js';
+    export async function createStore() {
+      await import('${CDN}');
+      const store = globalThis.__store = new DemoStore(), load = store.loadPublic.bind(store);
+      store.loadPublic = async (from, to) => {
+        globalThis.__asked = (globalThis.__asked || 0) + 1;
+        const wait = (globalThis.__delay || {})[from];
+        if (wait) await new Promise(done => setTimeout(done, wait));
+        if (globalThis.__failLoads) throw new Error('Failed to fetch');
+        return load(from, to);
+      };
+      return store;
+    }` }));
 
   /* ---------- A. The public page ---------- */
   let pub = await open('/calendar.html');
@@ -257,7 +283,7 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   /* ---------- I. Outside office hours (9am to 6pm) on a working day ---------- */
   pub = await open('/calendar.html');
   const todays = await pub.locator('.hero-name .name').innerText();
-  const todaysBackups = (await pub.locator('.backups .nm').allTextContents()).join();
+  const todaysList = await pub.locator('.backups .nm').allTextContents(), todaysBackups = todaysList.join();
   await tab(pub, 'calendar');
   const tuesdays = await cell(pub, 17).locator('.duty-list li.p .full').innerText();
   const wednesdays = await cell(pub, 18).locator('.duty-list li.p .full').innerText();
@@ -267,12 +293,18 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   check('I2b before 9am: that day\'s Secondaries are in the same box, in order', todaysBackups.length > 0 && (await pub.locator('.hero-card .next-cover .backups .nm').allTextContents()).join() === todaysBackups);
   check('I2 before 9am: next on duty is today\'s Primary, from 9am today', (await pub.locator('.next-cover .eyebrow').textContent()) === 'Next on duty · 9am today' && (await pub.locator('.next-cover .who-line .nm').innerText()) === todays, await pub.locator('.next-cover').innerText());
   check('I3 before 9am: the room is closed and the button shares rather than asks', (await pub.locator('.engineer').getAttribute('class')).includes('scene-closed') && (await pub.locator('a.btn.wa').innerText()).trim() === 'Tell the team on WhatsApp');
+  check('I3b before 9am: the message is about today, and the room opens at 9am', decodeURIComponent(await pub.locator('a.btn.wa').getAttribute('href')).includes('Mon, 16 Nov') && (await pub.locator('.hero-caption').innerText()) === 'Office closed. Opens at 9am.', await pub.locator('.hero-caption').innerText());
   await pub.close();
   pub = await open('/calendar.html', '2026-11-16T10:30:00Z');   // 6:30pm in Singapore
   check('I4 after 6pm: next on duty is tomorrow\'s Primary', (await pub.locator('.next-cover .eyebrow').textContent()) === 'Next on duty · 9am tomorrow' && (await pub.locator('.next-cover .who-line .nm').innerText()) === tuesdays, await pub.locator('.next-cover').innerText());
   check('I4b after 6pm: the next Primary\'s ring glows as in office hours, and no glint runs along the line', await pub.evaluate(() => getComputedStyle(document.querySelector('.next-cover .who-line > .av'), '::after').animationName === 'halo'
     && getComputedStyle(document.querySelector('.next-cover .relay .rail'), '::after').content === 'none'));
-  check('I5 after 6pm: Up next shows the day after tomorrow, and the message is for tomorrow', (await pub.locator('.next-duty').first().getAttribute('title')) === wednesdays && (await pub.locator('.next-duty .when').first().textContent()) === 'Wed 18' && decodeURIComponent(await pub.locator('a.btn.wa').getAttribute('href')).includes('Tue, 17 Nov'));
+  check('I5 after 6pm: Up next shows the day after tomorrow', (await pub.locator('.next-duty').first().getAttribute('title')) === wednesdays && (await pub.locator('.next-duty .when').first().textContent()) === 'Wed 18');
+  // The evening's message is still about the day: its date, its Primary and Secondaries, and the usual request to the Primary.
+  const evening = decodeURIComponent((await pub.locator('a.btn.wa').getAttribute('href')).replace('https://wa.me/?text=', ''));
+  const todayMessage = rosterMessage({ date: '2026-11-16', duties: [todays, ...todaysList].map((name, i) => ({ role: i ? 'Secondary ' + i : 'Primary', name })) }, BASE + '/calendar.html');
+  check('I5b after 6pm: the button still says "Tell the team on WhatsApp", and its message is about today', (await pub.locator('a.btn.wa').innerText()).trim() === 'Tell the team on WhatsApp' && evening === todayMessage
+    && evening.includes(`Hi ${todays} (Primary), may we have OTP login for ...`), JSON.stringify(evening));
   await pub.close();
   pub = await open('/calendar.html', '2026-11-16T09:59:30Z');   // 5:59:30pm: open, then it switches by itself at 6pm
   const openBefore = await pub.locator('.av.big').count() === 1;
@@ -325,8 +357,16 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   pub = await open('/calendar.html#calendar', '2026-10-31T03:00:00Z');   // Saturday 31 October: the next working day is in November
   check('M6 weekend at the end of a month: the Forecast opens on the month of the next working day, whose outline pulses without a glow', (await pub.locator('.cal-head h2').innerText()) === 'November 2026' && await pub.locator('.cal .is-next').count() === 1
     && await pub.evaluate(() => { const a = getComputedStyle(document.querySelector('.cell.is-next'), '::after'); return a.animationName === 'halo' && a.boxShadow.includes('inset'); }) && await pub.locator('#this').count() === 0);
-  await pub.click('#prev'); await settle(pub);
-  check('M7 from there, the way back is named after the month it leads to', (await pub.locator('.cal-head h2').innerText()) === 'October 2026' && (await pub.locator('#this').innerText()) === 'November');
+  await pub.click('#next'); await settle(pub);
+  check('M7 from there, the way back is named after the month it leads to', (await pub.locator('.cal-head h2').innerText()) === 'December 2026' && (await pub.locator('#this').innerText()) === 'November');
+  await pub.close();
+  // The card isn't drawn again when nothing changes, so its entrance must not replay when you come back to its tab.
+  pub = await open('/calendar.html');
+  await pub.clock.runFor(11 * 60 * 1000); await settle(pub);   // two routine refreshes that change nothing
+  const entered = await pub.locator('#today.enter').count();
+  await tab(pub, 'calendar'); await tab(pub, 'today');
+  const replayed = await pub.evaluate(() => document.getAnimations().filter(a => a.playState === 'running' && /^(stop-in|rail-)/.test(a.animationName) && a.effect.target.closest && a.effect.target.closest('#today')).length);
+  check('M8 coming back to the 2FA Login tab doesn\'t replay the card\'s entrance', entered === 1 && await pub.locator('#today.enter').count() === 0 && replayed === 0, JSON.stringify({ entered, replayed }));
   await pub.close();
 
   /* ---------- L. Two Secondaries stand side by side, and the card still looks right after a routine refresh ---------- */
@@ -337,13 +377,166 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
     db.profiles.filter(person => !keep.includes(person.display_name)).forEach((person, i) => db.leaves.push({ id: 950 + i, user_id: person.id, start_date: '2026-11-16', end_date: '2026-11-16', note: '' }));
     localStorage.setItem('duty-roster-demo', JSON.stringify(db)); });
   await pub.close();
-  pub = await open('/calendar.html');
+  pub = await open('/calendar.html', NOW, flaky);
   const noGlint = () => pub.evaluate(() => [...document.querySelectorAll('.relay .rail')].every(rail => getComputedStyle(rail, '::after').content === 'none'));
   check('L1 two Secondaries: side by side on the card, with no glint on the line', await pub.locator('.hero-card .relay.pairs li').count() === 2 && await pub.locator('#today.enter').count() === 1 && await noGlint());
+  // Tomorrow's Primary goes on leave (in the open page's store only), so Up next changes and the refresh has to draw the card again.
+  await pub.evaluate(() => { const db = globalThis.__store.db;
+    const tomorrow = db.profiles.find(person => person.display_name === document.querySelector('.next-duty').title);
+    db.leaves.push({ id: 980, user_id: tomorrow.id, start_date: '2026-11-17', end_date: '2026-11-17', note: '' }); });
+  const upNextBefore = await pub.locator('.next-duty').first().getAttribute('title');
   await pub.clock.runFor(5 * 60 * 1000 + 2000); await settle(pub);
-  check('L2 after a routine refresh: redrawn without the entrance, still with no glint', await pub.locator('.hero-card .relay.pairs li').count() === 2 && await pub.locator('#today.enter').count() === 0 && await noGlint());
+  check('L2 after a routine refresh that changes something: redrawn without the entrance, still with no glint', await pub.locator('.hero-card .relay.pairs li').count() === 2 && await pub.locator('#today.enter').count() === 0 && await noGlint()
+    && (await pub.locator('.next-duty').first().getAttribute('title')) !== upNextBefore, JSON.stringify({ pairs: await pub.locator('.hero-card .relay.pairs li').count(), enter: await pub.locator('#today.enter').count(), before: upNextBefore, after: await pub.locator('.next-duty').first().getAttribute('title') }));
+  // A refresh that changes nothing leaves the card alone: the same card, keyboard focus still on the button, and the clock moved on.
+  await pub.locator('a.btn.wa').focus();
+  const handsBefore = await pub.evaluate(() => { window.cardBefore = document.querySelector('.hero-card'); return document.querySelector('.engineer .hands').getAttribute('d'); });
+  await pub.clock.runFor(5 * 60 * 1000 + 2000); await settle(pub);
+  check('L3 a refresh that changes nothing leaves the card alone: focus stays on the button, and the wall clock keeps time', await pub.evaluate(h => window.cardBefore === document.querySelector('.hero-card')
+    && document.activeElement === document.querySelector('a.btn.wa') && document.querySelector('.engineer .hands').getAttribute('d') !== h, handsBefore));
   await pub.evaluate(() => { const db = JSON.parse(localStorage.getItem('duty-roster-demo')); db.leaves = db.leaves.filter(l => !(l.id >= 950 && l.id < 990)); localStorage.setItem('duty-roster-demo', JSON.stringify(db)); });
   await pub.close();
+
+  {
+  /* ---------- S. A request that fails: the page says so, with Try again, and keeps refreshing ---------- */
+  const heading = p => p.evaluate(() => (document.querySelector('.cal-head h2') || {}).textContent);
+  const loadsFail = p => flaky(p).then(() => p.addInitScript(() => { globalThis.__failLoads = true; }));
+  const cardShown = p => p.evaluate(() => !!document.querySelector('.hero-card .av.big') && !document.getElementById('retry-today'));
+  // Part of the page (the Supabase client) doesn't download. The browser keeps the failed download, so only a reload tries again.
+  cdn.down = true; let asked = cdn.asked;
+  pub = await open('/calendar.html', NOW, flaky);
+  check('S1 part of the page doesn\'t download: the card and the Forecast say so in plain words, with Try again, and nothing is left loading', (await pub.locator('#today .load-fail').innerText()).includes('Can’t load today’s 2FA Login')
+    && await pub.locator('#retry-today').count() === 1 && await pub.locator('#view #retry-month').count() === 1 && await pub.locator('.loading').count() === 0, await pub.locator('#today').innerText());
+  cdn.down = false;
+  await Promise.all([pub.waitForEvent('load'), pub.click('#retry-today')]); await pub.clock.runFor(1200); await settle(pub);
+  check('S2 Try again reloads the page, which downloads that part again and draws the card', cdn.asked - asked >= 2 && await cardShown(pub), 'asked ' + (cdn.asked - asked));
+  await pub.close();
+  cdn.down = true; asked = cdn.asked;
+  pub = await open('/calendar.html', NOW, flaky);
+  cdn.down = false;
+  await pub.clock.runFor(5 * 60 * 1000 + 2000).catch(() => {}); await pub.waitForLoadState('load'); await pub.clock.runFor(1200); await settle(pub);
+  check('S3 the routine refresh reloads such a page too, and the card arrives without a tap', cdn.asked - asked >= 2 && await cardShown(pub), 'asked ' + (cdn.asked - asked));
+  await pub.close();
+  // The requests themselves fail.
+  pub = await open('/calendar.html', NOW, loadsFail);
+  check('S4 a request that fails: the card says so, and so does the Forecast', (await pub.locator('#today .load-fail').innerText()).includes('Can’t load today’s 2FA Login') && await pub.locator('#view #retry-month').count() === 1);
+  await pub.click('#retry-today');
+  const busy = await pub.evaluate(() => { const b = document.getElementById('retry-today'); return b.disabled && b.textContent === 'Trying…'; });
+  await pub.clock.runFor(700); await settle(pub);
+  check('S5 Try again while it still fails: busy for a moment, then "Still can’t connect.", with focus back on Try again', busy && (await pub.locator('#today .load-fail').innerText()).includes('Still can’t connect.')
+    && await pub.evaluate(() => document.activeElement.id) === 'retry-today' && (await pub.locator('#announce').textContent()) === 'Still can’t connect.', await pub.locator('#today').innerText());
+  await pub.evaluate(() => { globalThis.__failLoads = false; });
+  await pub.click('#retry-today'); await pub.clock.runFor(100); await settle(pub);
+  check('S6 Try again draws the card, with focus on it, and the Forecast recovers with it', await cardShown(pub) && await pub.evaluate(() => document.activeElement.id) === 'today-h'
+    && await pub.locator('#view .cal .cell.is-today').count() === 1 && await pub.locator('#view .cal-fail').count() === 0);
+  await tab(pub, 'calendar');
+  await pub.evaluate(() => { globalThis.__failLoads = true; });
+  await pub.click('#next'); await settle(pub);
+  check('S7 a month that fails to load says so under its name, with Try again and the month buttons, and focus on Try again', (await heading(pub)) === 'December 2026' && (await pub.locator('.cal-fail').innerText()).includes('Can’t load this month right now.')
+    && await pub.evaluate(() => document.activeElement.id) === 'retry-month' && await pub.locator('#this').count() === 1 && await pub.locator('#today .hero-card').count() === 1, await pub.locator('#view').innerText());
+  check('S7b its Try again is as easy to read as the card\'s', await pub.evaluate(() => getComputedStyle(document.getElementById('retry-month')).color === getComputedStyle(document.body).color));
+  await pub.clock.runFor(5 * 60 * 1000 + 2000); await settle(pub);
+  check('S8 while it still fails, the routine refresh leaves the message and focus alone, and the card stays', (await heading(pub)) === 'December 2026' && await pub.locator('.cal-fail').count() === 1
+    && await pub.evaluate(() => document.activeElement.id) === 'retry-month' && await pub.locator('#today .hero-card').count() === 1);
+  await pub.evaluate(() => { globalThis.__failLoads = false; });
+  await pub.click('#retry-month'); await pub.clock.runFor(100); await settle(pub);
+  check('S9 Try again draws that month', (await heading(pub)) === 'December 2026' && await pub.locator('.cal .cell').count() > 0 && await pub.locator('.cal-fail').count() === 0);
+  await pub.evaluate(() => { globalThis.__failLoads = true; });
+  await pub.click('#next'); await settle(pub);
+  await pub.evaluate(() => { globalThis.__failLoads = false; dispatchEvent(new Event('online')); }); await pub.clock.runFor(100); await settle(pub);
+  check('S10 back online, a month that failed draws by itself, with focus still in the Forecast', (await heading(pub)) === 'January 2027' && await pub.locator('.cal .cell').count() > 0
+    && await pub.evaluate(() => document.getElementById('view').contains(document.activeElement)));
+  await pub.close();
+  // A request that never answers (a stalled connection) doesn't stop later refreshes.
+  pub = await open('/calendar.html', NOW, flaky);
+  await pub.evaluate(() => { globalThis.__delay = { '2026-11-16': 1e9 }; });   // the card's next request stalls
+  await pub.clock.runFor(5 * 60 * 1000 + 1000);
+  const stalledAt = await pub.evaluate(() => { globalThis.__delay = {}; return globalThis.__asked; });
+  await pub.clock.runFor(10 * 60 * 1000); await settle(pub);
+  check('S11 a request that never answers doesn\'t stop the refreshes after it', (await pub.evaluate(() => globalThis.__asked)) - stalledAt >= 4 && await cardShown(pub));
+  await pub.close();
+
+  /* ---------- T. The Forecast: answers that arrive late, where its days start and end, and the month changing ---------- */
+  // These need a rotation that started long ago, so the public calendar's window is what limits the months.
+  pub = await open('/calendar.html');
+  const savedDb = await pub.evaluate(() => localStorage.getItem('duty-roster-demo'));
+  const setStart = (page, date, only) => page.evaluate(([date, only]) => { const db = JSON.parse(localStorage.getItem('duty-roster-demo'));
+    const cps = db.checkpoints.sort((x, y) => x.effective_date < y.effective_date ? -1 : 1);
+    db.checkpoints = only ? [{ ...cps[cps.length - 1], effective_date: date }] : [{ ...cps[0], effective_date: date }, ...cps.slice(1)];
+    db.settings.rota_start = date; localStorage.setItem('duty-roster-demo', JSON.stringify(db)); }, [date, only]);
+  await setStart(pub, '2026-05-04'); await pub.close();
+  pub = await open('/calendar.html#calendar', NOW, flaky);
+  await pub.evaluate(() => { globalThis.__delay = { '2026-11-30': 2000 }; });   // December's grid starts on Monday 30 November
+  await pub.click('#next'); await pub.clock.runFor(100);
+  await pub.click('#prev'); await pub.clock.runFor(100); await settle(pub);
+  const octoberFirst = await heading(pub);
+  await pub.clock.runFor(2500); await settle(pub);
+  check('T1 a month that answers late is not drawn over the month asked for since', octoberFirst === 'October 2026' && (await heading(pub)) === 'October 2026' && await pub.locator('.cal .cell:not(.out)').count() === 22, octoberFirst + ' then ' + await heading(pub));
+  await pub.evaluate(() => { globalThis.__delay = {}; });
+  await pub.click('#next'); await pub.clock.runFor(100); await settle(pub);
+  check('T2 screen readers hear the new month', (await pub.locator('#announce').textContent()) === 'November 2026' && (await pub.locator('#announce').getAttribute('aria-live')) === 'polite');
+  for (let i = 0; i < 8 && !(await pub.locator('#next').isDisabled()); i++) { await pub.click('#next'); await settle(pub); }
+  check('T3 Next stops at the last month with duties, which says where they end', (await heading(pub)) === 'May 2027' && (await pub.locator('.cal-note').innerText()) === 'Duties are shown up to Fri, 14 May.'
+    && await pub.evaluate(() => document.activeElement.id) === 'prev', (await heading(pub)) + ' / ' + await pub.locator('.cal-panel').innerText());
+  await pub.click('#this'); await settle(pub);
+  check('T4 the months in between have no note', (await heading(pub)) === 'November 2026' && await pub.locator('.cal-note').count() === 0);
+  for (let i = 0; i < 8 && !(await pub.locator('#prev').isDisabled()); i++) { await pub.click('#prev'); await settle(pub); }
+  check('T5 Prev stops at the first month with duties, which says where they start', (await heading(pub)) === 'August 2026' && (await pub.locator('.cal-note').innerText()) === 'Duties are shown from Tue, 18 Aug.', (await heading(pub)) + ' / ' + await pub.locator('.cal-panel').innerText());
+  await pub.close();
+  pub = await open('/calendar.html#calendar', '2026-11-30T15:58:00Z');   // Monday 30 November, 11:58pm
+  const lateNovember = await heading(pub);
+  await pub.clock.runFor(3 * 60 * 1000); await settle(pub);
+  check('T6 left open on this month, the Forecast moves on to the new month after midnight, with today marked', lateNovember === 'November 2026' && (await heading(pub)) === 'December 2026'
+    && (await pub.locator('.cal .cell.is-today .d').innerText()) === '1', lateNovember + ' then ' + await heading(pub));
+  await pub.close();
+  // A phone keeps focus on a button you tap: after Next and This month, focus is on Next, and the Forecast must still refresh.
+  pub = await open('/calendar.html#calendar', '2026-11-30T15:58:00Z');
+  await pub.click('#next'); await settle(pub); await pub.click('#this'); await settle(pub);
+  const tapped = await pub.evaluate(() => document.activeElement.id);
+  await pub.clock.runFor(3 * 60 * 1000); await settle(pub);
+  check('T6b with focus left on a month button, the Forecast still refreshes and follows the month, and focus stays on the button', tapped === 'next' && (await heading(pub)) === 'December 2026'
+    && (await pub.locator('.cal .cell.is-today .d').innerText()) === '1' && await pub.evaluate(() => document.activeElement.id) === 'next');
+  await pub.close();
+  pub = await open('/calendar.html#calendar', '2026-11-30T15:58:00Z');
+  await pub.click('#prev'); await settle(pub);
+  await pub.clock.runFor(3 * 60 * 1000); await settle(pub);
+  check('T7 left open on another month, it stays there', (await heading(pub)) === 'October 2026');
+  // A rotation that starts in the middle of a month: Prev stops there, and the month says when it starts.
+  await setStart(pub, '2026-11-18', true); await pub.close();
+  pub = await open('/calendar.html#calendar');
+  check('T8 Prev stops at the month the rotation starts, which says when it starts', (await heading(pub)) === 'November 2026' && (await pub.locator('.cal-note').innerText()) === 'The rotation starts on Wed, 18 Nov.'
+    && await pub.locator('#prev').isDisabled(), await pub.locator('.cal-panel').innerText());
+  await pub.evaluate(db => localStorage.setItem('duty-roster-demo', db), savedDb);
+  await pub.close();
+
+  /* ---------- U. The room says what's true, and keeps time ---------- */
+  pub = await open('/calendar.html', '2026-11-16T04:30:00Z');   // 12:30pm
+  check('U1 lunchtime: the caption beside the Primary doesn\'t say they are away', (await pub.locator('.hero-caption').innerText()) === 'Lunch at the desk. Still happy to help.' && !/back at|away/i.test(await pub.locator('.engineer').textContent()));
+  await pub.close();
+  for (const [name, at, want] of [['U2 a weekday evening', '2026-11-17T11:00:00Z', 'Office closed. Opens at 9am tomorrow.'], ['U3 a Friday evening', '2026-11-20T11:00:00Z', 'Office closed. Opens at 9am Monday.'],
+    ['U4 the eve of Christmas, a Thursday', '2026-12-24T11:00:00Z', 'Office closed. Opens at 9am Monday.']]) {
+    pub = await open('/calendar.html', at);
+    const said = await pub.locator('.hero-caption').innerText();
+    check(name + ': the caption names the next duty day', said === want && (await pub.locator('.engineer').getAttribute('aria-label')) === want, said);
+    await pub.close();
+  }
+  // With nobody available on the next working day, the room says only that the office is closed.
+  pub = await open('/calendar.html', '2026-11-17T11:00:00Z', flaky);   // Tuesday, 7pm
+  await pub.evaluate(() => { const db = globalThis.__store.db; db.profiles.forEach((person, i) => db.leaves.push({ id: 990 + i, user_id: person.id, start_date: '2026-11-18', end_date: '2026-11-18', note: '' })); });
+  await pub.clock.runFor(5 * 60 * 1000 + 2000); await settle(pub);
+  check('U4b nobody available tomorrow: "Office closed." and no time', (await pub.locator('.hero-caption').innerText()) === 'Office closed.', await pub.locator('.hero-caption').innerText());
+  await pub.close();
+  pub = await open('/calendar.html', '2026-11-16T03:59:30Z');   // 11:59:30am
+  await pub.locator('a.btn.wa').focus();
+  const morning = await pub.evaluate(() => { window.cardBefore = document.querySelector('.hero-card'); return document.querySelector('.engineer').getAttribute('class'); });
+  await pub.clock.runFor(35000); await settle(pub);
+  check('U5 at noon the scene turns to lunch by itself, in place: the same card, focus still on the button', morning.includes('scene-morning') && (await pub.locator('.engineer').getAttribute('class')).includes('scene-lunch')
+    && await pub.evaluate(() => window.cardBefore === document.querySelector('.hero-card') && document.activeElement === document.querySelector('a.btn.wa')));
+  const hands = () => pub.evaluate(() => document.querySelector('.engineer .hands').getAttribute('d'));
+  const noon = await hands(); await pub.clock.runFor(60000); await settle(pub);
+  check('U6 the wall clock\'s hands move every minute', (await hands()) !== noon);
+  await pub.close();
+  }
 
   /* ---------- H. A working day when nobody is available ---------- */
   pub = await open('/calendar.html');
@@ -715,7 +908,9 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   check('N28 on a Saturday at the end of a month the Roster opens at next Monday, in the next month', (await n.locator('.days .day:visible .dnum').allTextContents()).join() === '2,3,4,5,6,9,10,11,12,13');
   await n.close(); await c2.close();
 
-  check('Z no errors in the browser console during the whole pass', errors.length === 0, [...new Set(errors)].join(' || '));
+  // (The browser reports the download that S1 to S3 drop on purpose; nothing else may show an error.)
+  const unexpected = errors.filter(e => !/Failed to load resource: net::ERR_INTERNET_DISCONNECTED/.test(e));
+  check('Z no errors in the browser console during the whole pass', unexpected.length === 0, [...new Set(unexpected)].join(' || '));
   const failed = results.filter(r => !r.ok);
   console.log(`\n${results.length - failed.length} of ${results.length} checks passed`);
   await b.close(); server.close();

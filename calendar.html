@@ -38,11 +38,13 @@
 </div></header>
 <div class="wrap" id="today"><p class="loading">Loading today’s 2FA Login…</p></div>
 <main class="wrap" id="view" hidden><p class="loading">Loading the calendar…</p></main>
+<div id="announce" class="sr-only" role="status" aria-live="polite"></div>
 <script>
 // If the app script fails to load (for example a half-updated cache), say so instead of loading forever.
+// Most people open this page on a phone, so the advice is a reload, not a keyboard shortcut.
 setTimeout(function () {
   var el = document.querySelector(".loading");
-  if (el) el.innerHTML = "This is taking too long. <button class=\"btn small\" onclick=\"location.reload()\">Reload the page</button> If it keeps happening, press Ctrl+F5.";
+  if (el) el.innerHTML = "This is taking too long. <button class=\"btn small\" onclick=\"location.reload()\">Reload the page</button> If it still doesn’t load, check your connection, then try again in a few minutes.";
 }, 12000);
 </script>
 </body>

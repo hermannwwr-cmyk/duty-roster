@@ -74,13 +74,18 @@ const beam = sky => `<path d="M24 92h88l62 58H56z" fill="url(#eng-beam)"/><path 
 
 /* ---------- The room ---------- */
 
-/** The wall clock shows the real time in Singapore. */
-function clock(now) {
+/** The wall clock's two hands, as one path, at the time in Singapore. The page moves them in place every minute. */
+export function clockHands(now = new Date()) {
   const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Singapore', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now);
   const h = Number(parts.find(p => p.type === 'hour').value), m = Number(parts.find(p => p.type === 'minute').value);
   const hand = (degrees, length) => { const a = degrees * Math.PI / 180; return `l${(Math.sin(a) * length).toFixed(1)} ${(-Math.cos(a) * length).toFixed(1)}`; };
+  return `M154 34${hand(m * 6, 7.5)}M154 34${hand((h % 12) * 30 + m / 2, 5.3)}`;
+}
+
+/** The wall clock shows the real time in Singapore. */
+function clock(now) {
   return `<circle cx="154" cy="34" r="11.5" fill="#0b2431" stroke="#2f6a85" stroke-width="2"/>
-  <path d="M154 34${hand(m * 6, 7.5)}M154 34${hand((h % 12) * 30 + m / 2, 5.3)}" fill="none" stroke="${LINE}" stroke-width="1.7" stroke-linecap="round"/>
+  <path class="hands" d="${clockHands(now)}" fill="none" stroke="${LINE}" stroke-width="1.7" stroke-linecap="round"/>
   <circle cx="154" cy="34" r="1.3" fill="#7dd3fc"/>`;
 }
 
@@ -101,8 +106,9 @@ const monitor = screen => `<rect x="202" y="54" width="70" height="50" rx="5" fi
 const SCREEN = {
   code: `${[[210, 65, 20, '#38bdf8'], [210, 72.5, 34, '#9bb8c4'], [217, 80, 24, '#fbbf24'], [217, 87.5, 16, '#5eead4'], [210, 95, 28, '#38bdf8']].map(([x, y, w, c]) =>
     `<path d="M${x} ${y}h${w}" fill="none" stroke="${c}" stroke-width="2.6" stroke-linecap="round"/>`).join('')}<rect class="cursor" x="243" y="92.5" width="5" height="5" rx="1" fill="${LINE}"/>`,
-  lunch: `<text x="237" y="77" text-anchor="middle" font-size="8" font-weight="700" fill="#7dd3fc">Lunch break</text>
-    <text x="237" y="89" text-anchor="middle" font-size="7" fill="#9bb8c4">Back at 2pm</text>`,
+  // Lunch at the desk: duty goes on, so nothing on the screen says "away".
+  lunch: `<text x="237" y="77" text-anchor="middle" font-size="8" font-weight="700" fill="#7dd3fc">Lunchtime</text>
+    <text x="237" y="89" text-anchor="middle" font-size="7" fill="#9bb8c4">Still on duty</text>`,
   bars: `${[0, 1, 2, 3, 4, 5].map(i => `<rect class="bar" style="animation-delay:${(i * 0.23).toFixed(2)}s" x="${(211 + i * 9.2).toFixed(1)}" y="66" width="6" height="30" rx="1.5" fill="${i % 2 ? '#38bdf8' : '#5eead4'}"/>`).join('')}
     <path d="M209 97.5h56" fill="none" stroke="#2f6a85" stroke-width="1.2"/>`,
   shutdown: `<text x="237" y="75" text-anchor="middle" font-size="7.5" font-weight="700" fill="#7dd3fc">Shutting down…</text>
@@ -196,7 +202,8 @@ function lightsOff(now, asleep) {
 
 const SCENES = {
   morning: [now => atDesk('morning', now, { pose: 'typing', screen: 'code', steam: true }), 'Good morning! Coffee first, then the servers.'],
-  lunch: [now => atDesk('lunch', now, { pose: 'eating', screen: 'lunch', lunch: true }), 'Lunch break. Back at 2pm.'],
+  // Duty runs 9am to 6pm, lunch included: the caption beside the Primary's face mustn't sound as if they're away.
+  lunch: [now => atDesk('lunch', now, { pose: 'eating', screen: 'lunch', lunch: true }), 'Lunch at the desk. Still happy to help.'],
   afternoon: [now => atDesk('afternoon', now, { pose: 'typing', screen: 'bars', steam: true }), 'Afternoon: deep in the dashboards.'],
   evening: [now => atDesk('evening', now, { pose: 'stretch', screen: 'shutdown' }), 'Wrapping up for the day.'],
   afterwork: [afterwork, 'Off duty, still on call.'],
@@ -206,12 +213,19 @@ const SCENES = {
   // A working day when everyone is away: nobody at the desk.
   nobody: [now => lightsOff(now, false), 'No one on duty today. The servers keep watch.'],
   // A working day outside office hours (before 9am or from 6pm): the window still follows the time of day.
-  closed: [now => lightsOff(now, false), 'Office closed. Back at 9am.']
+  // `opens` says when the next duty day starts ('9am', '9am tomorrow', '9am Monday', '9am on Tue, 24 Nov'), so a
+  // Friday evening or the eve of a holiday doesn't promise 9am tomorrow. It is the office that opens, not a person
+  // who comes back: with nobody available that day, the caption says only that the office is closed.
+  closed: [now => lightsOff(now, false), ({ opens }) => opens ? `Office closed. Opens at ${opens}.` : 'Office closed.']
 };
 
-/** The illustration and its caption for a part of the day (default: now in Singapore). */
-export function engineerScene(period = periodAt(), now = new Date()) {
-  const [draw, caption] = SCENES[period] || SCENES.morning;
-  if (!SCENES[period]) period = 'morning';
-  return { period, caption, svg: `<svg class="engineer scene-${period}" viewBox="0 0 358 196" role="img" aria-label="${caption}">${draw(now)}</svg>` };
+/**
+ * The illustration and its caption for a part of the day (default: the part of the day `now` falls in, in
+ * Singapore). `options.opens` finishes the caption outside office hours: when the next duty day starts.
+ */
+export function engineerScene(period, now = new Date(), options = {}) {
+  if (!SCENES[period]) period = period ? 'morning' : periodAt(now);
+  const [draw, text] = SCENES[period];
+  const caption = typeof text === 'function' ? text(options) : text;
+  return { period, caption, svg: `<svg class="engineer scene-${period}" viewBox="0 0 358 196" role="img" aria-label="${caption.replace(/"/g, '&quot;')}">${draw(now)}</svg>` };
 }
