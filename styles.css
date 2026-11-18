@@ -204,9 +204,6 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .relay.tight .nm-short { font-size: .72rem; letter-spacing: -.01em; white-space: normal; overflow-wrap: anywhere; }
 /* The role under each name: a touch smaller when four share a row, so the labels never run into each other. */
 .relay .rl { font-size: clamp(.64rem, .83rem - var(--cols) * .045rem, .6875rem); line-height: 1.4; color: var(--soft); white-space: nowrap; }
-/* Roles that would touch their neighbours (the narrowest cards, a phone with its text zoomed) take two lines, with a little
-   space kept at each side (fitNames in calendar.js). */
-.relay.roles-2 .rl { max-width: calc(100% - .4rem); line-height: 1.25; white-space: normal; }
 /* One or two Secondaries: each name stands beside its face, and the line runs on between them (fitNames in
    calendar.js keeps this only while the names fit). */
 .relay.pairs { display: flex; align-items: flex-start; width: auto; justify-self: stretch; margin-left: calc(var(--av) / 2 - var(--thick) / 2 + var(--turn)); }
@@ -315,11 +312,13 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
   .hero-name .name.longer { font-size: 1.3rem; }
 }
 /* The narrowest cards (a phone with its text zoomed: 260 to 310px screens). The button's words take two lines rather than
-   spill out of it. The caption still sits on the scene's floor, but when it needs more lines than the floor has, it starts
-   at the floor's edge and runs on below the scene instead of climbing over the room: row 1 is the scene down to its floor
-   (150 of its 196 units), row 2 the floor, and the caption sits at the foot of row 2, which grows with it. */
+   spill out of it, and so do roles that would touch their neighbours (fitNames in calendar.js marks them), with a little
+   space kept at each side. The caption still sits on the scene's floor, but when it needs more lines than the floor has, it
+   starts at the floor's edge and runs on below the scene instead of climbing over the room: row 1 is the scene down to its
+   floor (150 of its 196 units), row 2 the floor, and the caption sits at the foot of row 2, which grows with it. */
 @container card (max-width: 279.98px) {
   .hero-body > .btn.wa { line-height: 1.2; white-space: normal; text-wrap: balance; }
+  .relay.roles-2 .rl { max-width: calc(100% - .4rem); line-height: 1.25; white-space: normal; }
   .hero-scene { display: grid; grid-template-rows: calc(100cqw * 150 / 358) auto; }
   .hero-scene > .engineer { grid-area: 1 / 1 / 3 / 2; align-self: start; }
   .hero-caption, .has-lead .hero-caption { position: relative; grid-area: 2 / 1; align-self: end; inset: auto; margin: 0 var(--pad) .3rem; }
