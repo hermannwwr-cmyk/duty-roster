@@ -24,13 +24,11 @@ function shortRole(role) { return role === 'Primary' ? 'P' : 'S' + role.split(' 
 /** A short role ("P", "S1") on screen, read out in full ("Primary", "Secondary 1"). */
 const roleLabel = (role, after = '') => `<span aria-hidden="true">${shortRole(role)}</span><span class="sr-only">${role}${after}</span>`;
 let toastTimer;
-/** Shows a short message and announces it to screen readers through the always-present #announce region
- *  (unless `quiet`, when the same words are already announced next to the form). */
-function toast(msg, quiet = false) {
+/** Shows a short message and announces it to screen readers through the always-present #announce region. */
+function toast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.hidden = false; clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { t.hidden = true; }, 3500);
-  if (quiet) return;
   const a = document.getElementById('announce');
   a.textContent = '';
   setTimeout(() => { a.textContent = msg; }, 50);
@@ -46,7 +44,7 @@ function plain(e) {
 }
 /** "10:42 am", or "Mon 16 Nov, 6:12 pm" when it wasn't today, in Singapore time. */
 function clockTime(ms) {
-  const time = new Date(ms).toLocaleTimeString('en-SG', { timeZone: 'Asia/Singapore', hour: 'numeric', minute: '2-digit' }).replace(/\s+(?=[ap]m)/i, ' ');
+  const time = new Date(ms).toLocaleTimeString('en-SG', { timeZone: 'Asia/Singapore', hour: 'numeric', minute: '2-digit' }).replace(/\s+(?=[ap]m)/i, '\u00a0');
   const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Singapore' }).format(new Date(ms));
   return day === today() ? time : fmtDay(day) + ', ' + time;
 }
@@ -156,15 +154,22 @@ async function act(fn, done) {
     // Saved: the redraw starts the form afresh (a lone field shows what was saved).
     if (job.form) saved.add(job.form); else if (field) field.defaultValue = field.value;
     if (done) toast(done);
-  } catch (e) { error = plain(e); toast(error, !!(form || field)); }
+  } catch (e) { error = offline(e) ? 'Not saved. Check your internet connection and try again.' : plain(e); }
   saving.delete(job);
   await refresh();
   await drawing;   // a newer refresh, started meanwhile, draws last
   unlock(job);
   // Saved, but the page couldn't be redrawn (the connection dropped): clear the form anyway, so it isn't sent twice.
   if (job.form && saved.delete(job.form) && state.offline) { const f = root.querySelector(job.form); if (f) f.reset(); }
-  if (error) { if (job.values) putBack(job.values); formError(errorTarget(job), error); }
-  restoreFocus(focus);
+  if (error) {
+    // Not saved, and not reloaded either: draw again from what was last loaded, so ticks and lists show what is
+    // really saved. Then put back what was typed, and give the reason once: next to the form or box, or as a toast.
+    if (state.offline && state.data && root.querySelector('#view')) redraw();
+    if (job.values) putBack(job.values);
+    if (!formError(errorTarget(job), error)) toast(error);
+  }
+  // Focus goes back to where it was only if nothing has it now: someone may have moved on while it saved.
+  if (!root.contains(document.activeElement)) restoreFocus(focus);
 }
 
 /* ---------- Rotation history (GitHub issue #7) ---------- */
@@ -197,9 +202,11 @@ function scheduleFor(from, to) {
 /* ---------- Boot ---------- */
 // Only the latest refresh draws, so a slow load can't draw the roster over the sign-in screen after signing out.
 // `drawing` is the latest one, for anyone who needs to wait until the screen is up to date.
+// A background refresh (switching to a tab whose data is old, coming back online, the 5-minute one) doesn't redraw
+// under someone typing: that would close a phone's keyboard. It keeps the new data, and the next draw shows it.
 let refreshes = 0, drawing = Promise.resolve();
-const refresh = () => (drawing = reload());
-async function reload() {
+const refresh = opts => (drawing = reload(opts));
+async function reload({ background = false } = {}) {
   const run = ++refreshes;
   try {
     const uid = await store.userId();
@@ -216,11 +223,9 @@ async function reload() {
     if (me.approved === false) return accountScreen('Waiting for approval', 'Thanks for signing up, ' + esc(me.display_name) + '. An admin needs to approve your account before you can see the roster. Check back later.', 'Still waiting for approval.');
     // Keep the header (and whatever has focus in it) unless who is signed in has changed, and keep anything typed and not saved yet.
     const view = root.querySelector('#view');
-    if (view && view.dataset.user === userKey(me)) {
-      const typed = valuesOf(typedFields());
-      renderView();
-      putBack(typed);
-    } else renderApp();
+    if (background && view && typing()) { /* drawn later */ }
+    else if (view && view.dataset.user === userKey(me)) redraw();
+    else renderApp();
     showOffline(null);
   } catch (e) {
     if (run !== refreshes) return;
@@ -230,14 +235,35 @@ async function reload() {
     else cantLoad(e);
   }
 }
-store.onAuthChange(refresh);
+store.onAuthChange(() => refresh());
 refresh();
+
+/** Draws the current tab again from the data in hand, keeping what was typed and the focused text box, with its caret. */
+function redraw() {
+  const typed = valuesOf(typedFields());
+  const was = document.activeElement, key = root.querySelector('#view')?.contains(was) ? focusKey(was) : null;
+  let caret = null;
+  try { if (typingIn(was) && was.selectionStart != null) caret = [was.selectionStart, was.selectionEnd]; } catch (e) { /* not a text box */ }
+  renderView();
+  putBack(typed);
+  if (!key) return;
+  const now = root.querySelector(key);
+  if (now && now.disabled) return;   // still saving: act() puts focus back when it is done
+  restoreFocus(key);
+  try { if (caret && document.activeElement === now) now.setSelectionRange(caret[0], caret[1]); } catch (e) { /* not a text box */ }
+}
+
+/** Signs out, and shows the sign-in screen even when the sign-out request couldn't reach the server. */
+async function signOut() {
+  try { await store.signOut(); } catch (e) { /* the session is forgotten on this device all the same */ }
+  refresh();
+}
 
 /** The screens for an account that can't see the roster yet: waiting for approval, or removed. */
 function accountScreen(title, text, still) {
   root.innerHTML = `<div class="auth"><div class="panel"><h2>${title}</h2><p class="muted">${text}</p>
     <div class="form">${still ? '<button class="btn" type="button" id="check">Check again</button>' : ''}<button class="btn" type="button" id="out">Sign out</button></div></div></div>`;
-  document.getElementById('out').onclick = () => store.signOut();
+  document.getElementById('out').onclick = signOut;
   const check = document.getElementById('check');
   if (check) check.onclick = () => retry(check, still);
 }
@@ -249,7 +275,7 @@ function cantLoad(e) {
     ${net ? '' : `<p class="muted details">Details: ${esc(e && e.message)}</p>`}
     <div class="form"><button class="btn primary" type="button" id="retry">Try again</button><button class="btn" type="button" id="out">Sign out</button></div></div></div>`;
   document.getElementById('retry').onclick = () => retry(document.getElementById('retry'), 'Still can’t connect.');
-  document.getElementById('out').onclick = async () => { try { await store.signOut(); } finally { refresh(); } };
+  document.getElementById('out').onclick = signOut;
 }
 /** After a good load: a small note under the header while the latest changes can't be fetched. Empty (and hidden) otherwise. */
 function showOffline(e) {
@@ -279,7 +305,7 @@ async function retry(btn, still) {
   else if (hadFocus && !same) restoreFocus('#view h2');
 }
 // Back online: catch up at once rather than at the next 5-minute refresh.
-window.addEventListener('online', () => { if (state.offline) refresh(); });
+window.addEventListener('online', () => { if (state.offline) refresh({ background: true }); });
 
 /* ---------- Staying up to date ---------- */
 // Background refreshes and swipes wait while there is typed input that isn't saved (a text field whose value differs
@@ -290,7 +316,7 @@ let lastDay = today();
 swipeTabs(() => document.getElementById('view'), typing);
 
 // Switch the "Your role" card over on time at 9am and 6pm (it waits while someone is typing).
-const atOfficeChange = () => setTimeout(() => { if (state.data && !typing()) refresh(); atOfficeChange(); }, msUntilOfficeChange() + 2000);
+const atOfficeChange = () => setTimeout(() => { if (state.data && !typing()) refresh({ background: true }); atOfficeChange(); }, msUntilOfficeChange() + 2000);
 atOfficeChange();
 
 keepFresh(async () => {
@@ -298,9 +324,7 @@ keepFresh(async () => {
   const t = today();
   if (t !== lastDay && state.month === lastDay.slice(0, 7)) state.month = t.slice(0, 7);
   lastDay = t;
-  const key = focusKey(document.activeElement);
-  await refresh();
-  if (key) restoreFocus(key);
+  await refresh({ background: true });   // redraw() keeps focus where it was
 }, () => state.data !== null && !typing());
 
 /* ---------- Sign in ---------- */
@@ -388,7 +412,7 @@ function renderApp() {
   ${store.mode === 'demo' ? '<div class="demo"><div class="wrap"><span><b>Demo mode.</b> Data is saved in this browser only. Add your Supabase details to <code>config.js</code> to share it with the team.</span><button class="btn link" id="reset-demo">Reset demo data</button></div></div>' : ''}
   <div class="offline" id="offline" role="status"></div>
   <main class="wrap" id="view" data-user="${esc(userKey(me))}"></main>`;
-  document.getElementById('signout').onclick = () => store.signOut();
+  document.getElementById('signout').onclick = signOut;
   document.getElementById('acct-btn').onclick = () => toggleAccount();
   const reset = document.getElementById('reset-demo');
   if (reset) reset.onclick = () => store.reset();
@@ -397,7 +421,7 @@ function renderApp() {
     root.querySelectorAll('[data-tab]').forEach(x => { if (x === b) x.setAttribute('aria-current', 'page'); else x.removeAttribute('aria-current'); });
     renderView();
     // Data more than a minute old is fetched again; the tab shows what was loaded meanwhile.
-    if (Date.now() - state.loadedAt > STALE) refresh();
+    if (Date.now() - state.loadedAt > STALE) refresh({ background: true });
   });
   renderView();
 }
@@ -474,16 +498,23 @@ function renderRoster() {
 
   const [y, m] = state.month.split('-').map(Number);
   const first = state.month + '-01', last = toISO(new Date(y, m, 0, 12));
-  const days = scheduleFor(first, last).filter(d => d.kind === 'work' || d.kind === 'holiday');
+  // This month opens at this week: from this week's Monday (next Monday at the weekend) to at least next week's Friday,
+  // running on into the next month, or starting in the last one, if need be. The month's earlier days wait behind
+  // "Show earlier days". Other months show in full.
+  const thisMonth = state.month === t.slice(0, 7), dow = fromISO(t).getDay();
+  const weekStart = thisMonth ? addDays(t, dow === 6 ? 2 : dow === 0 ? 1 : 1 - dow) : first;
+  const until = thisMonth && addDays(weekStart, 11) > last ? addDays(weekStart, 11) : last;
+  const days = scheduleFor(weekStart < first ? weekStart : first, until).filter(d => d.kind === 'work' || d.kind === 'holiday');
   const before = first < settings.rota_start;
   const monthName = fromISO(first).toLocaleDateString('en-SG', { month: 'long', year: 'numeric' });
-  // This month opens at this week's Monday; the days before it wait behind "Show earlier days". Other months show in full.
-  const weekStart = addDays(t, -((fromISO(t).getDay() + 6) % 7));
-  const earlier = state.month === t.slice(0, 7) ? days.filter(d => d.date < weekStart).length : 0;
+  const earlier = days.filter(d => d.date < weekStart).length;
   const folded = earlier > 0 && !state.earlier;
+  // Days from another month come under that month's name.
+  let listMonth = state.month;
+  const withMonths = d => { const mo = d.date.slice(0, 7), head = mo === listMonth ? '' : `<li class="month-break">${fromISO(d.date).toLocaleDateString('en-SG', { month: 'long' })}</li>`; listMonth = mo; return head + dayRow(d); };
 
   // One row per working day: the date, the Primary, then the backups in order, with your own role on the right.
-  // You are marked in white with a steel ring or underline: cyan means only the Primary and today.
+  // You are marked in white, underlined in steel: cyan means only the Primary and today.
   const dayRow = d => {
     const dt = fromISO(d.date);
     const li = kind => `<li class="day${kind}${d.date === t ? ' is-today' : ''}"${folded && d.date < weekStart ? ' hidden' : ''}>`;
@@ -494,7 +525,7 @@ function renderRoster() {
     const [p, ...rest] = d.duties;
     const short = member => member.id === me.id ? `<b class="me">${esc(shortName(member.name, names))}<span class="sr-only"> (you)</span></b>` : esc(shortName(member.name, names));
     return `${li('')}${date}<span class="who">
-      ${p ? `<span class="lead">${avatar(p.member.name, 'sm')}<span class="nm"><span class="sr-only">Primary: </span>${esc(p.member.name)}</span>${p.member.id === me.id ? '<span class="you">You</span>' : ''}</span>` : '<span class="nobody">No one available</span>'}
+      ${p ? `<span class="lead">${avatar(p.member.name, 'sm')}<span class="nm${p.member.id === me.id ? ' me' : ''}"><span class="sr-only">Primary: </span>${esc(p.member.name)}${p.member.id === me.id ? '<span class="sr-only"> (you)</span>' : ''}</span></span>` : '<span class="nobody">No one available</span>'}
       ${rest.length ? `<span class="then">then ${rest.map(x => short(x.member)).join(' → ')}</span>` : ''}
       ${d.onLeave.length ? `<span class="tags">${d.onLeave.map(x => `<span class="tag leave">${esc(shortName(x.name, names))} on leave</span>`).join('')}</span>` : ''}</span>
       ${mine ? `<span class="badge${mine.role === 'Primary' ? ' p' : ''}"><span class="sr-only">Your role: </span>${mine.role === 'Primary' ? 'Primary' : roleLabel(mine.role)}</span>` : away ? '<span class="badge off"><span class="sr-only">You are on </span>Leave</span>' : ''}</li>`;
@@ -520,7 +551,7 @@ function renderRoster() {
     <p class="muted">Weekdays only. Weekends and public holidays have no duty. Each day shows the Primary, then the backups in order. People on leave are left out that day.</p>
     ${before ? `<p class="muted">The rotation starts on ${fmtDay(settings.rota_start, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}.</p>` : ''}
     ${earlier ? `<button class="btn small earlier" type="button" id="earlier" aria-expanded="${!folded}" aria-controls="days">${folded ? 'Show earlier days' : 'Hide earlier days'}</button>` : ''}
-    ${days.length ? `<ol class="days" id="days">${days.map(dayRow).join('')}</ol>` : '<p class="muted">No working days to show this month.</p>'}
+    ${days.length ? `<ol class="days" id="days">${days.map(withMonths).join('')}</ol>` : '<p class="muted">No working days to show this month.</p>'}
   </section>`;
   const other = document.getElementById('share-other');
   if (other) other.onclick = () => navigator.share({ text: state.shareText }).catch(() => {});
@@ -572,7 +603,7 @@ function renderLeave() {
   document.getElementById('leave-form').onsubmit = e => {
     e.preventDefault();
     const start = document.getElementById('l-start').value, end = document.getElementById('l-end').value;
-    if (end < start) { formError(e.target, 'The end date is before the start date.'); toast('The end date is before the start date.', true); return; }
+    if (end < start) { formError(e.target, 'The end date is before the start date.'); return; }
     const who = document.getElementById('l-who');
     act(() => store.addLeave({ user_id: who ? who.value : me.id, start_date: start, end_date: end, note: document.getElementById('l-note').value.trim() || null }), 'Leave added. The roster has been updated.');
   };
@@ -646,19 +677,19 @@ function renderTeam() {
       <span class="order">${i + 1}.</span>
       <div class="main">${admin || p.id === me.id ? `<input class="name-input" data-name="${p.id}" value="${esc(p.display_name)}" maxlength="60" aria-label="Name">` : `<b>${esc(p.display_name)}</b>`}
         ${p.email ? `<div class="muted">${esc(p.email)}</div>` : ''}
-        ${admin ? `<input class="name-input work-input" type="email" data-work="${p.id}" value="${esc(p.work_email || '')}" maxlength="254" placeholder="Work Outlook email" aria-label="Work Outlook email for ${esc(p.display_name)}">` : ''}</div>
+        ${admin ? `<input class="name-input work-input" type="email" data-work="${p.id}" value="${esc(p.work_email || '')}" maxlength="254" placeholder="Work Outlook email" aria-label="Work Outlook email for ${esc(p.display_name)}">` : ''}
+        ${admin && p.id !== me.id ? `<button class="btn quiet" type="button" data-revoke="${p.id}" aria-label="Remove access for ${esc(p.display_name)}">Remove access</button>` : ''}</div>
       ${p.is_admin ? '<span class="tag">Admin</span>' : ''}${!p.active ? '<span class="tag leave">Inactive</span>' : ''}
       ${admin ? `<label class="check"><input type="checkbox" data-active="${p.id}"${p.active ? ' checked' : ''}> Active</label>
         <label class="check"><input type="checkbox" data-admin="${p.id}"${p.is_admin ? ' checked' : ''}${p.id === me.id ? ' disabled title="You can’t remove your own admin access"' : ''}> Admin</label>
         <button class="btn small" data-up="${p.id}" aria-label="Move ${esc(p.display_name)} up"${i === 0 ? ' disabled' : ''}>↑</button>
-        <button class="btn small" data-down="${p.id}" aria-label="Move ${esc(p.display_name)} down"${i === sorted.length - 1 ? ' disabled' : ''}>↓</button>
-        ${p.id === me.id ? '' : `<button class="btn small danger" data-revoke="${p.id}" aria-label="Remove access for ${esc(p.display_name)}">Remove access</button>`}` : ''}
+        <button class="btn small" data-down="${p.id}" aria-label="Move ${esc(p.display_name)} down"${i === sorted.length - 1 ? ' disabled' : ''}>↓</button>` : ''}
     </div>`).join('')}</div>
     <p class="muted">${admin ? 'New people appear under Waiting for approval when they create an account, and join the end of the rotation once approved. The second box under each name is their work Outlook email: leave invites from it are added to their leave.' : 'New people join the end of the rotation once an admin approves them.'} Only admins see everyone’s email.</p>
   </section>
   ${admin && removed.length ? `<section class="panel">
     <h2>Removed</h2>
-    <p class="muted">People whose access was removed. They can’t see the roster, and their past duties stay as they were.</p>
+    <p class="muted">People whose access was removed. They can’t see the roster, and their past duties stay as they were. Giving access again doesn’t make them active or an admin: tick those again if they need them.</p>
     <div class="list">${removed.map(p => `<div class="item"><div class="main"><b>${esc(p.display_name)}</b>${p.email ? `<div class="muted">${esc(p.email)}</div>` : ''}</div>
       <button class="btn small" data-restore="${p.id}" aria-label="Give access again to ${esc(p.display_name)}">Give access again</button></div>`).join('')}</div>
   </section>` : ''}
@@ -700,7 +731,7 @@ function renderTeam() {
   });
   view.querySelectorAll('[data-name]').forEach(inp => inp.onchange = () => {
     const v = inp.value.trim();
-    if (!v) { formError(inp, 'Name can’t be empty.'); toast('Name can’t be empty.', true); return; }
+    if (!v) { formError(inp, 'Name can’t be empty.'); return; }
     act(() => store.updateProfile(inp.dataset.name, { display_name: v }), 'Name saved.');
   });
   // Approved people join the end of the rotation.
@@ -720,13 +751,17 @@ function renderTeam() {
   }, c.checked ? 'Back on the roster from today.' : 'Left out of the roster from today.'));
   // Someone who has left: no more access, and out of the rotation from today, the way unticking Active works (earlier
   // days keep their duties). Admin access goes too, as the database's admin rules don't look at approval.
-  view.querySelectorAll('[data-revoke]').forEach(b => b.onclick = () => {
+  view.querySelectorAll('[data-revoke]').forEach(b => b.onclick = async () => {
     const who = profiles.find(p => p.id === b.dataset.revoke);
-    if (!who || !window.confirm('Remove ' + who.display_name + '’s access? They won’t see the roster or anyone’s leave, and they’re left out of the roster from today. Their past duties stay.')) return;
-    act(async () => {
+    if (!who || !window.confirm('Remove ' + who.display_name + '’s access? They won’t see the roster or anyone’s leave, and they’re left out of the roster from today.'
+      + (who.is_admin ? ' Their admin access goes too.' : '') + ' Their past duties stay.')) return;
+    await act(async () => {
       await store.updateProfile(who.id, { approved: false, active: false, is_admin: false });
       await recordRotaChange();
     }, who.display_name + '’s access was removed.');
+    // Focus follows them to the Removed list, where "Give access again" undoes it.
+    const again = root.querySelector('[data-restore="' + CSS.escape(who.id) + '"]');
+    if (again) again.focus();
   });
   // Back in the team, but not on the roster until Active is ticked (they join the end of the order).
   view.querySelectorAll('[data-restore]').forEach(b => b.onclick = () => {

@@ -51,6 +51,13 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
     return '';
   };
   const says = async (name, p, expected) => { const got = await toast(p); check(name, typeof expected === 'string' ? got === expected : expected.test(got), 'said: ' + JSON.stringify(got)); };
+  // A refused save in the signed-in app gives its reason once: under the form or box, read out at once, with no toast as well.
+  const besideForm = async (name, p, sel, expected) => {
+    await settle(p);
+    const shown = await p.locator(sel).innerText().catch(() => ''), role = await p.locator(sel).getAttribute('role').catch(() => null);
+    const toasted = await p.evaluate(() => { const t = document.getElementById('toast'); return t.hidden ? '' : t.textContent; });
+    check(name, (typeof expected === 'string' ? shown === expected : expected.test(shown)) && role === 'alert' && !toasted, JSON.stringify({ shown, role, toasted }));
+  };
   // Seed: the rotation starts Fri 30 Oct with Alice, and there is no leave.
   let p = await open('/calendar.html', '2026-10-30T01:30:00Z');
   await p.evaluate(() => { const db = JSON.parse(localStorage.getItem('duty-roster-demo')); db.leaves = []; db.nextId = 1; localStorage.setItem('duty-roster-demo', JSON.stringify(db)); });
@@ -122,7 +129,7 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   await tab(app, 'leave');
   await app.evaluate(() => { for (const id of ['l-start', 'l-end']) { const f = document.getElementById(id); f.removeAttribute('min'); f.value = '2026-11-10'; } });
   await app.click('#leave-form button[type=submit]');
-  await says('B10 leave: a past date is refused, with the reason', app, /^Leave can only be added from today onwards/); await settle(app);
+  await besideForm('B10 leave: a past date is refused, with the reason under the form', app, '#leave-form + .form-error', /^Leave can only be added from today onwards/);
   check('B10b leave: nothing was added', await app.locator('[data-del]').count() === 1);
   await app.click('[data-del]');
   await says('B11 leave: removing leave confirms', app, 'Leave removed.'); await settle(app);
@@ -406,8 +413,9 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   // Screen readers hear the line-up's roles in full; you are marked in white and steel, not cyan.
   const tiles = await n.locator('.lineup li').evaluateAll(l => l.map(x => x.querySelector('.sr-only').textContent));
   const notCyan = await n.evaluate(() => { const cyan = ['rgb(56, 189, 248)', 'rgb(125, 211, 252)']; const me = getComputedStyle(document.querySelector('.lineup li.me'));
-    return !cyan.some(c => me.boxShadow.includes(c) || getComputedStyle(document.querySelector('.lineup li.me .when')).color === c || getComputedStyle(document.querySelector('.days .then b.me')).color === c); });
-  check('N2 roster: the line-up reads "Primary: …", "Secondary 1: …", and your own tile and name are not cyan', tiles.join('|') === 'Primary: |Secondary 1: |Secondary 2: |Secondary 3: |Secondary 4: ' && notCyan, tiles.join('|'));
+    return me.boxShadow === 'none' && getComputedStyle(document.querySelector('.lineup li.p')).boxShadow.includes(cyan[0])
+      && !cyan.some(c => getComputedStyle(document.querySelector('.lineup li.me .when')).color === c || getComputedStyle(document.querySelector('.days .then b.me')).color === c); });
+  check('N2 roster: the line-up reads "Primary: …", "Secondary 1: …"; the Primary\'s tile is ringed in cyan, and yours has no ring and no cyan', tiles.join('|') === 'Primary: |Secondary 1: |Secondary 2: |Secondary 3: |Secondary 4: ' && notCyan, tiles.join('|'));
   // A Secondary asks the Primary for an OTP; the message is today's.
   check('N3 WhatsApp: a Secondary asks today\'s Primary for an OTP', (await n.locator('#share-wa').innerText()).trim() === 'Click for OTP on WhatsApp'
     && await waText(n) === rosterMessage({ date: '2026-11-16', duties: dutiesFrom(0) }, BASE + '/calendar.html'));
@@ -418,9 +426,8 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   // A save refused by the rules keeps what was typed, with the reason next to the form.
   await n.fill('#l-start', '2027-12-01'); await n.fill('#l-end', '2027-12-01'); await n.fill('#l-note', 'Family trip');
   await n.click('#l-add');
-  await says('N5 leave refused: the toast gives the reason', n, 'Leave can be booked up to a year ahead.'); await settle(n);
-  check('N5b leave refused: the dates and note stay, with the reason under the form, read out at once', (await n.inputValue('#l-start')) === '2027-12-01' && (await n.inputValue('#l-note')) === 'Family trip'
-    && (await n.locator('#leave-form + .form-error').innerText()) === 'Leave can be booked up to a year ahead.' && (await n.locator('#leave-form + .form-error').getAttribute('role')) === 'alert');
+  await besideForm('N5 leave refused: the reason once, under the form, read out at once (no toast as well)', n, '#leave-form + .form-error', 'Leave can be booked up to a year ahead.');
+  check('N5b leave refused: the dates and note stay', (await n.inputValue('#l-start')) === '2027-12-01' && (await n.inputValue('#l-note')) === 'Family trip');
   // A double tap adds the leave once, on a phone that doesn't focus tapped buttons (Safari), on a slow connection.
   await n.evaluate(() => { document.addEventListener('mousedown', e => { if (e.target.closest('button')) { e.preventDefault(); document.activeElement.blur(); } }, true); window.__delay = 500; });
   await n.fill('#l-start', '2026-11-26'); await n.fill('#l-end', '2026-11-26'); await n.fill('#l-note', 'Annual leave');
@@ -435,9 +442,9 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   await n.fill('#l-start', '2026-11-27'); await n.fill('#l-end', '2026-11-27'); await n.fill('#l-note', 'Dentist');
   await n.evaluate(() => { window.__fail = ['addLeave', 'load']; });
   await n.click('#l-add');
-  await says('N7 offline save: plain words, not "Failed to fetch"', n, 'Can’t connect. Check your internet connection and try again.'); await settle(n);
+  await besideForm('N7 offline save: plain words under the form, not "Failed to fetch", and no toast', n, '#leave-form + .form-error', 'Not saved. Check your internet connection and try again.');
   check('N7b offline save: the view stays, with the bar, and the typed leave stays', (await n.inputValue('#l-note')) === 'Dentist' && await n.locator('#leave-form').count() === 1
-    && /^Can’t connect\. Showing what was loaded at 9:30\sam\. Try again$/.test(await n.locator('#offline').innerText()), await n.locator('#offline').innerText());
+    && /^Can’t connect\. Showing what was loaded at 9:30\u00a0am\. Try again$/.test(await n.locator('#offline').innerText()), await n.locator('#offline').innerText());
   // Saved, but the page can't be reloaded afterwards: the form is cleared all the same, so it can't be sent twice.
   await n.evaluate(() => { window.__fail = ['load']; });
   await n.click('#l-add'); await toast(n); await settle(n);
@@ -453,6 +460,35 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   await n.clock.runFor(5 * 60 * 1000 + 1000); await settle(n);
   check('N10 a failed background refresh keeps the roster on screen, with the bar', await n.locator('.role-card').count() === 1 && await n.locator('[data-tab]').count() === 3 && (await n.locator('#offline').innerText()).startsWith('Can’t connect.'));
   await n.evaluate(() => { window.__fail = []; });
+  // Coming back online while someone types: the page catches up without redrawing under them (a phone's keyboard would close).
+  await tab(n, 'leave');
+  await n.focus('#l-note'); await n.keyboard.type('Dent');
+  await n.evaluate(() => { document.getElementById('l-note').mark = 1; window.dispatchEvent(new Event('online')); });
+  await settle(n); await n.keyboard.type('ist');
+  check('N10b back online while typing: the bar goes, and the same box keeps focus and what was typed', (await n.locator('#offline').innerText()) === ''
+    && await n.evaluate(() => document.activeElement.mark === 1 && document.activeElement.value === 'Dentist'));
+  // Switching to a tab whose data is old, and typing at once while it loads on a slow line: the same.
+  await n.locator('#l-note').fill(''); await tab(n, 'roster');
+  await n.clock.runFor(61 * 1000); await n.evaluate(() => { window.__delay = 400; });
+  await n.click('[data-tab=leave]'); await n.focus('#l-note'); await n.keyboard.type('Dent');
+  await n.evaluate(() => { document.getElementById('l-note').mark = 2; });
+  await n.waitForTimeout(1500); await n.evaluate(() => { window.__delay = 0; });
+  check('N10c a tab with old data reloads in the background without taking the box from under someone typing', await n.evaluate(() => document.activeElement.mark === 2 && document.activeElement.value === 'Dent'));
+  await n.locator('#l-note').fill('');
+  // A slow save lands while someone has moved on to typing elsewhere: focus stays where they are.
+  await n.evaluate(() => { window.__delay = 500; });
+  await n.click('[data-del]'); await n.focus('#l-note'); await n.keyboard.type('Trip');
+  await n.waitForTimeout(2500); await toast(n); await n.evaluate(() => { window.__delay = 0; });
+  check('N10d a slow save that lands meanwhile leaves focus, and the caret, in the box being typed in', await n.evaluate(() => document.activeElement.id === 'l-note' && document.activeElement.value === 'Trip' && document.activeElement.selectionStart === 4)
+    && await n.locator('[data-del]').count() === 1);
+  await n.locator('#l-note').fill('');
+  // Small screens and zoomed text: no name in the roster is cut short at 260px, and nothing runs off the side.
+  await tab(n, 'roster');
+  await n.setViewportSize({ width: 260, height: 700 }); await settle(n);
+  const cut = await n.evaluate(() => [...document.querySelectorAll('.days .day:not([hidden]) .nm, .lineup .nm')].filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.textContent));
+  const wide = await n.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+  await n.setViewportSize({ width: 390, height: 844 }); await settle(n);
+  check('N10e at 260px no name is cut short and nothing scrolls sideways', cut.length === 0 && !wide, cut.join(' | '));
   await n.close();
   // A first load that fails: plain words, Try again and Sign out.
   n = await c2.newPage();
@@ -514,10 +550,17 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   await n.focus('[data-active="demo-1"]'); await swipe(n, 80, 300); await settle(n);
   check('N17b swipe: works while a tick has focus', (await n.locator('[data-tab=leave]').getAttribute('aria-current')) === 'page');
   await tab(n, 'team');
+  // A tick that can't be saved (no connection) goes back to what is really saved, with one message.
+  await n.evaluate(() => { window.__fail = ['updateProfile', 'updateSettings', 'load']; });
+  await n.click('[data-active="demo-1"]');
+  await says('N17c a tick that can\'t be saved says so in plain words', n, 'Not saved. Check your internet connection and try again.'); await settle(n);
+  await n.click('#pub-cal'); await toast(n); await settle(n);
+  check('N17d ...and the ticks go back to what is really saved', await n.locator('[data-active="demo-1"]').isChecked() && await n.locator('#pub-cal').isChecked() && (await demo(n)).profiles.find(x => x.id === 'demo-1').active === true);
+  await n.evaluate(() => { window.__fail = []; }); await n.click('#retry'); await settle(n);
   // Refused work emails keep what was typed, with the reason beside the box.
   await n.fill('[data-work="demo-1"]', 'ben.lim@company'); await n.locator('[data-work="demo-1"]').press('Enter');
-  await says('N18 Team tab: a mistyped work email is refused', n, 'Please enter a valid email address.'); await settle(n);
-  check('N18b the mistyped email stays, with the reason under the box', (await n.inputValue('[data-work="demo-1"]')) === 'ben.lim@company' && (await n.locator('[data-work="demo-1"] + .form-error').innerText()) === 'Please enter a valid email address.');
+  await besideForm('N18 Team tab: a mistyped work email is refused, with the reason under the box', n, '[data-work="demo-1"] + .form-error', 'Please enter a valid email address.');
+  check('N18b the mistyped email stays', (await n.inputValue('[data-work="demo-1"]')) === 'ben.lim@company');
   await n.fill('[data-work="demo-1"]', ''); await n.locator('[data-work="demo-1"]').press('Enter'); await toast(n); await settle(n);
   // Remove access for someone who has left: out of the rotation from today, past days kept, and no delete button.
   asked.length = 0;
@@ -528,6 +571,7 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
     asked[0] === 'Remove Dev Kumar’s access? They won’t see the roster or anyone’s leave, and they’re left out of the roster from today. Their past duties stay.'
     && dev.approved === false && dev.active === false && dev.is_admin === false && await n.locator('[data-name="demo-3"], [data-remove="demo-3"], [data-approve="demo-3"]').count() === 0
     && await n.locator('[data-restore="demo-3"]').count() === 1 && await n.locator('[data-revoke="demo-0"]').count() === 0, asked.join(' | '));
+  check('N19d after Remove access, focus is on their "Give access again"', await n.evaluate(() => document.activeElement.dataset.restore === 'demo-3'));
   await tab(n, 'roster');
   check('N19c roster: Dev is out from today and still on earlier days', !(await n.locator('.lineup').innerText()).includes('Dev') && (await dayRow(n, 12).innerText()).includes('Dev'));
   await signOut(n); await signIn(n, 'dev');
@@ -556,6 +600,15 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   await n.close();
   n = await openN('/index.html', '2026-11-21T03:00:00Z');
   check('N25 at the weekend: the message is Monday\'s, as before', (await waText(n)).startsWith('2FA Login Request · Mon, 23 Nov'));
+  check('N26 at the weekend the Roster opens at next Monday, running into December under its name', (await n.locator('.days .day:visible .dnum').allTextContents()).join() === '23,24,25,26,27,30,1,2,3,4'
+    && (await n.locator('.days .month-break').allTextContents()).join() === 'December' && await n.locator('#earlier').count() === 1);
+  await n.close();
+  n = await openN('/index.html', '2026-11-30T01:30:00Z');
+  check('N27 on the last Monday of a month the Roster shows this week and next, into the next month', (await n.locator('.days .day:visible .dnum').allTextContents()).join() === '30,1,2,3,4,7,8,9,10,11'
+    && (await n.locator('.month strong').innerText()) === 'November 2026');
+  await n.close();
+  n = await openN('/index.html', '2026-10-31T03:00:00Z');
+  check('N28 on a Saturday at the end of a month the Roster opens at next Monday, in the next month', (await n.locator('.days .day:visible .dnum').allTextContents()).join() === '2,3,4,5,6,9,10,11,12,13');
   await n.close(); await c2.close();
 
   check('Z no errors in the browser console during the whole pass', errors.length === 0, [...new Set(errors)].join(' || '));
