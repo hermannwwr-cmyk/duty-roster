@@ -3,6 +3,11 @@
 // the finger came from (no slide for people who turn off animations).
 
 const FIELD = 'input, textarea, select, [contenteditable], [data-noswipe]';
+// Fields you type into. A focused tick, button or list isn't typing, so it doesn't stop swipes (or a page's refreshes).
+const TEXT = 'textarea, [contenteditable], input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]):not([type=reset]):not([type=range]):not([type=color]):not([type=file])';
+
+/** Is `el` a field someone is typing into? */
+export const typingIn = el => !!(el && el.matches && el.matches(TEXT));
 
 /**
  * Lets people swipe between the `[data-tab]` buttons. `content()` returns the element now showing;
@@ -23,7 +28,7 @@ export function swipeTabs(content, blocked = () => false) {
     start = null;
     // A clear sideways swipe: far enough, mostly horizontal, and not while someone is typing.
     if (!quick || Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-    if (blocked() || (document.activeElement && document.activeElement.matches(FIELD))) return;
+    if (blocked() || typingIn(document.activeElement)) return;
     if (getSelection && String(getSelection())) return;   // they were selecting text
     const tabs = [...document.querySelectorAll('[data-tab]')];
     const now = tabs.findIndex(b => b.getAttribute('aria-current') === 'page');

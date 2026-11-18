@@ -184,14 +184,15 @@ export function todaySG() {
 /**
  * The roster message for sharing (WhatsApp and the phone's share menu): names and roles only.
  * `day` is { date, duties: [{ role, name }] }. Leave is deliberately not included.
+ * `ask: false` leaves out the line asking the Primary for an OTP, for when the Primary is the one sharing it.
  */
-export function rosterMessage(day, calendarUrl) {
+export function rosterMessage(day, calendarUrl, { ask = true } = {}) {
   const when = fromISO(day.date).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' });
   const lines = ['2FA Login Request · ' + when];
   if (day.duties.length) {
     day.duties.forEach(d => lines.push(d.role + ': ' + d.name));
     // The Primary handles OTP login requests that day.
-    lines.push('', 'Hi ' + day.duties[0].name + ' (Primary), may we have OTP login for ...');
+    if (ask) lines.push('', 'Hi ' + day.duties[0].name + ' (Primary), may we have OTP login for ...');
   } else lines.push('No one is available for duty.');
   if (calendarUrl) lines.push('Calendar: ' + calendarUrl);
   return lines.join('\n');
