@@ -298,6 +298,22 @@ test('shouldHeal: an approved admin, complete data with a saved rotation, and a 
   assert.deepEqual(rotaOrder(d), ['A', 'B', 'C', 'D']);
 });
 
+test('a later day\'s checkpoint left in another order is put right, even by a change back to the order in effect', () => {
+  // An evening reorder saved Thursday's checkpoint but not today's, the self-heal didn't run, then the order was put back.
+  const team = ['A', 'B', 'C', 'D'], p = rota(team), THU = '2026-11-19';
+  const cps = rotaChange(p, TODAY, ['A', 'C', 'B', 'D'], { afterHours: true });
+  assert.deepEqual(cps.map(c => c.effective_date), [THU, TODAY]);
+  const partial = save(p, cps.slice(0, -1));
+  const back = rotaChange(partial, TODAY, team, { afterHours: true });
+  assert.ok(back.some(c => c.effective_date === THU && c.member_order.join() === team.join()), JSON.stringify(back));
+  assert.deepEqual(days(save(partial, back), TODAY, '2026-11-27'), days(p, TODAY, '2026-11-27'));
+  // The self-heal sees it too, and once it is put right there is nothing more to do.
+  const data = ckps => ({ me: { id: 'A', is_admin: true, approved: true }, leaves: [], holidays: [], settings: { rota_start: '2026-11-02' }, checkpoints: ckps,
+    profiles: team.map((id, i) => ({ id, display_name: id, rota_order: i, active: true, is_admin: id === 'A', approved: true })) });
+  assert.equal(shouldHeal(data(partial.checkpoints), TODAY, { afterHours: true }), true);
+  assert.equal(shouldHeal(data(save(partial, back).checkpoints), TODAY, { afterHours: true }), false);
+});
+
 test('a saved rotation also finds its people among the members when no wider list is given', () => {
   const p = rota(['A', 'B', 'C']);
   const { people, ...membersOnly } = p;

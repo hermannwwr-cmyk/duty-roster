@@ -6,7 +6,11 @@ import { addDays, todaySG } from '../src/schedule.js';
 beforeEach(() => {
   const m = new Map();
   globalThis.localStorage = { getItem: k => m.get(k) ?? null, setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k) };
+  warned.length = 0;
 });
+// Database messages put in plain words are also logged as they were; keep them here rather than in the test output.
+const warned = [];
+console.warn = (...a) => { warned.push(a.join(' ')); };
 const { DemoStore } = await import('../src/store.js');
 const order = s => s.db.profiles.slice().sort((a, b) => a.rota_order - b.rota_order).map(p => p.display_name);
 // What production shows: the database's own messages, and SupabaseStore's when the database skips or reverts a change quietly.
@@ -218,7 +222,8 @@ test('database refusals reach people in plain words, the same in both stores; ot
     ['new row for relation "leaves" violates check constraint "leave_dates_in_order"', PLAIN.leave_dates_in_order],
     ['new row for relation "settings" violates check constraint "single_row"', 'That change wasn’t saved. Check what you entered and try again.'],
     ['duplicate key value violates unique constraint "profiles_work_email_key"', 'That email already belongs to someone else on the roster.'],
-    ['duplicate key value violates unique constraint "leaves_invite_uid_key"', 'That’s already saved.'],
+    ['duplicate key value violates unique constraint "leaves_invite_uid_key"', 'That change wasn’t saved. It’s already there.'],
+    ['JWT expired', 'You’ve been signed out. Please sign in again.'],
     ['insert or update on table "leaves" violates foreign key constraint "leaves_user_id_fkey"', notSaved],
     ['null value in column "name" of relation "holidays" violates not-null constraint', 'Please fill in every field.'],
     ['invalid input syntax for type date: ""', 'Please enter a valid date.'],
@@ -241,6 +246,12 @@ test('database refusals reach people in plain words, the same in both stores; ot
   const viaDemo = demo.addLeave({ user_id: 'demo-2', start_date: t, end_date: t });
   const [a, b] = await Promise.allSettled([viaDb, viaDemo]);
   assert.equal(a.reason.message, b.reason.message);
+  // Both logged the database's own words, with the table name: the owner's clue when an update hasn't been run.
+  assert.deepEqual(warned, ['The database said: new row violates row-level security policy for table "leaves"', 'The database said: new row violates row-level security policy for table "leaves"']);
+  warned.length = 0;
+  await assert.rejects(new SupabaseStore(refuse('Leave can be booked up to a year ahead.'), 'u', 'k').addLeave({ user_id: 'demo-1', start_date: t, end_date: t }), /^Error: Leave can be booked up to a year ahead\.$/);
+  await assert.rejects(new SupabaseStore(refuse('Failed to fetch'), 'u', 'k').addLeave({ user_id: 'demo-1', start_date: t, end_date: t }), /^Error: Failed to fetch$/);
+  assert.deepEqual(warned, [], 'messages passed through as they are are not logged');
   const nameDb = new SupabaseStore(refuse('new row for relation "profiles" violates check constraint "name_length"'), 'u', 'k').updateProfile('demo-1', { display_name: ' ' });
   const [c, d] = await Promise.allSettled([nameDb, demo.updateProfile('demo-1', { display_name: ' ' })]);
   assert.deepEqual([c.reason.message, d.reason.message], [PLAIN.name_length, PLAIN.name_length]);

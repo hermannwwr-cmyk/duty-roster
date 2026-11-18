@@ -21,11 +21,12 @@ const CONSTRAINTS = {
 const RAW = [
   [/row-level security policy/, () => NOT_SAVED],
   [/violates check constraint "([^"]+)"/, m => CONSTRAINTS[m[1]] || 'That change wasn’t saved. Check what you entered and try again.'],
-  [/violates unique constraint "([^"]+)"/, m => CONSTRAINTS[m[1]] || 'That’s already saved.'],
+  [/violates unique constraint "([^"]+)"/, m => CONSTRAINTS[m[1]] || 'That change wasn’t saved. It’s already there.'],
   [/violates foreign key constraint/, () => NOT_SAVED],
   [/violates not-null constraint/, () => 'Please fill in every field.'],
   [/^invalid input syntax for type date|^date\/time field value out of range/, () => 'Please enter a valid date.'],
-  [/^value too long for type/, () => 'That’s too long. Please shorten it.']
+  [/^value too long for type/, () => 'That’s too long. Please shorten it.'],
+  [/^JWT expired$/, () => 'You’ve been signed out. Please sign in again.']
 ];
 /** A database error message as people should read it, the same in both stores. */
 export function plainError(message) {
@@ -33,9 +34,16 @@ export function plainError(message) {
   for (const [pattern, say] of RAW) { const m = pattern.exec(text); if (m) return say(m); }
   return text;
 }
+/** The error to throw for a database message. When it is put in plain words, the original goes to the console:
+ *  its table or constraint name is the owner's clue, for example to an update in supabase/ that hasn't been run. */
+function refused(message) {
+  const plain = plainError(message);
+  if (plain !== String(message)) console.warn('The database said: ' + message);
+  return new Error(plain);
+}
 
 function check({ data, error }) {
-  if (error) throw new Error(plainError(error.message));
+  if (error) throw refused(error.message);
   return data;
 }
 /** For writes ending in .select(): the database skips rows you aren't allowed to change without an error, so no rows back means it didn't happen. */
@@ -124,7 +132,7 @@ export class SupabaseStore {
     const { error } = await this.sb.rpc('set_rota_order', { ids });
     if (!error) return;
     // Databases without update 6: save one person at a time, as before.
-    if (error.code !== 'PGRST202') throw new Error(plainError(error.message));
+    if (error.code !== 'PGRST202') throw refused(error.message);
     for (let k = 0; k < ids.length; k++) await this.updateProfile(ids[k], { rota_order: k });
   }
   async addHoliday(date, name) { check(await this.sb.from('holidays').upsert({ date, name })); }
@@ -148,12 +156,12 @@ const DEMO_KEY = 'duty-roster-demo';
 const DEMO_PEOPLE = ['Alice Tan', 'Ben Lim', 'Chloe Ng', 'Dev Kumar', 'Elena Goh'];
 
 // DemoStore refuses what the database refuses, with the words people would see in production: the database's own
-// (supabase/*.sql; Postgres's for row level security and check constraints, through plainError like SupabaseStore's),
+// (supabase/*.sql; Postgres's for row level security and check constraints, through refused() like SupabaseStore's),
 // and SupabaseStore's NOT_SAVED / ONLY_ADMINS where the database skips or reverts a change quietly. The database checks
 // in this order: row level security on which rows an update or delete can reach, then triggers, then row level
 // security on the new row, then check constraints (in name order).
-const rlsRefused = table => new Error(plainError('new row violates row-level security policy for table "' + table + '"'));
-const constraintRefused = (table, name) => new Error(plainError('new row for relation "' + table + '" violates check constraint "' + name + '"'));
+const rlsRefused = table => refused('new row violates row-level security policy for table "' + table + '"');
+const constraintRefused = (table, name) => refused('new row for relation "' + table + '" violates check constraint "' + name + '"');
 // SQL's trim() removes spaces only, and char_length() counts characters, not UTF-16 units.
 const sqlTrim = s => String(s == null ? '' : s).replace(/^ +| +$/g, '');
 const chars = s => [...String(s)].length;

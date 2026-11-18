@@ -196,7 +196,8 @@ const replaced = (cps, extra) => cps.filter(c => !extra.some(k => k.effective_da
  * What to save on `date` for the team as it now is (`order`: the ids of active, approved people in rotation order),
  * in the order to save it. Used after approving, deactivating, reactivating or reordering people, and by an admin's
  * page to put right a rotation that doesn't match the team (a checkpoint that failed to save, or a fresh install's
- * first admin). Nothing when the checkpoint in effect on `date` already has that order; otherwise checkpointFor's.
+ * first admin). Nothing when the checkpoint in effect on `date`, and any saved for later days, already have that
+ * order; otherwise checkpointFor's.
  * - From 6pm on a working day (`afterHours`), the next working day's cover has been announced ("Next on duty ·
  *   9am tomorrow"), so a checkpoint on that day keeps its Primary too, if they are still in the rotation.
  * - A checkpoint already saved for a later day (by such an evening change) takes the new order, keeping its Primary.
@@ -206,7 +207,9 @@ const replaced = (cps, extra) => cps.filter(c => !extra.some(k => k.effective_da
 export function rotaChange(p, date, order, { afterHours = false } = {}) {
   const cps = savedOrBase(p);
   const inEffect = cps.filter(c => c.effective_date <= date).pop() || cps[0];
-  if (inEffect.member_order.join() === order.join()) return [];
+  // Nothing to do when the checkpoint in effect and any saved for later days all have this order. (A later one can
+  // differ if an evening change saved it but not today's, and the order was then put back.)
+  if (cps.filter(c => c.effective_date >= inEffect.effective_date).every(c => c.member_order.join() === order.join())) return [];
   const rota = { ...p, checkpoints: cps };
   const cp = checkpointFor(rota, date, order);
   const later = cps.filter(c => c.effective_date > date && c.effective_date !== cp.effective_date).map(c => checkpointFor(rota, c.effective_date, order));
