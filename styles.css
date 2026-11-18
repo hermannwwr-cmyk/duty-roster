@@ -280,7 +280,9 @@ label.field input, label.field select { min-width: 0; padding: .4rem .65rem; bor
 /* The narrowest phones: a little tighter, so "Tomorrow" fits on one line. */
 @media (max-width: 360px) { .next-days { gap: .4rem; } .next-duty { padding-inline: .5rem; } .next-duty .when { gap: .3rem; letter-spacing: 0; } .next-duty .dot { width: .5rem; height: .5rem; } }
 .lineup { grid-template-columns: repeat(auto-fill, minmax(3.6rem, 1fr)); }
-.lineup .p .av { box-shadow: 0 0 0 2px var(--raised), 0 0 0 3.5px var(--accent); }
+/* The Primary's tile is the one to find: a soft cyan behind it, so your own tile (a steel ring) never outranks it. */
+.lineup .p { background: var(--accent-soft); }
+.lineup .p .av { box-shadow: 0 0 0 2px var(--accent-soft), 0 0 0 3.5px var(--accent); }
 /* Working days when everyone is away: its own card, in red. */
 .gaps { gap: .6rem; padding: .9rem; background: var(--danger-soft); box-shadow: 0 0 0 1px #e5484d66; }
 .gaps h3 { display: flex; align-items: center; gap: .5rem; padding: 0 .15rem; color: #ffb4ad; font-size: .92rem; }
