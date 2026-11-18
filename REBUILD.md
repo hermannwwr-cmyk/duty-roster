@@ -253,7 +253,7 @@ Two classes with **identical methods**:
   - On the first visit on a phone, play a one-time "peek": the page nudges left and a slim cyan edge card with a › arrow slides in, then everything springs back. Remember it in `localStorage` as `swipePeekSeen`.
   - Skip all animation under `prefers-reduced-motion`.
 - **Staying fresh (`live.js`):**
-  - Re-fetch data when the tab becomes visible, every 5 minutes, and just after Singapore midnight. The app refreshes even while someone is typing, but never redraws under them: it keeps the new data and draws it when they stop. One refresh runs at a time, but one that hasn't finished after 25 seconds (a stalled connection) is given up on, so the next can run.
+  - Re-fetch data when the tab becomes visible, every 5 minutes, and just after Singapore midnight. The app refreshes even while someone is typing, but never redraws under them: it keeps the new data and draws it once no field holds unsaved text (or on a save or tab switch). A new day is the exception: it is drawn at once, typing or not, because the screen's buttons carry the day's dates (what was typed is kept). One refresh runs at a time, but one that hasn't finished after 25 seconds (a stalled connection) is given up on, so the next can run.
   - Both pages also switch over by themselves at 9am and 6pm, and catch up at once when the browser comes back online.
   - Also fetch the page's own HTML and compare the `?v=` stamp. If it differs, show a bar: "A new version of the app is available. [Reload]".
 - **Accessibility:**
@@ -334,7 +334,7 @@ The card loads `loadPublic(today, today + 60)`; each Forecast month loads its ow
 - A first load that fails shows "Can't load the roster" with Try again and Sign out (and the error's details, unless it was the connection). If part of the app didn't download: "Can't load the app … then [Reload the page]."
 - After a good load, a failed refresh keeps the page as it is with a small sticky bar under the header: "Can't connect. Showing what was loaded at 10:42 am." and Try again (which says "Still can't connect." if it still fails). The bar goes when a load works.
 
-**Typing comes first.** Background refreshes (every 5 minutes, at 9am and 6pm, coming back online, switching to a tab whose data is over a minute old) never redraw under someone typing: the new data waits and is drawn once focus leaves the box, but never between the press and release of a tap, which would swallow it. A redraw keeps what was typed, the focused box and its caret.
+**Typing comes first.** Background refreshes (every 5 minutes, at 9am and 6pm, coming back online, switching to a tab whose data is over a minute old) never redraw under someone typing: the new data waits and is drawn once no field holds unsaved text (or on a save or tab switch), but never between the press and release of a tap, which would swallow it. A new day is drawn at once, typing or not, keeping what was typed: the buttons carry the day's dates (End early ends leave yesterday). A redraw keeps what was typed, the focused box and its caret.
 
 **Roster tab:**
 - **"Your role" card:** the label "YOUR ROLE · MON, 16 NOV" over a big "Primary", "Secondary 2", "On leave" or "No duty".
@@ -479,5 +479,5 @@ Phones cache ES modules aggressively, and mixing old and new modules breaks the 
 - [ ] WhatsApp opens with the exact message text; after 6pm it is still about today; the Primary's own button doesn't ask them for an OTP.
 - [ ] No caption says the Primary is away during office hours; outside them, the caption names when the office opens.
 - [ ] With the connection down: the app keeps what it showed with a "Can't connect" bar, a refused or failed save keeps what was typed and says why once, a double tap saves once, Sign out still works; the public card and month each say so with Try again.
-- [ ] Refreshes never redraw under someone typing, and a refresh that changes nothing leaves the public card alone.
+- [ ] Refreshes never redraw under someone typing, except at a new day (drawn at once, keeping what was typed); a refresh that changes nothing leaves the public card alone.
 - [ ] Cancelling an Outlook invite removes the leave on the next sync.

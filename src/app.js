@@ -204,7 +204,7 @@ async function healRotation(d) {
   try { await recordRotaChange(); healed.add(key); }
   catch (e) { return; }
   finally { healing = false; }
-  if (!typing()) refresh({ background: true });
+  refresh({ background: true });   // reload holds the draw while someone types
 }
 
 /* ---------- Corrections to past days (admins) ---------- */
@@ -301,7 +301,8 @@ async function reload({ background = false } = {}) {
     if (me.approved === false) return accountScreen('Waiting for approval', 'Thanks for signing up, ' + esc(me.display_name) + '. An admin needs to approve your account before you can see the roster. Check back later.', 'Still waiting for approval.');
     // Keep the header (and whatever has focus in it) unless who is signed in has changed, and keep anything typed and not saved yet.
     const view = root.querySelector('#view');
-    if (background && view && typing() && view.dataset.user === userKey(me)) pendingDraw = true;   // drawn when they stop typing (drawWhenIdle)
+    // Held while someone types (drawn when they stop, drawWhenIdle), but a new day is drawn at once: the buttons carry its dates.
+    if (background && view && typing() && view.dataset.user === userKey(me) && view.dataset.day === today()) pendingDraw = true;
     else if (view && view.dataset.user === userKey(me)) redraw();
     else renderApp();
     showOffline(null);
@@ -521,6 +522,8 @@ function userKey(me) { return me.id + '|' + me.display_name + '|' + me.is_admin;
 /** Redraws only the current section. Headings can take focus, as the fallback when a focused control disappears. */
 function renderView() {
   pendingDraw = false;   // whatever came in while someone typed is on screen now
+  const view = document.getElementById('view');
+  if (view) view.dataset.day = today();   // the day this view's buttons were drawn for (see reload)
   ({ roster: renderRoster, leave: renderLeave, team: renderTeam })[state.tab]();
   root.querySelectorAll('#view h2').forEach(h => h.setAttribute('tabindex', '-1'));
   saving.forEach(lock);
@@ -714,7 +717,7 @@ function renderLeave() {
     const l = theirs(b);
     if (l && !window.confirm('End ' + first(l.user_id) + '’s leave early? They’ll be back on the roster from today.')) return;
     const ended = 'Leave ended. ' + (l ? first(l.user_id) + ' is back on the roster from today.' : 'You’re back on the roster from today.');
-    act(() => store.updateLeave(Number(b.dataset.end), { end_date: addDays(t, -1) }), ended);
+    act(() => store.updateLeave(Number(b.dataset.end), { end_date: addDays(today(), -1) }), ended);   // today, not the drawn day
   });
   // The end date can't be before the start (also when a typed start is put back after a redraw).
   const startField = document.getElementById('l-start');

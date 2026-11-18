@@ -906,6 +906,23 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   await n.close();
   n = await openN('/index.html', '2026-10-31T03:00:00Z');
   check('N28 on a Saturday at the end of a month the Roster opens at next Monday, in the next month', (await n.locator('.days .day:visible .dnum').allTextContents()).join() === '2,3,4,5,6,9,10,11,12,13');
+  await n.close();
+  // A page left open overnight with a half-typed note moves to the new day at once (its buttons carry the day's dates),
+  // so End early the next morning ends the leave yesterday, not the day before, and the note is kept.
+  n = await openN('/calendar.html', '2026-10-30T01:30:00Z');
+  await n.evaluate(() => { const db = JSON.parse(localStorage.getItem('duty-roster-demo')); db.leaves = [{ id: 1, user_id: 'demo-1', start_date: '2026-11-16', end_date: '2026-11-20', note: null }]; db.nextId = 2; db.session = null; localStorage.setItem('duty-roster-demo', JSON.stringify(db)); });
+  await n.close();
+  answer = true;
+  n = await openN('/index.html', '2026-11-17T09:00:00Z'); await signIn(n, 'alice');
+  await n.click('[data-tab=leave]'); await settle(n);
+  await n.fill('#l-note', 'Half typed'); await n.locator('h2').first().click(); await n.waitForTimeout(100);
+  await n.clock.fastForward('16:05:00'); await n.clock.runFor(10 * 60 * 1000); await n.waitForTimeout(500);
+  await n.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await n.clock.runFor(2000); await n.waitForTimeout(300);
+  const morning = await n.evaluate(() => ({ start: document.getElementById('l-start').value, note: document.getElementById('l-note').value }));
+  await n.locator('[data-end]').first().click(); await n.clock.runFor(1500); await n.waitForTimeout(400);
+  const overnight = (await demo(n)).leaves.find(l => l.id === 1) || {};
+  check('N29 a page left open overnight with a half-typed note shows the new day: End early ends the leave yesterday, and the note is kept',
+    morning.start === '2026-11-18' && morning.note === 'Half typed' && overnight.end_date === '2026-11-17', JSON.stringify({ morning, end: overnight.end_date }));
   await n.close(); await c2.close();
 
   // (The browser reports the download that S1 to S3 drop on purpose; nothing else may show an error.)
