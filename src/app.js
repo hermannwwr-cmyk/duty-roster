@@ -145,7 +145,7 @@ async function act(fn, done) {
   const active = root.contains(document.activeElement) ? document.activeElement : null;
   const el = t && root.contains(t.el) ? t.el : active;
   const form = (t && t.form) || (el && el.form) || null;
-  const field = !form && el && el.matches(FIELDS) && el.type !== 'checkbox' ? el : null;
+  const field = !form && typingIn(el) ? el : null;   // a text box saved on its own (a name, a work email)
   const job = { key: focusKey(el), form: form && focusKey(form), field: !!field, values: form ? valuesOf(form.elements) : field ? valuesOf([field]) : null, locked: new Set() };
   const focus = focusKey(active);
   formError(form || field, '');
