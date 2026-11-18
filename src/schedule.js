@@ -50,6 +50,22 @@ export function onRota(profile) {
   return profile.active && profile.approved !== false;
 }
 
+/** Rotation order: `rota_order`, then sign-up time, then id (the same order as in SQL). */
+export const byRota = (a, b) => (a.rota_order - b.rota_order) || String(a.created_at || '').localeCompare(String(b.created_at || '')) || String(a.id).localeCompare(String(b.id));
+/** The rotation as buildSchedule takes it, from loaded data ({ profiles, leaves, holidays, settings, checkpoints }). */
+export function rotaParams(d) {
+  return {
+    members: d.profiles.filter(onRota).sort(byRota).map(p => ({ id: p.id, name: p.display_name })),
+    people: d.profiles.map(p => ({ id: p.id, name: p.display_name })),
+    checkpoints: d.checkpoints || [],
+    leaves: d.leaves,
+    holidays: Object.fromEntries(d.holidays.map(h => [h.date, h.name])),
+    anchor: d.settings.rota_start
+  };
+}
+/** The ids of the active, approved team in rotation order. */
+export const rotaOrder = d => d.profiles.filter(onRota).sort(byRota).map(p => p.id);
+
 /** Is `member` on leave on `iso`? Leaves are inclusive date ranges. */
 function onLeave(leaves, memberId, iso) {
   return leaves.some(l => l.user_id === memberId && l.start_date <= iso && iso <= l.end_date);
@@ -145,6 +161,8 @@ const primaryOf = d => d && d.kind === 'work' && d.duties.length ? d.duties[0].m
  * It builds on the rotation as it stands, including a checkpoint already saved for `date` (which this one
  * replaces), so a second change on the same day keeps what the first one left.
  * - On a working day, that day's Primary stays Primary if they are still in the rotation: the team has been told.
+ * - On a day with no Primary (a weekend, say), an earlier change that day may have taken off the person whose turn
+ *   it was. If they are back in the rotation, they are next again, so the second change undoes the first.
  * - Otherwise whoever's turn it is stays next, or the next person after them who is still in the rotation.
  * - Before anyone has been on duty, the first checkpoint just takes the new order.
  */
@@ -156,6 +174,14 @@ export function checkpointFor(p, date, newOrder) {
     return { effective_date: cps[0].effective_date, member_order: newOrder, next_primary: newOrder[0] || null };
   }
   if (primary && newOrder.includes(primary.id)) return { effective_date: date, member_order: newOrder, next_primary: primary.id };
+  const own = cps.find(c => c.effective_date === date);
+  if (!primary && own) {
+    // Whose turn it was before that change. (Someone who stayed in its order is passed over here: a checkpoint
+    // that keeps the order, like one saved before a correction to past days, means its own turn.)
+    const was = dayOf({ ...p, checkpoints: cps.filter(c => c !== own) }, date);
+    const id = was.list.length ? was.list[was.pointer].id : null;
+    if (id && newOrder.includes(id) && !own.member_order.includes(id)) return { effective_date: date, member_order: newOrder, next_primary: id };
+  }
   let next = null;
   for (let i = 0; i < day.list.length && !next; i++) {
     const id = day.list[(day.pointer + i) % day.list.length].id;
@@ -164,18 +190,50 @@ export function checkpointFor(p, date, newOrder) {
   return { effective_date: date, member_order: newOrder, next_primary: next || newOrder[0] || null };
 }
 
+const replaced = (cps, extra) => cps.filter(c => !extra.some(k => k.effective_date === c.effective_date)).concat(extra);
+
 /**
- * What to save on `date` for the team as it now is (`order`: the ids of active, approved people in rotation order).
- * Used after approving, deactivating, reactivating or reordering people, and by an admin's page to put right a
- * rotation that doesn't match the team (a checkpoint that failed to save, or a fresh install's first admin).
- * Nothing when the checkpoint in effect on `date` already has that order; otherwise checkpointFor's checkpoint.
+ * What to save on `date` for the team as it now is (`order`: the ids of active, approved people in rotation order),
+ * in the order to save it. Used after approving, deactivating, reactivating or reordering people, and by an admin's
+ * page to put right a rotation that doesn't match the team (a checkpoint that failed to save, or a fresh install's
+ * first admin). Nothing when the checkpoint in effect on `date` already has that order; otherwise checkpointFor's.
+ * - From 6pm on a working day (`afterHours`), the next working day's cover has been announced ("Next on duty ·
+ *   9am tomorrow"), so a checkpoint on that day keeps its Primary too, if they are still in the rotation.
+ * - A checkpoint already saved for a later day (by such an evening change) takes the new order, keeping its Primary.
+ * Later days' checkpoints come first, so if saving stops part way, the one for `date` is missing and the self-heal
+ * finishes the job.
  */
-export function rotaChange(p, date, order) {
+export function rotaChange(p, date, order, { afterHours = false } = {}) {
   const cps = savedOrBase(p);
   const inEffect = cps.filter(c => c.effective_date <= date).pop() || cps[0];
   if (inEffect.member_order.join() === order.join()) return [];
-  const cp = checkpointFor({ ...p, checkpoints: cps }, date, order);
-  return saved(p) || cp.effective_date === cps[0].effective_date ? [cp] : [cps[0], cp];
+  const rota = { ...p, checkpoints: cps };
+  const cp = checkpointFor(rota, date, order);
+  const later = cps.filter(c => c.effective_date > date && c.effective_date !== cp.effective_date).map(c => checkpointFor(rota, c.effective_date, order));
+  if (afterHours && dayOf(rota, date).kind === 'work') {
+    const next = buildSchedule({ ...rota, from: addDays(date, 1), to: addDays(date, 31) }).find(d => d.kind === 'work');
+    if (next && !later.some(c => c.effective_date === next.date)) {
+      const keep = checkpointFor(rota, next.date, order);
+      const withToday = replaced(cps, [cp]);
+      const id = d => (primaryOf(d) || {}).id;
+      if (id(dayOf({ ...rota, checkpoints: withToday }, next.date)) !== id(dayOf({ ...rota, checkpoints: replaced(withToday, [keep]) }, next.date))) later.push(keep);
+    }
+  }
+  const out = later.concat(cp);
+  return saved(p) || cp.effective_date === cps[0].effective_date ? out : [cps[0]].concat(out);
+}
+
+/**
+ * Should an admin's page put the rotation right (the self-heal in app.js)? Only for an approved admin, only on
+ * complete data (the team, leave, holidays, settings and a saved rotation, with the admin among the team), and only
+ * when rotaChange has something to save. With no saved rotation at all, nothing is healed.
+ */
+export function shouldHeal(d, today, opts = {}) {
+  const me = d && d.me;
+  if (!me || !me.is_admin || me.approved === false) return false;
+  if (![d.profiles, d.leaves, d.holidays, d.checkpoints].every(Array.isArray) || !d.settings || !d.checkpoints.length) return false;
+  if (!d.profiles.some(p => p.id === me.id)) return false;
+  return rotaChange(rotaParams(d), today, rotaOrder(d), opts).length > 0;
 }
 
 /**

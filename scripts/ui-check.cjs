@@ -371,6 +371,7 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   const asked = []; app.on('dialog', d => asked.push(d.message()));
   const rowText = async n => (await dayRow(app, n).innerText()).replace(/\s+/g, ' ');
   const todaysPrimary = async () => (await app.locator('.lineup li.p .nm').innerText()).replace(/\s*\(you\)/, '');
+  const publicNext = async () => { const page = await open('/calendar.html', '2026-11-16T10:30:00Z'); const name = await page.locator('.next-cover .who-line .nm').innerText(); await page.close(); return name; };
   const publicPrimary = async () => { const page = await open('/calendar.html'); const name = await page.locator('.hero-name .name').innerText(); await page.close(); return name; };
   const rowsBefore = await Promise.all([10, 11, 12, 13].map(rowText));
   check('N0 seeded: Mon 9 Nov is a holiday and today is Elena\'s turn', (await rowText(9)).includes('Deepavali') && (await todaysPrimary()) === 'Elena', await todaysPrimary());
@@ -415,9 +416,19 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   const restartAsked = []; app.on('dialog', d => restartAsked.push(d.message()));
   await tab(app, 'team'); await app.fill('#s-start', '2026-11-02'); await app.click('#start-form button[type=submit]'); await toast(app); await settle(app);
   await app.fill('#s-start', '2026-11-30'); await app.click('#start-form button[type=submit]'); await toast(app); await settle(app);
-  check('N13 restarting from a past date: earlier days lose their duties and the days since are worked out again',
-    /^Restart the rotation on Mon, 2 Nov 2026\? Every day before it loses its duties, and duties from then on are worked out again\. Alice Tan will be Primary on the first working day\. Today’s Primary (stays|changes from) /.test(restartAsked[0] || ''), restartAsked[0]);
-  check('N14 restarting from a future date: no one is on duty until then', restartAsked[1] === 'Restart the rotation on Mon, 30 Nov 2026? No one is on duty until then, and every day before it loses its duties. Alice Tan will be Primary on the first working day.', restartAsked[1]);
+  check('N13 restarting from a past date: earlier days are cleared, the days since are worked out again, and it says what happens to today\'s Primary',
+    restartAsked[0] === 'Restart the rotation from Mon, 2 Nov? Days before it are cleared, and duties from then on are worked out again. Today’s Primary changes from Alice to Chloe.', restartAsked[0]);
+  check('N14 restarting from a future date: no one is on duty until then', restartAsked[1] === 'Restart the rotation on Mon, 30 Nov? No one will be on duty until then, and earlier days will no longer show who was on duty. Alice will be Primary first.', restartAsked[1]);
+  await app.close();
+  // From 6pm the public card shows "Next on duty · 9am tomorrow": a change to the order in the evening keeps that person.
+  pub = await open('/calendar.html'); await setDb(pub, seedN); await pub.close();
+  app = await open('/index.html', '2026-11-16T10:30:00Z');   // Monday, 6:30pm in Singapore
+  const nextBefore = await publicNext();
+  await tab(app, 'team'); await app.click('[data-down="demo-0"]');
+  await says('N15 reordering in the evening confirms', app, 'Order updated from today.'); await settle(app);
+  await tab(app, 'roster');
+  check('N16 after 6pm a reorder keeps tomorrow\'s announced Primary, here and on the public page', nextBefore === 'Alice Tan' && (await dayRow(app, 17).locator('.lead .nm').innerText()).includes('Alice Tan') && (await publicNext()) === 'Alice Tan',
+    nextBefore + ' | ' + (await rowText(17)));
   await app.close();
 
   check('Z no errors in the browser console during the whole pass', errors.length === 0, [...new Set(errors)].join(' || '));

@@ -2,7 +2,7 @@
 // admin's page puts right a rotation that doesn't match the team (src/schedule.js: checkpointFor, rotaChange, pastEdit).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildSchedule, checkpointFor, rotaChange, pastEdit } from '../src/schedule.js';
+import { buildSchedule, checkpointFor, rotaChange, pastEdit, shouldHeal, rotaParams, rotaOrder } from '../src/schedule.js';
 
 const P = ['A', 'B', 'C', 'D', 'E'].map(id => ({ id, name: id }));
 const who = id => P.find(p => p.id === id);
@@ -186,4 +186,120 @@ test('self-heal on a fresh install: the first admin joins the empty rotation', (
   const healed = save(install, fix);
   assert.deepEqual(days(healed, '2026-11-16', '2026-11-19'), ['16:-', '17:-', '18:A>', '19:A>']);
   assert.deepEqual(rotaChange(healed, TODAY, ['A']), []);
+});
+
+test('past leave for a Secondary changes only that day, and today\'s Primary stays', () => {
+  const p = rota(['A', 'B', 'C']);
+  const second = buildSchedule({ ...p, from: '2026-11-16', to: '2026-11-16' })[0].duties[1].member.id;
+  const after = { ...p, leaves: [{ user_id: second, start_date: '2026-11-16', end_date: '2026-11-16' }] };
+  const e = pastEdit(p, after, '2026-11-16', '2026-11-16', TODAY);
+  assert.deepEqual(e.changed, ['2026-11-16']);
+  const today = primaryOn(p, TODAY).id;
+  assert.deepEqual([e.day, e.was.id, e.now.id], [TODAY, today, today]);
+  const fixed = save(after, e.checkpoints);
+  assert.deepEqual(diff(days(p), days(fixed)), ['16']);
+  assert.equal(primaryOn(fixed, '2026-11-16').id, primaryOn(p, '2026-11-16').id);
+});
+
+test('from 6pm on a working day, the next working day\'s announced Primary stays too', () => {
+  const p = rota(['A', 'B', 'C']);
+  const THU = '2026-11-19', thu = primaryOn(p, THU).id;
+  const order = ['A', 'C', 'B'];
+  // In office hours the new order applies from today's Primary on, so tomorrow can change.
+  assert.notEqual(primaryOn(save(p, rotaChange(p, TODAY, order)), THU).id, thu);
+  // From 6pm "Next on duty · 9am tomorrow" has been shown: tomorrow's Primary stays, then the new order follows.
+  const cps = rotaChange(p, TODAY, order, { afterHours: true });
+  assert.deepEqual(cps.map(c => c.effective_date), [THU, TODAY], 'tomorrow\'s first: if saving stops part way, today\'s is missing and the self-heal finishes it');
+  const eve = save(p, cps);
+  assert.equal(primaryOn(eve, TODAY).id, primaryOn(p, TODAY).id);
+  assert.equal(primaryOn(eve, THU).id, thu);
+  assert.deepEqual(diff(days(p, '2026-11-02', '2026-11-17'), days(eve, '2026-11-02', '2026-11-17')), []);
+  assert.deepEqual(days(eve, THU, '2026-11-24').map(d => d.slice(3, 4)), [thu, ...['A', 'C', 'B', 'A', 'C', 'B'].slice(order.indexOf(thu) + 1, order.indexOf(thu) + 4)]);
+  // On a Friday evening it is Monday's Primary; before a holiday, the next working day after it.
+  const fri = save(p, rotaChange(p, '2026-11-20', order, { afterHours: true }));
+  assert.equal(primaryOn(fri, '2026-11-23').id, primaryOn(p, '2026-11-23').id);
+  const hol = rota(['A', 'B', 'C'], { holidays: { [THU]: 'x' } });
+  const h = save(hol, rotaChange(hol, TODAY, order, { afterHours: true }));
+  assert.equal(primaryOn(h, '2026-11-20').id, primaryOn(hol, '2026-11-20').id);
+  // A weekend is unchanged by the flag: Monday's turn is already kept.
+  assert.deepEqual(rotaChange(p, '2026-11-21', order, { afterHours: true }), rotaChange(p, '2026-11-21', order));
+  // No checkpoint is added when the new order gives tomorrow the same Primary anyway.
+  assert.equal(rotaChange(p, TODAY, ['A', 'B', 'C', 'D'], { afterHours: true }).length, 1);
+});
+
+test('evening changes build on each other, and a later day\'s checkpoint takes the next change\'s order', () => {
+  const p = rota(['A', 'B', 'C']);
+  const THU = '2026-11-19', thu = primaryOn(p, THU).id;
+  // Reordered at 7pm, then put back at 8pm: the whole schedule from today on is as it was.
+  const e1 = save(p, rotaChange(p, TODAY, ['A', 'C', 'B'], { afterHours: true }));
+  const e2 = save(e1, rotaChange(e1, TODAY, ['A', 'B', 'C'], { afterHours: true }));
+  assert.deepEqual(days(e2, TODAY, '2026-11-27'), days(p, TODAY, '2026-11-27'));
+  // Deactivating tomorrow's announced Primary in the evening: they're out, and today and earlier days keep their duties.
+  const out = save(p, rotaChange(p, TODAY, ['A', 'B', 'C'].filter(id => id !== thu), { afterHours: true }));
+  assert.notEqual(primaryOn(out, THU).id, thu);
+  assert.equal(primaryOn(out, TODAY).id, primaryOn(p, TODAY).id);
+  // Friday evening saves a checkpoint for Monday; a reorder on Saturday re-saves it in the new order, keeping Monday's Primary.
+  const friday = save(p, rotaChange(p, '2026-11-20', ['A', 'C', 'B'], { afterHours: true }));
+  const mon = primaryOn(friday, '2026-11-23').id;
+  const sat = rotaChange(friday, '2026-11-21', ['C', 'B', 'A']);
+  assert.deepEqual(sat.map(c => [c.effective_date, c.member_order.join('')]), [['2026-11-23', 'CBA'], ['2026-11-21', 'CBA']]);
+  const s = save(friday, sat);
+  assert.equal(primaryOn(s, '2026-11-23').id, mon);
+  assert.deepEqual(days(s, '2026-11-23', '2026-11-25').map(d => d.slice(3, 4)), [mon, ...'CBACBA'.slice('CBA'.indexOf(mon) + 1, 'CBA'.indexOf(mon) + 3)]);
+});
+
+test('on a day with no Primary, undoing a change gives the turn back; a correction\'s checkpoint is still built on', () => {
+  const p = rota(['A', 'B', 'C', 'D']);
+  const SAT = '2026-11-21', MON = '2026-11-23', team = ['A', 'B', 'C', 'D'];
+  const x = primaryOn(p, MON).id;
+  const q1 = save(p, rotaChange(p, SAT, team.filter(id => id !== x)));
+  assert.notEqual(primaryOn(q1, MON).id, x);
+  const q2 = save(q1, rotaChange(q1, SAT, team));
+  assert.equal(primaryOn(q2, MON).id, x, 'deactivated and reactivated on Saturday: Monday is theirs again');
+  assert.deepEqual(days(q2, MON, '2026-11-27'), days(p, MON, '2026-11-27'));
+  // Two people out and back: the one whose turn it was gets it back.
+  const y = team[(team.indexOf(x) + 1) % 4];
+  const r1 = save(p, rotaChange(p, SAT, team.filter(id => id !== x)));
+  const r2 = save(r1, rotaChange(r1, SAT, team.filter(id => id !== x && id !== y)));
+  const r3 = save(r2, rotaChange(r2, SAT, team.filter(id => id !== y)));
+  const r4 = save(r3, rotaChange(r3, SAT, team));
+  assert.deepEqual([primaryOn(r3, MON).id, primaryOn(r4, MON).id], [x, x]);
+  // Friday's Primary recorded as off sick on Saturday morning saves a checkpoint for Saturday; a reorder later that day keeps it.
+  const fri = primaryOn(p, '2026-11-20').id;
+  const sick = { ...p, leaves: [{ user_id: fri, start_date: '2026-11-20', end_date: '2026-11-20' }] };
+  const e = pastEdit(p, sick, '2026-11-20', '2026-11-20', SAT);
+  assert.equal(e.checkpoints[0].effective_date, SAT);
+  const c1 = save(sick, e.checkpoints);
+  assert.equal(primaryOn(c1, MON).id, x);
+  const c2 = save(c1, rotaChange(c1, SAT, ['D', 'C', 'B', 'A']));
+  assert.equal(primaryOn(c2, MON).id, x);
+  // On a working day, whoever took over today's duty stays (as before): see "two changes on one day".
+});
+
+test('shouldHeal: an approved admin, complete data with a saved rotation, and a rotation that doesn\'t match the team', () => {
+  const profile = (id, i) => ({ id, display_name: id, rota_order: i, active: true, is_admin: i === 0, approved: true });
+  const data = () => ({ profiles: ['A', 'B', 'C'].map(profile), leaves: [], holidays: [], settings: { rota_start: '2026-11-02' },
+    checkpoints: [{ effective_date: '2026-11-02', member_order: ['A', 'B', 'C'], next_primary: 'A' }] });
+  const as = (d, id) => ({ ...d, me: d.profiles.find(p => p.id === id) });
+  assert.equal(shouldHeal(as(data(), 'A'), TODAY), false, 'in step');
+  const d = data(); d.profiles.push(profile('D', 3));   // approved, but the checkpoint was never saved
+  const admin = d.profiles[0];
+  assert.equal(shouldHeal(as(d, 'A'), TODAY), true);
+  assert.equal(shouldHeal(as(d, 'B'), TODAY), false, 'not for members');
+  assert.equal(shouldHeal({ ...d, me: { ...admin, approved: false } }, TODAY), false, 'not for an admin awaiting approval');
+  assert.equal(shouldHeal({ ...d, me: null }, TODAY), false);
+  assert.equal(shouldHeal(null, TODAY), false);
+  for (const k of ['profiles', 'leaves', 'holidays', 'checkpoints', 'settings']) assert.equal(shouldHeal({ ...d, me: admin, [k]: undefined }, TODAY), false, 'incomplete data: no ' + k);
+  assert.equal(shouldHeal({ ...d, me: admin, checkpoints: [] }, TODAY), false, 'no saved rotation: nothing to heal');
+  assert.equal(shouldHeal({ ...d, me: admin, profiles: d.profiles.slice(1) }, TODAY), false, 'a team list without the admin is not complete');
+  // Once put right, there is nothing more to do; the evening rule is used the same way as for a change.
+  const healed = { ...as(d, 'A'), checkpoints: d.checkpoints.concat(rotaChange(rotaParams(d), TODAY, rotaOrder(d), { afterHours: true })) };
+  assert.equal(shouldHeal(healed, TODAY, { afterHours: true }), false);
+  assert.deepEqual(rotaOrder(d), ['A', 'B', 'C', 'D']);
+});
+
+test('a saved rotation also finds its people among the members when no wider list is given', () => {
+  const p = rota(['A', 'B', 'C']);
+  const { people, ...membersOnly } = p;
+  assert.deepEqual(days(membersOnly, '2026-11-02', '2026-11-06'), days(p, '2026-11-02', '2026-11-06'));
 });

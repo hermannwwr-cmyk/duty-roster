@@ -1,4 +1,4 @@
-import { buildSchedule, rotaChange, pastEdit, toISO, fromISO, addDays, todaySG, onRota, rosterMessage, whatsappLink, WHATSAPP_ICON, shortName, officeHours, msUntilOfficeChange } from './schedule.js';
+import { buildSchedule, rotaChange, pastEdit, shouldHeal, byRota, rotaParams, rotaOrder, toISO, fromISO, addDays, todaySG, onRota, rosterMessage, whatsappLink, WHATSAPP_ICON, shortName, officeHours, msUntilOfficeChange } from './schedule.js';
 import { createStore } from './connect.js';
 import { faceSvg } from './faces.js';
 import { keepFresh } from './live.js';
@@ -58,44 +58,38 @@ async function act(fn, done) {
 }
 
 /* ---------- Rotation history (GitHub issue #7) ---------- */
-const byRota = (a, b) => (a.rota_order - b.rota_order) || String(a.created_at || '').localeCompare(String(b.created_at || '')) || String(a.id).localeCompare(String(b.id));
-function rotaParams(d) {
-  return {
-    members: d.profiles.filter(onRota).sort(byRota).map(p => ({ id: p.id, name: p.display_name })),
-    people: d.profiles.map(p => ({ id: p.id, name: p.display_name })),
-    checkpoints: d.checkpoints || [],
-    leaves: d.leaves,
-    holidays: Object.fromEntries(d.holidays.map(h => [h.date, h.name])),
-    anchor: d.settings.rota_start
-  };
-}
-const rotaOrder = d => d.profiles.filter(onRota).sort(byRota).map(p => p.id);
+// byRota, rotaParams and rotaOrder are in schedule.js, with the rules that use them.
 // Writes to the rotation's history take turns, each on freshly loaded data, so two of them (an admin's change and
 // the self-heal below, say) can't save checkpoints from the same stale picture.
 let rotaTurn = Promise.resolve();
 function inTurn(fn) { const run = rotaTurn.then(fn, fn); rotaTurn = run.catch(() => {}); return run; }
 /** After a change to who is on the rotation or their order, save it from today: earlier days keep their duties,
- *  and today's Primary stays Primary (rotaChange in schedule.js). */
+ *  today's Primary stays Primary, and from 6pm so does the next working day's (rotaChange in schedule.js). */
 function recordRotaChange() {
   return inTurn(async () => {
     const d = await store.load();
-    for (const cp of rotaChange(rotaParams(d), today(), rotaOrder(d))) await store.saveCheckpoint(cp);
+    for (const cp of rotaChange(rotaParams(d), today(), rotaOrder(d), { afterHours: officeHours() === 'after' })) await store.saveCheckpoint(cp);
   });
 }
 /* Self-heal: if an approval or deactivation was saved but its checkpoint wasn't (a dropped connection), or on a
    fresh install whose first admin isn't in the rotation yet, the rotation and the team disagree. After a complete
-   load, an admin's page saves the missing change, once for each disagreement, then redraws. */
-const healTried = new Set();
+   load, an admin's page saves the missing change (shouldHeal in schedule.js decides), then redraws. A failed try
+   is tried again on a later load, at most five tries a day; one that worked is never repeated for the same data. */
+let healed = new Set(), healTries = 0, healDay = '', healing = false;
 async function healRotation(d) {
+  const t = today();
+  if (t !== healDay) { healed = new Set(); healTries = 0; healDay = t; }
+  let key;
   try {
-    if (!d || !d.me || !d.me.is_admin || d.me.approved === false || !Array.isArray(d.profiles) || !Array.isArray(d.checkpoints)) return;
-    if (!rotaChange(rotaParams(d), today(), rotaOrder(d)).length) return;
-    const key = JSON.stringify([today(), rotaOrder(d), d.checkpoints]);
-    if (healTried.has(key) || healTried.size >= 5) return;
-    healTried.add(key);
-    await recordRotaChange();
-    if (!typing()) refresh();
-  } catch (e) { /* the next load tries again only if the data has changed */ }
+    if (healing || healTries >= 5 || !shouldHeal(d, t, { afterHours: officeHours() === 'after' })) return;
+    key = JSON.stringify([rotaOrder(d), d.checkpoints]);
+    if (healed.has(key)) return;
+  } catch (e) { return; }
+  healing = true; healTries++;
+  try { await recordRotaChange(); healed.add(key); }
+  catch (e) { return; }
+  finally { healing = false; }
+  if (!typing()) refresh({ background: true });
 }
 
 /* ---------- Corrections to past days (admins) ---------- */
@@ -109,16 +103,23 @@ function pastEffect(d, c) {
   c.apply(after);
   return pastEdit(rotaParams(d), rotaParams(after), c.first, c.last, today());
 }
+const firstName = name => shortName(name, state.data.profiles.map(p => p.display_name));
+const primaryOn = d => d && d.kind === 'work' && d.duties[0] ? d.duties[0].member : null;
+/** "Today’s Primary stays Ben." and the like, for the questions below: the Primary on `day` before and after. */
+function primaryLine(day, was, now) {
+  if (!day) return '';
+  const whose = day === today() ? 'Today’s Primary' : 'The Primary on ' + fmtDay(day);
+  if (was && now) return whose + (was.id === now.id ? ' stays ' + firstName(was.name) : ' changes from ' + firstName(was.name) + ' to ' + firstName(now.name)) + '.';
+  if (now) return whose + ' will be ' + firstName(now.name) + '.';
+  if (was) return 'No one will be on duty ' + (day === today() ? 'today' : 'on ' + fmtDay(day)) + '.';
+  return '';
+}
 function pastNote(e, c) {
-  const names = state.data.profiles.map(p => p.display_name), nm = m => shortName(m.name, names), ch = e.changed;
+  const ch = e.changed;
   const days = ch.length === 1 ? 'on ' + fmtDay(ch[0]) : ch.length === 2 ? 'on ' + fmtDay(ch[0]) + ' and ' + fmtDay(ch[1])
     : 'from ' + fmtDay(ch[0]) + ' to ' + fmtDay(ch[ch.length - 1]);
-  const lines = [c.ask, c.last < today() ? 'This changes duties ' + days + ' only.' : 'This changes past duties ' + days + '.'];
-  const whose = e.day === today() ? 'Today’s Primary' : e.day ? 'The Primary on ' + fmtDay(e.day) : '';
-  if (e.was && e.now) lines.push(whose + (e.was.id === e.now.id ? ' stays ' + nm(e.was) : ' changes from ' + nm(e.was) + ' to ' + nm(e.now)) + '.');
-  else if (e.now) lines.push(whose + ' will be ' + nm(e.now) + '.');
-  else if (e.was) lines.push('No one will be on duty ' + (e.day === today() ? 'today' : 'on ' + fmtDay(e.day)) + '.');
-  return lines.join(' ');
+  return [c.ask, c.last < today() ? 'This changes duties ' + days + ' only.' : 'This changes past duties ' + days + '.', primaryLine(e.day, e.was, e.now)]
+    .filter(Boolean).join(' ');
 }
 /** Like act(), for a change to leave or holidays: one that reaches back before today asks first and keeps later days. */
 function actPast(c, done) {
@@ -127,14 +128,14 @@ function actPast(c, done) {
     const e = pastEffect(state.data, c);
     if (e.changed.length && !window.confirm(pastNote(e, c))) return;
   }
-  act(() => !past ? c.write() : inTurn(async () => {
+  return act(() => !past ? c.write() : inTurn(async () => {
     for (const cp of pastEffect(await store.load(), c).checkpoints) await store.saveCheckpoint(cp);
     await c.write();
   }), done);
 }
 const personName = id => (state.data.profiles.find(p => p.id === id) || {}).display_name || 'them';
 const pastLeave = {
-  add: row => ({ first: row.start_date, last: row.end_date, ask: 'Add leave for ' + shortName(personName(row.user_id), state.data.profiles.map(p => p.display_name)) + '?',
+  add: row => ({ first: row.start_date, last: row.end_date, ask: 'Add leave for ' + firstName(personName(row.user_id)) + '?',
     apply: d => { d.leaves.push({ ...row, id: -1 }); }, write: () => store.addLeave(row) }),
   remove: id => {
     const l = state.data.leaves.find(x => x.id === id) || {};
@@ -149,16 +150,15 @@ const pastHoliday = {
 };
 /** The question before restarting the rotation on `start` with `order` (resetRotation in store.js). */
 function restartNote(start, order) {
-  const t = today(), when = fmtDay(start, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
-  const names = state.data.profiles.map(p => p.display_name), first = order.length ? personName(order[0]) : '';
-  const lead = first ? ' ' + first + ' will be Primary on the first working day.' : '';
-  if (start > t) return 'Restart the rotation on ' + when + '? No one is on duty until then, and every day before it loses its duties.' + lead;
-  // A start in the past works out every day from then again, today included.
-  const [was] = scheduleFor(t, t);
-  const [now] = buildSchedule({ ...rotaParams(state.data), checkpoints: [{ effective_date: start, member_order: order, next_primary: order[0] || null }], from: t, to: t });
-  const p = was.kind === 'work' && was.duties[0], q = now.kind === 'work' && now.duties[0];
-  const todays = p && q ? ' Today’s Primary ' + (p.member.id === q.member.id ? 'stays ' + shortName(p.member.name, names) : 'changes from ' + shortName(p.member.name, names) + ' to ' + shortName(q.member.name, names)) + '.' : '';
-  return 'Restart the rotation on ' + when + '? Every day before it loses its duties, and duties from then on are worked out again.' + lead + todays;
+  const t = today();
+  const when = fmtDay(start, start.slice(0, 4) === t.slice(0, 4) ? null : { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  if (start > t) return 'Restart the rotation on ' + when + '? No one will be on duty until then, and earlier days will no longer show who was on duty.'
+    + (order.length ? ' ' + firstName(personName(order[0])) + ' will be Primary first.' : '');
+  // From a past date the days since are worked out again: say what happens to today's Primary (or the next working day's).
+  const next = scheduleFor(t, addDays(t, 31)).find(d => d.kind === 'work');
+  const after = next && buildSchedule({ ...rotaParams(state.data), checkpoints: [{ effective_date: start, member_order: order, next_primary: order[0] || null }], from: next.date, to: next.date })[0];
+  return ['Restart the rotation from ' + when + '? Days before it are cleared, and duties from then on are worked out again.', next && primaryLine(next.date, primaryOn(next), primaryOn(after))]
+    .filter(Boolean).join(' ');
 }
 
 function scheduleFor(from, to) {
