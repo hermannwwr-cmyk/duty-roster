@@ -14,11 +14,13 @@ A web app for a daily duty rotation. Everyone takes turns as Primary, Secondary 
 - The next working day, the person after today's Primary becomes Primary.
 - Anyone on leave is left out for the day and the others move up. If it was their turn as Primary, they skip it rather than someone doing Primary twice in a row.
 - The rotation counts from the **rotation start** date set by an admin.
-- Past duties stay as they were. Approving, deactivating or reordering people takes effect from today: the app saves the rotation as it stands from that date, and earlier days keep the rotation they had.
-- Leave can be added from today onwards. Leave that has already begun can be ended early but not deleted. Admins can record past leave.
+- Past duties stay as they were. Approving, deactivating, reordering or removing people takes effect from today: the app saves the rotation as it stands from that date, and earlier days keep the rotation they had.
+- Today's Primary stays as announced when the team changes. From 6pm, when the public page already shows who is on duty next, the next working day's Primary stays too.
+- Leave can be added from today onwards. Leave that has already begun can be ended early but not deleted. Ending someone's leave early can still change today's Primary.
+- Admins can record past leave and add or remove past holidays. The app first says which days change and asks, then changes only those days. A Primary recorded as away after the fact doesn't get the turn back.
 - Changing the rotation start restarts the rotation and recalculates all earlier days, so the app asks first.
 
-The rules are in `src/schedule.js`, with tests in `tests/schedule.test.mjs`.
+The rules are in `src/schedule.js`, with tests in `tests/schedule.test.mjs` and `tests/history.test.mjs`.
 
 ## Set up Supabase (about 10 minutes)
 
@@ -35,13 +37,17 @@ The anon key is safe to publish. The database's security rules:
 - Each person can change only their own leave and name. The order, approvals, holidays and settings are for admins.
 - Without admin access, leave can be at most 180 days at a time and up to a year ahead. Names, holiday names and notes have length limits.
 - To make someone an admin by hand, run `update public.profiles set is_admin = true, approved = true where email = '…';` in the SQL Editor.
-- The **public calendar** (off by default for new installs) gets only each day's names and roles, for about 3 months back to 6 months ahead. It never receives leave dates, notes, emails or account IDs.
+- The **public calendar** (on for new installs; an admin can switch it off in **Team & settings**) gets only each day's names and roles, for about 3 months back to 6 months ahead. It never receives leave dates, notes, emails or account IDs.
+- When someone leaves the team, untick **Active** in **Team & settings** to take them off the roster, or use **Remove access** to also stop them seeing it. Don't delete their account in Supabase: that would change the duties shown for days they were on.
 
 Keep **Confirm email** turned on under **Authentication > Providers > Email**, so people can only sign up with an address they control.
 
 ## Leave from Outlook invites (optional)
 
-People can book leave by inviting a shared Google account to their all-day out-of-office event in Outlook. Every 15 minutes a Google Apps Script in that account reads the invite emails (their attached calendar files) and sends the leave to the app, which matches each invite to a person by their work Outlook email (set by them on the Leave tab or by an admin) or sign-in email: the leave is added, moves when the invite is updated, and goes away when it's cancelled. All-day events, events lasting a day or more, and events marked Out of office lasting 4 hours or more count; ordinary meetings don't. Invites from addresses that match nobody appear in Team & settings for an admin to assign.
+People can book leave by inviting a shared Google account to their all-day out-of-office event in Outlook. Every 15 minutes a Google Apps Script in that account reads the invite emails (their attached calendar files) and sends the leave to the app, which matches each invite to a person by their work Outlook email (set by them on the Leave tab or by an admin) or sign-in email: the leave is added, moves when the invite is updated, and goes away when it's cancelled. All-day events, events lasting 20 hours or more, and events marked Out of office lasting 4 hours or more count; ordinary meetings don't. Invites from addresses that match nobody appear in Team & settings for an admin to assign.
+
+- A recurring Outlook invite counts only its first day. Send a separate invite for each block of leave.
+- Don't delete invite emails in the shared Gmail account. Each sync treats an invite it can no longer find as cancelled, so deleting the email removes that leave.
 
 1. Create a Google account for the invites, for example `ourteam.leave@gmail.com`.
 2. In Supabase, run `supabase/011_leave_invites.sql` in the **SQL Editor**.
@@ -73,9 +79,11 @@ npm test
 
 ## Using the app
 
-- **Roster:** your role today, then each working day of the month with everyone's role. Public holidays are listed with their name.
+- **Roster:** your role today, then each working day with everyone's role, starting from this week's Monday (earlier days of the month are under **Show earlier days**). Public holidays are listed with their name.
 - **Leave:** add a date range to come off the roster, and see who else is away. Admins can add leave for anyone.
-- **Team:** the rotation order. Admins can reorder people, mark someone inactive, give admin access, set the rotation start date, and add or remove public holidays.
+- **Team:** the rotation order. Admins can reorder people, mark someone inactive, give admin access, remove access for someone who has left (and give it back), set the rotation start date, and add or remove public holidays.
+
+One-tap changes to someone else (removing or ending their leave, the Admin tick, Remove access) ask first.
 
 ## Public holidays
 
