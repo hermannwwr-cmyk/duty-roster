@@ -91,7 +91,7 @@ async function healRotation(d) {
     if (!d || !d.me || !d.me.is_admin || d.me.approved === false || !Array.isArray(d.profiles) || !Array.isArray(d.checkpoints)) return;
     if (!rotaChange(rotaParams(d), today(), rotaOrder(d)).length) return;
     const key = JSON.stringify([today(), rotaOrder(d), d.checkpoints]);
-    if (healTried.has(key)) return;
+    if (healTried.has(key) || healTried.size >= 5) return;
     healTried.add(key);
     await recordRotaChange();
     if (!typing()) refresh();
@@ -114,7 +114,7 @@ function pastNote(e, c) {
   const days = ch.length === 1 ? 'on ' + fmtDay(ch[0]) : ch.length === 2 ? 'on ' + fmtDay(ch[0]) + ' and ' + fmtDay(ch[1])
     : 'from ' + fmtDay(ch[0]) + ' to ' + fmtDay(ch[ch.length - 1]);
   const lines = [c.ask, c.last < today() ? 'This changes duties ' + days + ' only.' : 'This changes past duties ' + days + '.'];
-  const whose = e.day === today() ? 'Today’s Primary' : 'The Primary on ' + fmtDay(e.day);
+  const whose = e.day === today() ? 'Today’s Primary' : e.day ? 'The Primary on ' + fmtDay(e.day) : '';
   if (e.was && e.now) lines.push(whose + (e.was.id === e.now.id ? ' stays ' + nm(e.was) : ' changes from ' + nm(e.was) + ' to ' + nm(e.now)) + '.');
   else if (e.now) lines.push(whose + ' will be ' + nm(e.now) + '.');
   else if (e.was) lines.push('No one will be on duty ' + (e.day === today() ? 'today' : 'on ' + fmtDay(e.day)) + '.');
