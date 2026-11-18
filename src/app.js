@@ -250,13 +250,9 @@ function actPast(c, done) {
 }
 const personName = id => (state.data.profiles.find(p => p.id === id) || {}).display_name || 'them';
 const pastLeave = {
-  add: row => ({ first: row.start_date, last: row.end_date, ask: 'Add leave for ' + firstName(personName(row.user_id)) + '?',
-    apply: d => { d.leaves.push({ ...row, id: -1 }); }, write: () => store.addLeave(row) }),
-  remove: id => {
-    const l = state.data.leaves.find(x => x.id === id) || {};
-    return { first: l.start_date, last: l.end_date, ask: 'Remove this leave?', apply: d => { d.leaves = d.leaves.filter(x => x.id !== id); }, write: () => store.deleteLeave(id) };
-  }
-};
+  add: row => ({ first: row.start_date, last: row.end_date, ask: row.user_id === state.data.me.id ? 'Add your leave?' : 'Add leave for ' + firstName(personName(row.user_id)) + '?',
+    apply: d => { d.leaves.push({ ...row, id: -1 }); }, write: () => store.addLeave(row) })
+};   // (Remove is offered only for leave that hasn't begun, so removing leave never touches past days.)
 const pastHoliday = {
   add: (date, name) => ({ first: date, last: date, ask: 'Add ' + (name || 'this holiday') + '?',
     apply: d => { d.holidays = d.holidays.filter(h => h.date !== date).concat({ date, name }); }, write: () => store.addHoliday(date, name) }),
@@ -305,7 +301,7 @@ async function reload({ background = false } = {}) {
     if (me.approved === false) return accountScreen('Waiting for approval', 'Thanks for signing up, ' + esc(me.display_name) + '. An admin needs to approve your account before you can see the roster. Check back later.', 'Still waiting for approval.');
     // Keep the header (and whatever has focus in it) unless who is signed in has changed, and keep anything typed and not saved yet.
     const view = root.querySelector('#view');
-    if (background && view && typing()) pendingDraw = true;   // drawn when they stop typing (drawWhenIdle)
+    if (background && view && typing() && view.dataset.user === userKey(me)) pendingDraw = true;   // drawn when they stop typing (drawWhenIdle)
     else if (view && view.dataset.user === userKey(me)) redraw();
     else renderApp();
     showOffline(null);
@@ -409,8 +405,9 @@ let lastDay = today();
 // Swipe left or right on a phone to change tab.
 swipeTabs(() => document.getElementById('view'), typing);
 
-// Switch the "Your role" card over on time at 9am and 6pm (it waits while someone is typing).
-const atOfficeChange = () => setTimeout(() => { if (state.data && !typing()) refresh({ background: true }); atOfficeChange(); }, msUntilOfficeChange() + 2000);
+// Switch the "Your role" card over on time at 9am and 6pm. A background refresh never redraws under someone typing
+// (reload holds the draw until they stop), so it doesn't wait for them: a half-typed note left overnight can't freeze the page.
+const atOfficeChange = () => setTimeout(() => { if (state.data) refresh({ background: true }); atOfficeChange(); }, msUntilOfficeChange() + 2000);
 atOfficeChange();
 
 keepFresh(async () => {
@@ -419,7 +416,7 @@ keepFresh(async () => {
   if (t !== lastDay && state.month === lastDay.slice(0, 7)) state.month = t.slice(0, 7);
   lastDay = t;
   await refresh({ background: true });   // redraw() keeps focus where it was
-}, () => state.data !== null && !typing());
+}, () => state.data !== null);
 
 /* ---------- Sign in ---------- */
 function renderAuth() {
@@ -667,7 +664,7 @@ function renderLeave() {
   const t = today();
   const name = id => (profiles.find(p => p.id === id) || {}).display_name || 'Unknown';
   // Questions and messages use first names (the full name when two people share one).
-  const first = id => shortName(name(id), profiles.map(p => p.display_name));
+  const first = id => firstName(name(id));
   const upcoming = leaves.filter(l => l.end_date >= t);
   const mine = upcoming.filter(l => l.user_id === me.id);
   const leaveItem = l => `<div class="item"><div class="main"><span class="when">${fmtRange(l.start_date, l.end_date)}</span>
@@ -711,7 +708,7 @@ function renderLeave() {
   view.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
     const l = theirs(b);
     if (l && !window.confirm('Remove ' + first(l.user_id) + '’s leave ' + leaveWhen(l) + '? They’ll be back on the roster ' + (l.start_date === l.end_date ? 'that day.' : 'on those days.'))) return;
-    actPast(pastLeave.remove(Number(b.dataset.del)), 'Leave removed.');
+    act(() => store.deleteLeave(Number(b.dataset.del)), 'Leave removed.');
   });
   view.querySelectorAll('[data-end]').forEach(b => b.onclick = () => {
     const l = theirs(b);
@@ -754,7 +751,7 @@ function renderTeam() {
   const view = document.getElementById('view');
   const t = today();
   // Questions and messages use first names (the full name when two people share one).
-  const first = name => shortName(name, profiles.map(p => p.display_name));
+  const first = firstName;
   const sorted = profiles.filter(p => p.approved !== false).sort(byRota);
   // New sign-ups wait for approval. People whose access was removed are neither approved nor active: they are listed
   // apart, without a delete button, because deleting someone who was ever on the rotation would rewrite past duties.

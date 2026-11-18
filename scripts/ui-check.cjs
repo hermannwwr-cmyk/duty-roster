@@ -511,7 +511,7 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
 
   /* ---------- U. The room says what's true, and keeps time ---------- */
   pub = await open('/calendar.html', '2026-11-16T04:30:00Z');   // 12:30pm
-  check('U1 lunchtime: the caption beside the Primary doesn\'t say they are away', (await pub.locator('.hero-caption').innerText()) === 'Lunch at the desk. Still happy to help.' && !/back at|away/i.test(await pub.locator('.engineer').textContent()));
+  check('U1 lunchtime: the caption beside the Primary doesn\'t say they are away', (await pub.locator('.hero-caption').innerText()) === 'Lunch at the desk. Ask anytime.' && !/back at|away/i.test(await pub.locator('.engineer').textContent()));
   await pub.close();
   for (const [name, at, want] of [['U2 a weekday evening', '2026-11-17T11:00:00Z', 'Office closed. Opens at 9am tomorrow.'], ['U3 a Friday evening', '2026-11-20T11:00:00Z', 'Office closed. Opens at 9am Monday.'],
     ['U4 the eve of Christmas, a Thursday', '2026-12-24T11:00:00Z', 'Office closed. Opens at 9am Monday.']]) {

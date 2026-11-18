@@ -254,9 +254,9 @@ label.field input, label.field select { min-width: 0; padding: .4rem .65rem; bor
 .strip .is-today { background: var(--accent-soft); box-shadow: inset 0 0 0 1.5px var(--accent); }
 .strip .is-today .when, .strip .p .when { color: var(--primary); font-weight: 700; }
 .strip .is-today .nm { font-weight: 700; }
-/* You, in the signed-in line-up: your name in white, underlined in steel, as in the roster rows. No outline, so your tile
-   never outranks the Primary's. Not cyan: cyan means only the Primary and today. */
-.strip .me .nm { padding-bottom: .2rem; color: #ffffff; font-weight: 800; text-decoration-line: underline; text-decoration-color: var(--steel); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+/* You, in the signed-in line-up: your name in white bold, as in the roster rows (no underline: it would read as a link).
+   No outline, so your tile never outranks the Primary's. Not cyan: cyan means only the Primary and today. */
+.strip .me .nm { color: #ffffff; font-weight: 800; }
 .strip .away { background: var(--leave-soft); }
 .strip .away .when, .strip .away .nm { color: var(--leave); }
 .strip .none .nm { color: var(--danger); }

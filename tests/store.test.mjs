@@ -223,7 +223,7 @@ test('database refusals reach people in plain words, the same in both stores; ot
     ['new row for relation "settings" violates check constraint "single_row"', 'That change wasn’t saved. Check what you entered and try again.'],
     ['duplicate key value violates unique constraint "profiles_work_email_key"', 'That email already belongs to someone else on the roster.'],
     ['duplicate key value violates unique constraint "leaves_invite_uid_key"', 'That change wasn’t saved. It’s already there.'],
-    ['JWT expired', 'You’ve been signed out. Please sign in again.'],
+    ['JWT expired', 'Your sign-in needed renewing. Please try again.'],
     ['insert or update on table "leaves" violates foreign key constraint "leaves_user_id_fkey"', notSaved],
     ['null value in column "name" of relation "holidays" violates not-null constraint', 'Please fill in every field.'],
     ['invalid input syntax for type date: ""', 'Please enter a valid date.'],

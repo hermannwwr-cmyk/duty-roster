@@ -196,7 +196,8 @@ test('the room says when the office opens again, and its clock keeps Singapore t
   const { engineerScene, clockHands } = await import('../src/engineer.js');
   // Lunch is still duty time: nothing says the Primary is away.
   assert.doesNotMatch(engineerScene('lunch').caption + engineerScene('lunch').svg, /back at|away/i);
-  assert.equal(engineerScene('lunch').caption, 'Lunch at the desk. Still happy to help.');
+  assert.equal(engineerScene('lunch').caption, 'Lunch at the desk. Ask anytime.');
+  assert.equal(engineerScene('evening').caption, 'Last stretch. On duty till 6pm.');   // not "wrapping up": the Primary is on duty till 6
   assert.equal(engineerScene('closed', new Date(), { opens: '9am Monday' }).caption, 'Office closed. Opens at 9am Monday.');
   assert.match(engineerScene('closed', new Date(), { opens: '9am on Tue, 24 Nov' }).svg, /aria-label="Office closed\. Opens at 9am on Tue, 24 Nov\."/);
   assert.equal(engineerScene('closed').caption, 'Office closed.');

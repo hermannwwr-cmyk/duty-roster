@@ -111,7 +111,7 @@ const SCREEN = {
     <text x="237" y="89" text-anchor="middle" font-size="7" fill="#9bb8c4">Still on duty</text>`,
   bars: `${[0, 1, 2, 3, 4, 5].map(i => `<rect class="bar" style="animation-delay:${(i * 0.23).toFixed(2)}s" x="${(211 + i * 9.2).toFixed(1)}" y="66" width="6" height="30" rx="1.5" fill="${i % 2 ? '#38bdf8' : '#5eead4'}"/>`).join('')}
     <path d="M209 97.5h56" fill="none" stroke="#2f6a85" stroke-width="1.2"/>`,
-  shutdown: `<text x="237" y="75" text-anchor="middle" font-size="7.5" font-weight="700" fill="#7dd3fc">Shutting down…</text>
+  shutdown: `<text x="237" y="75" text-anchor="middle" font-size="7.5" font-weight="700" fill="#7dd3fc">Last stretch</text>
     <rect x="215" y="83" width="44" height="5" rx="2.5" fill="#123445"/><rect class="progress" x="215" y="83" width="44" height="5" rx="2.5" fill="#38bdf8"/>`,
   off: ''
 };
@@ -203,9 +203,9 @@ function lightsOff(now, asleep) {
 const SCENES = {
   morning: [now => atDesk('morning', now, { pose: 'typing', screen: 'code', steam: true }), 'Good morning! Coffee first, then the servers.'],
   // Duty runs 9am to 6pm, lunch included: the caption beside the Primary's face mustn't sound as if they're away.
-  lunch: [now => atDesk('lunch', now, { pose: 'eating', screen: 'lunch', lunch: true }), 'Lunch at the desk. Still happy to help.'],
+  lunch: [now => atDesk('lunch', now, { pose: 'eating', screen: 'lunch', lunch: true }), 'Lunch at the desk. Ask anytime.'],
   afternoon: [now => atDesk('afternoon', now, { pose: 'typing', screen: 'bars', steam: true }), 'Afternoon: deep in the dashboards.'],
-  evening: [now => atDesk('evening', now, { pose: 'stretch', screen: 'shutdown' }), 'Wrapping up for the day.'],
+  evening: [now => atDesk('evening', now, { pose: 'stretch', screen: 'shutdown' }), 'Last stretch. On duty till 6pm.'],
   afterwork: [afterwork, 'Off duty, still on call.'],
   sleeping: [now => lightsOff(now, true), 'Sleeping. Phone on loud, just in case.'],
   weekend: [now => lightsOff(now, false), 'Weekend: lights off. The servers keep watch.'],

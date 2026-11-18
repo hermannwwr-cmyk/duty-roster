@@ -15,8 +15,7 @@ const CONSTRAINTS = {
   holiday_name_length: 'Please enter a holiday name of up to 60 characters.',
   note_length: 'A note can be at most 120 characters.',
   leave_dates_in_order: 'The end date is before the start date.',
-  profiles_work_email_key: 'That email already belongs to someone else on the roster.',
-  holidays_pkey: 'That date already has a holiday.'
+  profiles_work_email_key: 'That email already belongs to someone else on the roster.'
 };
 const RAW = [
   [/row-level security policy/, () => NOT_SAVED],
@@ -26,7 +25,7 @@ const RAW = [
   [/violates not-null constraint/, () => 'Please fill in every field.'],
   [/^invalid input syntax for type date|^date\/time field value out of range/, () => 'Please enter a valid date.'],
   [/^value too long for type/, () => 'That’s too long. Please shorten it.'],
-  [/^JWT expired$/, () => 'You’ve been signed out. Please sign in again.']
+  [/^JWT expired$/, () => 'Your sign-in needed renewing. Please try again.']
 ];
 /** A database error message as people should read it, the same in both stores. */
 export function plainError(message) {
