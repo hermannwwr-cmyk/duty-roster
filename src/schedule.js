@@ -20,14 +20,23 @@ export function fromISO(s) {
   return new Date(y, m - 1, d, 12);
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000, SG_OFFSET_MS = 8 * 60 * 60 * 1000;   // Singapore is UTC+8 all year
+
+// Date arithmetic counts calendar days in UTC, so it gives the same answer in every viewer's timezone
+// (daylight saving can't shift a day, and no local day is skipped).
+const utc = iso => { const [y, m, d] = iso.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+
 export function addDays(iso, n) {
-  const d = fromISO(iso);
-  d.setDate(d.getDate() + n);
-  return toISO(d);
+  return new Date(utc(iso) + n * DAY_MS).toISOString().slice(0, 10);
+}
+
+/** Whole days from `a` to `b` ('YYYY-MM-DD'), like `b - a` on dates in SQL. */
+export function daysBetween(a, b) {
+  return Math.round((utc(b) - utc(a)) / DAY_MS);
 }
 
 export function isWeekend(iso) {
-  const day = fromISO(iso).getDay();
+  const day = new Date(utc(iso)).getUTCDay();
   return day === 0 || day === 6;
 }
 
@@ -50,12 +59,14 @@ function onLeave(leaves, memberId, iso) {
  * Checkpoints keep history stable (GitHub issue #7).
  * A checkpoint says: from `effective_date`, the rotation is `member_order` (profile ids) and the
  * next working day starts with `next_primary`. Every change to who is in the rotation, or their
- * order, saves a checkpoint dated today, so days before it keep the order they had.
+ * order, saves a checkpoint dated today, so days before it keep the order they had. A correction to
+ * past leave or holidays saves one on the day after the corrected days, so later days keep theirs.
  * Without checkpoints the rotation uses `members` from `anchor`, as before.
  */
+const byDate = (a, b) => a.effective_date.localeCompare(b.effective_date);
 function walk({ members, leaves, holidays, anchor, checkpoints, people }, from, to, onDay) {
-  const cps = (checkpoints || []).slice().sort((a, b) => a.effective_date.localeCompare(b.effective_date));
-  const byId = people ? Object.fromEntries(people.map(p => [p.id, p])) : {};
+  const cps = (checkpoints || []).slice().sort(byDate);
+  const byId = Object.fromEntries([...(members || []), ...(people || [])].map(p => [p.id, p]));
   const start = cps.length ? cps[0].effective_date : anchor;
   let list = cps.length ? [] : members;
   let pointer = 0;
@@ -67,6 +78,8 @@ function walk({ members, leaves, holidays, anchor, checkpoints, people }, from, 
       list = cp.member_order.map(id => byId[id]).filter(Boolean);
       pointer = Math.max(0, list.findIndex(m => m.id === cp.next_primary));
     }
+    // Whose turn it is as the day begins (after any checkpoint dated that day).
+    const turn = { list, pointer };
     const holiday = holidays[day];
     let entry;
     if (day < start) entry = { date: day, kind: 'before-start', duties: [], onLeave: [] };
@@ -85,10 +98,9 @@ function walk({ members, leaves, holidays, anchor, checkpoints, people }, from, 
       if (primaryPos >= 0) pointer = (primaryPos + 1) % n;
       entry = { date: day, kind: 'work', duties, onLeave: away };
     }
-    if (day >= from) onDay(entry);
+    if (day >= from) onDay(entry, turn);
     day = addDays(day, 1);
   }
-  return { list, pointer };
 }
 
 /**
@@ -112,26 +124,94 @@ export function buildSchedule(p) {
   return days;
 }
 
+/** The saved checkpoints in date order; for data from before checkpoints existed, the one it stands for: today's order from `anchor`. */
+function savedOrBase(p) {
+  if (p.checkpoints && p.checkpoints.length) return p.checkpoints.slice().sort(byDate);
+  const ids = (p.members || []).map(m => m.id);
+  return [{ effective_date: p.anchor, member_order: ids, next_primary: ids[0] || null }];
+}
+const saved = p => !!(p.checkpoints && p.checkpoints.length);
+
+/** One day of the schedule, with whose turn it is as the day begins (`list`, `pointer`). */
+function dayOf(p, date) {
+  let out;
+  walk(p, date, date, (entry, turn) => { out = { ...entry, ...turn }; });
+  return out;
+}
+const primaryOf = d => d && d.kind === 'work' && d.duties.length ? d.duties[0].member : null;
+
 /**
  * The checkpoint to save when the rotation changes on `date` to `newOrder` (profile ids, in order).
- * Works out whose turn it would have been on `date` under the old rotation (ignoring any checkpoint
- * already saved for that date, which this one replaces) and keeps that person next, or the next
- * person after them who is still in the rotation.
+ * It builds on the rotation as it stands, including a checkpoint already saved for `date` (which this one
+ * replaces), so a second change on the same day keeps what the first one left.
+ * - On a working day, that day's Primary stays Primary if they are still in the rotation: the team has been told.
+ * - Otherwise whoever's turn it is stays next, or the next person after them who is still in the rotation.
+ * - Before anyone has been on duty, the first checkpoint just takes the new order.
  */
 export function checkpointFor(p, date, newOrder) {
-  const earlier = (p.checkpoints || []).filter(c => c.effective_date < date);
-  if (!earlier.length && (p.checkpoints || []).length) {
-    // Changing the rotation before it has started: the first checkpoint just takes the new order.
-    return { effective_date: p.checkpoints.slice().sort((a, b) => a.effective_date.localeCompare(b.effective_date))[0].effective_date,
-      member_order: newOrder, next_primary: newOrder[0] || null };
+  const cps = savedOrBase(p);
+  const day = dayOf({ ...p, checkpoints: cps }, date);
+  const primary = primaryOf(day);
+  if (date <= cps[0].effective_date && !primary) {
+    return { effective_date: cps[0].effective_date, member_order: newOrder, next_primary: newOrder[0] || null };
   }
-  const { list, pointer } = walk({ ...p, checkpoints: earlier }, date, addDays(date, -1), () => {});
+  if (primary && newOrder.includes(primary.id)) return { effective_date: date, member_order: newOrder, next_primary: primary.id };
   let next = null;
-  for (let i = 0; i < list.length && !next; i++) {
-    const id = list[(pointer + i) % list.length].id;
+  for (let i = 0; i < day.list.length && !next; i++) {
+    const id = day.list[(day.pointer + i) % day.list.length].id;
     if (newOrder.includes(id)) next = id;
   }
   return { effective_date: date, member_order: newOrder, next_primary: next || newOrder[0] || null };
+}
+
+/**
+ * What to save on `date` for the team as it now is (`order`: the ids of active, approved people in rotation order).
+ * Used after approving, deactivating, reactivating or reordering people, and by an admin's page to put right a
+ * rotation that doesn't match the team (a checkpoint that failed to save, or a fresh install's first admin).
+ * Nothing when the checkpoint in effect on `date` already has that order; otherwise checkpointFor's checkpoint.
+ */
+export function rotaChange(p, date, order) {
+  const cps = savedOrBase(p);
+  const inEffect = cps.filter(c => c.effective_date <= date).pop() || cps[0];
+  if (inEffect.member_order.join() === order.join()) return [];
+  const cp = checkpointFor({ ...p, checkpoints: cps }, date, order);
+  return saved(p) || cp.effective_date === cps[0].effective_date ? [cp] : [cps[0], cp];
+}
+
+/**
+ * A correction to leave or holidays on `first`..`last` that reaches back before `today` (an admin adding a
+ * forgotten holiday, removing one, or recording leave after the fact) would move every later day's duties too,
+ * today's Primary included. To change only the corrected days, save a checkpoint first on the day after them
+ * (today at the latest), worked out from the rotation as it is before the correction, with the order in effect
+ * that day. The trade-off: a Primary recorded as absent after the fact doesn't get the turn back.
+ *
+ * `before` and `after` are the rotation (as for buildSchedule) without and with the correction. Returns
+ * `checkpoints` to save before making it (none if no past working day changes), `changed`: the past working
+ * days whose duties change, and the Primary on the next working day from today (`day`): `was` and `now`.
+ */
+export function pastEdit(before, after, first, last, today) {
+  const out = { checkpoints: [], changed: [], day: null, was: null, now: null };
+  if (first >= today) return out;
+  const keep = addDays(last, 1) < today ? addDays(last, 1) : today;
+  const sig = d => d.kind + ':' + d.duties.map(x => x.member.id).join();
+  const a = buildSchedule({ ...before, from: first, to: addDays(keep, -1) });
+  const b = buildSchedule({ ...after, from: first, to: addDays(keep, -1) });
+  out.changed = a.filter((d, i) => sig(d) !== sig(b[i])).map(d => d.date);
+  if (!out.changed.length) return out;
+  const cps = savedOrBase(before);
+  const inEffect = cps.filter(c => c.effective_date < keep).pop();
+  if (inEffect && !cps.some(c => c.effective_date === keep)) {
+    const cp = checkpointFor({ ...before, checkpoints: cps }, keep, inEffect.member_order);
+    out.checkpoints = saved(before) ? [cp] : [cps[0], cp];
+  }
+  const kept = savedOrBase(after).filter(c => !out.checkpoints.some(k => k.effective_date === c.effective_date)).concat(out.checkpoints);
+  const next = buildSchedule({ ...before, from: today, to: addDays(today, 31) }).find(d => d.kind === 'work');
+  if (next) {
+    out.day = next.date;
+    out.was = primaryOf(next);
+    out.now = primaryOf(dayOf({ ...after, checkpoints: kept }, next.date));
+  }
+  return out;
 }
 
 /**
@@ -156,7 +236,6 @@ export function publicCalendar({ members, leaves, holidays, anchor, checkpoints,
 
 /** Office hours in Singapore, in minutes after midnight: 9am to 6pm. Outside them no one is on duty. */
 export const OFFICE_OPEN = 9 * 60, OFFICE_CLOSE = 18 * 60;
-const DAY_MS = 24 * 60 * 60 * 1000, SG_OFFSET_MS = 8 * 60 * 60 * 1000;   // Singapore is UTC+8 all year
 
 /** Minutes after midnight in Singapore, whatever the viewer's timezone. */
 export function minutesSG(now = Date.now()) {
@@ -176,9 +255,9 @@ export function msUntilOfficeChange(now = Date.now()) {
   return next - sinceMidnight;
 }
 
-/** Today's date in Singapore as 'YYYY-MM-DD', whatever the viewer's timezone. Matches sg_today() in the database. */
-export function todaySG() {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Singapore', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+/** Today's date in Singapore as 'YYYY-MM-DD', whatever the viewer's timezone (UTC+8, no daylight saving, as in minutesSG). Matches sg_today() in the database. */
+export function todaySG(now = Date.now()) {
+  return new Date(+now + SG_OFFSET_MS).toISOString().slice(0, 10);
 }
 
 /**
