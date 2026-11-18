@@ -1,4 +1,4 @@
-import { buildSchedule, checkpointFor, toISO, fromISO, addDays, todaySG, onRota, rosterMessage, whatsappLink, WHATSAPP_ICON, shortName, officeHours, msUntilOfficeChange } from './schedule.js';
+import { buildSchedule, rotaChange, pastEdit, shouldHeal, byRota, rotaParams, rotaOrder, toISO, fromISO, addDays, todaySG, onRota, rosterMessage, whatsappLink, WHATSAPP_ICON, shortName, officeHours, msUntilOfficeChange } from './schedule.js';
 import { createStore } from './connect.js';
 import { faceSvg } from './faces.js';
 import { keepFresh } from './live.js';
@@ -58,26 +58,107 @@ async function act(fn, done) {
 }
 
 /* ---------- Rotation history (GitHub issue #7) ---------- */
-const byRota = (a, b) => (a.rota_order - b.rota_order) || String(a.created_at || '').localeCompare(String(b.created_at || '')) || String(a.id).localeCompare(String(b.id));
-function rotaParams(d) {
-  return {
-    members: d.profiles.filter(onRota).sort(byRota).map(p => ({ id: p.id, name: p.display_name })),
-    people: d.profiles.map(p => ({ id: p.id, name: p.display_name })),
-    checkpoints: d.checkpoints || [],
-    leaves: d.leaves,
-    holidays: Object.fromEntries(d.holidays.map(h => [h.date, h.name])),
-    anchor: d.settings.rota_start
-  };
+// byRota, rotaParams and rotaOrder are in schedule.js, with the rules that use them.
+// Writes to the rotation's history take turns, each on freshly loaded data, so two of them (an admin's change and
+// the self-heal below, say) can't save checkpoints from the same stale picture.
+let rotaTurn = Promise.resolve();
+function inTurn(fn) { const run = rotaTurn.then(fn, fn); rotaTurn = run.catch(() => {}); return run; }
+/** After a change to who is on the rotation or their order, save it from today: earlier days keep their duties,
+ *  today's Primary stays Primary, and from 6pm so does the next working day's (rotaChange in schedule.js). */
+function recordRotaChange() {
+  return inTurn(async () => {
+    const d = await store.load();
+    for (const cp of rotaChange(rotaParams(d), today(), rotaOrder(d), { afterHours: officeHours() === 'after' })) await store.saveCheckpoint(cp);
+  });
 }
-/** After a change to who is on the rotation or their order, save it from today so earlier days keep their duties. */
-async function recordRotaChange() {
-  const d = await store.load();
-  const order = d.profiles.filter(onRota).sort(byRota).map(p => p.id);
+/* Self-heal: if an approval or deactivation was saved but its checkpoint wasn't (a dropped connection), or on a
+   fresh install whose first admin isn't in the rotation yet, the rotation and the team disagree. After a complete
+   load, an admin's page saves the missing change (shouldHeal in schedule.js decides), then redraws. A failed try
+   is tried again on a later load, at most five tries a day; one that worked is never repeated for the same data. */
+let healed = new Set(), healTries = 0, healDay = '', healing = false;
+async function healRotation(d) {
   const t = today();
-  const cps = (d.checkpoints || []).slice().sort((a, b) => a.effective_date.localeCompare(b.effective_date));
-  const inEffect = cps.filter(c => c.effective_date <= t).pop() || cps[0];
-  if (inEffect && inEffect.member_order.join() === order.join()) return;
-  await store.saveCheckpoint(checkpointFor(rotaParams(d), t, order));
+  if (t !== healDay) { healed = new Set(); healTries = 0; healDay = t; }
+  let key;
+  try {
+    if (healing || healTries >= 5 || !shouldHeal(d, t, { afterHours: officeHours() === 'after' })) return;
+    key = JSON.stringify([rotaOrder(d), d.checkpoints]);
+    if (healed.has(key)) return;
+  } catch (e) { return; }
+  healing = true; healTries++;
+  try { await recordRotaChange(); healed.add(key); }
+  catch (e) { return; }
+  finally { healing = false; }
+  if (!typing()) refresh({ background: true });
+}
+
+/* ---------- Corrections to past days (admins) ---------- */
+// Leave or a holiday changed on days before today would move every later day's duties, today's Primary included,
+// after the team has been told. So the admin is told what changes and asked first, and a checkpoint saved on the day
+// after the changed days keeps every later day as it was (pastEdit in schedule.js). Each correction is
+// { first, last, ask, apply(data), write() }: the dates it touches, the question, and the change as made to a
+// copy of the loaded data (to work out its effect) and to the store.
+function pastEffect(d, c) {
+  const after = JSON.parse(JSON.stringify(d));
+  c.apply(after);
+  return pastEdit(rotaParams(d), rotaParams(after), c.first, c.last, today());
+}
+const firstName = name => shortName(name, state.data.profiles.map(p => p.display_name));
+const primaryOn = d => d && d.kind === 'work' && d.duties[0] ? d.duties[0].member : null;
+/** "Today’s Primary stays Ben." and the like, for the questions below: the Primary on `day` before and after. */
+function primaryLine(day, was, now) {
+  if (!day) return '';
+  const whose = day === today() ? 'Today’s Primary' : 'The Primary on ' + fmtDay(day);
+  if (was && now) return whose + (was.id === now.id ? ' stays ' + firstName(was.name) : ' changes from ' + firstName(was.name) + ' to ' + firstName(now.name)) + '.';
+  if (now) return whose + ' will be ' + firstName(now.name) + '.';
+  if (was) return 'No one will be on duty ' + (day === today() ? 'today' : 'on ' + fmtDay(day)) + '.';
+  return '';
+}
+function pastNote(e, c) {
+  const ch = e.changed;
+  const days = ch.length === 1 ? 'on ' + fmtDay(ch[0]) : ch.length === 2 ? 'on ' + fmtDay(ch[0]) + ' and ' + fmtDay(ch[1])
+    : 'from ' + fmtDay(ch[0]) + ' to ' + fmtDay(ch[ch.length - 1]);
+  return [c.ask, c.last < today() ? 'This changes duties ' + days + ' only.' : 'This changes past duties ' + days + '.', primaryLine(e.day, e.was, e.now)]
+    .filter(Boolean).join(' ');
+}
+/** Like act(), for a change to leave or holidays: one that reaches back before today asks first and keeps later days. */
+function actPast(c, done) {
+  const past = state.data.me.is_admin && /^\d{4}-\d\d-\d\d$/.test(c.first) && /^\d{4}-\d\d-\d\d$/.test(c.last) && c.first < today();
+  if (past) {
+    const e = pastEffect(state.data, c);
+    if (e.changed.length && !window.confirm(pastNote(e, c))) return;
+  }
+  return act(() => !past ? c.write() : inTurn(async () => {
+    for (const cp of pastEffect(await store.load(), c).checkpoints) await store.saveCheckpoint(cp);
+    await c.write();
+  }), done);
+}
+const personName = id => (state.data.profiles.find(p => p.id === id) || {}).display_name || 'them';
+const pastLeave = {
+  add: row => ({ first: row.start_date, last: row.end_date, ask: 'Add leave for ' + firstName(personName(row.user_id)) + '?',
+    apply: d => { d.leaves.push({ ...row, id: -1 }); }, write: () => store.addLeave(row) }),
+  remove: id => {
+    const l = state.data.leaves.find(x => x.id === id) || {};
+    return { first: l.start_date, last: l.end_date, ask: 'Remove this leave?', apply: d => { d.leaves = d.leaves.filter(x => x.id !== id); }, write: () => store.deleteLeave(id) };
+  }
+};
+const pastHoliday = {
+  add: (date, name) => ({ first: date, last: date, ask: 'Add ' + (name || 'this holiday') + '?',
+    apply: d => { d.holidays = d.holidays.filter(h => h.date !== date).concat({ date, name }); }, write: () => store.addHoliday(date, name) }),
+  remove: date => ({ first: date, last: date, ask: 'Remove ' + ((state.data.holidays.find(h => h.date === date) || {}).name || 'this holiday') + '?',
+    apply: d => { d.holidays = d.holidays.filter(h => h.date !== date); }, write: () => store.deleteHoliday(date) })
+};
+/** The question before restarting the rotation on `start` with `order` (resetRotation in store.js). */
+function restartNote(start, order) {
+  const t = today();
+  const when = fmtDay(start, start.slice(0, 4) === t.slice(0, 4) ? null : { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  if (start > t) return 'Restart the rotation on ' + when + '? No one will be on duty until then, and earlier days will no longer show who was on duty.'
+    + (order.length ? ' ' + firstName(personName(order[0])) + ' will be Primary first.' : '');
+  // From a past date the days since are worked out again: say what happens to today's Primary (or the next working day's).
+  const next = scheduleFor(t, addDays(t, 31)).find(d => d.kind === 'work');
+  const after = next && buildSchedule({ ...rotaParams(state.data), checkpoints: [{ effective_date: start, member_order: order, next_primary: order[0] || null }], from: next.date, to: next.date })[0];
+  return ['Restart the rotation from ' + when + '? Days before it are cleared, and duties from then on are worked out again.', next && primaryLine(next.date, primaryOn(next), primaryOn(after))]
+    .filter(Boolean).join(' ');
 }
 
 function scheduleFor(from, to) {
@@ -111,6 +192,7 @@ async function refresh() {
     const view = root.querySelector('#view');
     if (view && view.dataset.user === userKey(state.data.me)) renderView();
     else renderApp();
+    healRotation(data);
   } catch (e) {
     if (run !== refreshes) return;
     root.innerHTML = '<div class="auth"><div class="panel"><h2>Can’t reach the database</h2><p class="error">' + esc(e.message) + '</p><p class="muted">Check the values in <code>config.js</code> and that <code>supabase/schema.sql</code> has been run.</p></div></div>';
@@ -391,9 +473,9 @@ function renderLeave() {
     const start = document.getElementById('l-start').value, end = document.getElementById('l-end').value;
     if (end < start) { toast('The end date is before the start date.'); return; }
     const who = document.getElementById('l-who');
-    act(() => store.addLeave({ user_id: who ? who.value : me.id, start_date: start, end_date: end, note: document.getElementById('l-note').value.trim() || null }), 'Leave added. The roster has been updated.');
+    actPast(pastLeave.add({ user_id: who ? who.value : me.id, start_date: start, end_date: end, note: document.getElementById('l-note').value.trim() || null }), 'Leave added. The roster has been updated.');
   };
-  view.querySelectorAll('[data-del]').forEach(b => b.onclick = () => act(() => store.deleteLeave(Number(b.dataset.del)), 'Leave removed.'));
+  view.querySelectorAll('[data-del]').forEach(b => b.onclick = () => actPast(pastLeave.remove(Number(b.dataset.del)), 'Leave removed.'));
   view.querySelectorAll('[data-end]').forEach(b => b.onclick = () => act(() => store.updateLeave(Number(b.dataset.end), { end_date: addDays(t, -1) }), 'Leave ended. You’re back on the roster from today.'));
   document.getElementById('l-start').onchange = e => { document.getElementById('l-end').min = e.target.value; };
   const wf = document.getElementById('work-form');
@@ -524,8 +606,9 @@ function renderTeam() {
   if (sf) sf.onsubmit = e => {
     e.preventDefault();
     const start = document.getElementById('s-start').value;
-    if (!window.confirm('Restart the rotation on ' + fmtDay(start, { day: 'numeric', month: 'long', year: 'numeric' }) + '? Person 1 will be Primary on the first working day, and all earlier duty history is recalculated.')) return;
-    act(() => store.resetRotation(start, sorted.filter(onRota).map(p => p.id)), 'Rotation restarted.');
+    const order = sorted.filter(onRota).map(p => p.id);
+    if (!window.confirm(restartNote(start, order))) return;
+    act(() => store.resetRotation(start, order), 'Rotation restarted.');
   };
   const invf = document.getElementById('inv-form');
   if (invf) invf.onsubmit = e => {
@@ -542,6 +625,6 @@ function renderTeam() {
   const pc = document.getElementById('pub-cal');
   if (pc) pc.onchange = () => act(() => store.updateSettings({ public_calendar: pc.checked }), pc.checked ? 'Public calendar switched on.' : 'Public calendar switched off.');
   const hf = document.getElementById('hol-form');
-  if (hf) hf.onsubmit = e => { e.preventDefault(); act(() => store.addHoliday(document.getElementById('h-date').value, document.getElementById('h-name').value.trim()), 'Holiday added.'); };
-  view.querySelectorAll('[data-hdel]').forEach(b => b.onclick = () => act(() => store.deleteHoliday(b.dataset.hdel), 'Holiday removed.'));
+  if (hf) hf.onsubmit = e => { e.preventDefault(); actPast(pastHoliday.add(document.getElementById('h-date').value, document.getElementById('h-name').value.trim()), 'Holiday added.'); };
+  view.querySelectorAll('[data-hdel]').forEach(b => b.onclick = () => actPast(pastHoliday.remove(b.dataset.hdel), 'Holiday removed.'));
 }

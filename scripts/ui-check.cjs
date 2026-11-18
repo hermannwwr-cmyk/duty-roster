@@ -143,9 +143,11 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   await signIn(app, 'alice');
   check('C0 admin: role today is Primary', (await app.locator('.role-head .role').innerText()) === 'Primary');
   await tab(app, 'leave');
+  const leaveAsked = []; app.on('dialog', d => leaveAsked.push(d.message()));
   await app.selectOption('#l-who', 'demo-1'); await app.fill('#l-start', '2026-11-13'); await app.fill('#l-end', '2026-11-17');
   await app.click('#leave-form button[type=submit]');
   await says('C1 admin: can record leave for someone else, starting in the past', app, 'Leave added. The roster has been updated.'); await settle(app);
+  check('C1b admin: leave that reaches into the past asks first, saying what changes', leaveAsked[0] === 'Add leave for Ben? This changes past duties on Fri, 13 Nov. Today’s Primary stays Alice.', JSON.stringify(leaveAsked));
   check('C2 leave list: marked "On leave now" with "End early"', await app.locator('.tag.leave', { hasText: 'On leave now' }).count() === 1 && await app.locator('[data-end]').count() === 1 && await app.locator('[data-del]').count() === 0);
   await tab(app, 'roster');
   check('C3 roster: today\'s line-up shows Ben on leave', (await app.locator('.lineup li.away .nm').innerText()).startsWith('Ben') && await app.locator('.lineup li:not(.away)').count() === 4);
@@ -352,6 +354,81 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   await pub.close();
   app = await open('/index.html');
   check('H6 nobody today: the signed-in page says so too', (await app.locator('.role-head .role').innerText()) === 'On leave' && (await app.locator('#share-wa').innerText()).trim() === 'Tell the team on WhatsApp' && await app.locator('.lineup li.away').count() === await app.locator('.lineup li').count() && (await app.locator('.role-card').innerText()).includes('No one is available for duty.'));
+  await app.close();
+
+  /* ---------- N. Rotation history: today's Primary stays as announced ---------- */
+  // Its own rotation: Alice to Elena from Mon 2 Nov, Deepavali (Observed) on Mon 9 Nov, so today (Mon 16) is Elena's
+  // turn. Zoe is waiting for approval. Alice is signed in.
+  const people = ['Alice Tan', 'Ben Lim', 'Chloe Ng', 'Dev Kumar', 'Elena Goh'].map((name, i) => ({ id: 'demo-' + i, email: name.split(' ')[0].toLowerCase() + '@example.com',
+    display_name: name, rota_order: i, active: true, is_admin: i === 0, approved: true }));
+  const seedN = { profiles: [...people, { id: 'demo-z', email: 'zoe@example.com', display_name: 'Zoe Tan', rota_order: 5, active: true, is_admin: false, approved: false }],
+    leaves: [], holidays: [{ date: '2026-11-09', name: 'Deepavali (Observed)' }, { date: '2026-12-25', name: 'Christmas Day' }], settings: { id: 1, rota_start: '2026-11-02', public_calendar: true },
+    session: 'demo-0', nextId: 1, checkpoints: [{ effective_date: '2026-11-02', member_order: people.map(x => x.id), next_primary: 'demo-0' }] };
+  const demoDb = page => page.evaluate(() => JSON.parse(localStorage.getItem('duty-roster-demo')));
+  const setDb = (page, db) => page.evaluate(db => localStorage.setItem('duty-roster-demo', JSON.stringify(db)), db);
+  pub = await open('/calendar.html'); await setDb(pub, seedN); await pub.close();
+  app = await open('/index.html');
+  const asked = []; app.on('dialog', d => asked.push(d.message()));
+  const rowText = async n => (await dayRow(app, n).innerText()).replace(/\s+/g, ' ');
+  const todaysPrimary = async () => (await app.locator('.lineup li.p .nm').innerText()).replace(/\s*\(you\)/, '');
+  const publicNext = async () => { const page = await open('/calendar.html', '2026-11-16T10:30:00Z'); const name = await page.locator('.next-cover .who-line .nm').innerText(); await page.close(); return name; };
+  const publicPrimary = async () => { const page = await open('/calendar.html'); const name = await page.locator('.hero-name .name').innerText(); await page.close(); return name; };
+  const rowsBefore = await Promise.all([10, 11, 12, 13].map(rowText));
+  check('N0 seeded: Mon 9 Nov is a holiday and today is Elena\'s turn', (await rowText(9)).includes('Deepavali') && (await todaysPrimary()) === 'Elena', await todaysPrimary());
+  await tab(app, 'team'); await app.click('[data-hdel="2026-11-09"]');
+  await says('N1 removing a past holiday confirms', app, 'Holiday removed.'); await settle(app);
+  check('N2 removing a past holiday asks first, saying plainly what changes', asked[0] === 'Remove Deepavali (Observed)? This changes duties on Mon, 9 Nov only. Today’s Primary stays Elena.', JSON.stringify(asked));
+  await tab(app, 'roster');
+  const rowsAfter = await Promise.all([10, 11, 12, 13].map(rowText));
+  check('N3 only that day changes: Mon 9 Nov now has duties, the days after keep theirs, and today\'s Primary stays',
+    !(await rowText(9)).includes('Deepavali') && (await dayRow(app, 9).locator('.lead .nm').innerText()).includes('Alice Tan') && rowsAfter.join() === rowsBefore.join() && (await todaysPrimary()) === 'Elena',
+    (await rowText(9)) + ' | ' + rowsAfter.join(' / '));
+  check('N4 the public page agrees: Elena is still today\'s Primary', (await publicPrimary()) === 'Elena Goh');
+  await tab(app, 'team'); await app.fill('#h-date', '2026-11-09'); await app.fill('#h-name', 'Deepavali (Observed)'); await app.click('#hol-form button[type=submit]');
+  await says('N5 adding the holiday back confirms', app, 'Holiday added.'); await settle(app);
+  await tab(app, 'roster');
+  check('N6 adding a past holiday asks too, and again only that day changes', asked[1] === 'Add Deepavali (Observed)? This changes duties on Mon, 9 Nov only. Today’s Primary stays Elena.'
+    && (await rowText(9)).includes('Deepavali') && (await Promise.all([10, 11, 12, 13].map(rowText))).join() === rowsBefore.join() && (await todaysPrimary()) === 'Elena', JSON.stringify(asked.slice(1)));
+  // Elena is off sick today, so Alice covers; then Zoe is approved. The person whose turn it was is away, and today's Primary must stay Alice.
+  await tab(app, 'leave'); await app.selectOption('#l-who', 'demo-4'); await app.fill('#l-start', '2026-11-16'); await app.fill('#l-end', '2026-11-16');
+  await app.click('#leave-form button[type=submit]'); await toast(app); await settle(app);
+  await tab(app, 'roster');
+  check('N7 leave from today on needs no question; with Elena away, Alice is Primary', asked.length === 2 && (await todaysPrimary()) === 'Alice', JSON.stringify(asked));
+  await tab(app, 'team'); await app.click('[data-approve="demo-z"]');
+  await says('N8 approving confirms', app, /^Approved\./); await settle(app);
+  await tab(app, 'roster');
+  check('N9 an approval keeps today\'s Primary, and the new person joins today\'s line-up', (await todaysPrimary()) === 'Alice' && (await app.locator('.lineup').innerText()).includes('Zoe'), await app.locator('.lineup').innerText());
+  check('N10 the public page agrees: Alice is still today\'s Primary', (await publicPrimary()) === 'Alice Tan');
+  // An approval whose checkpoint was never saved: Yan is approved but missing from the rotation. A member's page leaves it alone;
+  // the admin's page puts it right by itself, once, keeping today's Primary.
+  let db = await demoDb(app);
+  db.profiles.push({ id: 'demo-y', email: 'yan@example.com', display_name: 'Yan Wei', rota_order: 6, active: true, is_admin: false, approved: true });
+  db.session = 'demo-1'; await setDb(app, db); await app.close();
+  const saved = JSON.stringify(db.checkpoints);
+  app = await open('/index.html'); await app.clock.runFor(2000); await settle(app);
+  check('N11 self-heal: a member\'s page changes nothing', JSON.stringify((await demoDb(app)).checkpoints) === saved && !(await app.locator('.lineup').innerText()).includes('Yan'));
+  await signOut(app); await signIn(app, 'alice'); await app.clock.runFor(2000); await settle(app);
+  db = await demoDb(app);
+  const healed = db.checkpoints.filter(c => c.effective_date === '2026-11-16');
+  check('N12 self-heal: the admin\'s page adds Yan from today by itself, keeping today\'s Primary', healed.length === 1 && healed[0].member_order.includes('demo-y') && db.checkpoints.length === JSON.parse(saved).length
+    && (await app.locator('.lineup').innerText()).includes('Yan') && (await todaysPrimary()) === 'Alice', JSON.stringify(db.checkpoints));
+  // Restarting the rotation says what is lost.
+  const restartAsked = []; app.on('dialog', d => restartAsked.push(d.message()));
+  await tab(app, 'team'); await app.fill('#s-start', '2026-11-02'); await app.click('#start-form button[type=submit]'); await toast(app); await settle(app);
+  await app.fill('#s-start', '2026-11-30'); await app.click('#start-form button[type=submit]'); await toast(app); await settle(app);
+  check('N13 restarting from a past date: earlier days are cleared, the days since are worked out again, and it says what happens to today\'s Primary',
+    restartAsked[0] === 'Restart the rotation from Mon, 2 Nov? Days before it are cleared, and duties from then on are worked out again. Today’s Primary changes from Alice to Chloe.', restartAsked[0]);
+  check('N14 restarting from a future date: no one is on duty until then', restartAsked[1] === 'Restart the rotation on Mon, 30 Nov? No one will be on duty until then, and earlier days will no longer show who was on duty. Alice will be Primary first.', restartAsked[1]);
+  await app.close();
+  // From 6pm the public card shows "Next on duty · 9am tomorrow": a change to the order in the evening keeps that person.
+  pub = await open('/calendar.html'); await setDb(pub, seedN); await pub.close();
+  app = await open('/index.html', '2026-11-16T10:30:00Z');   // Monday, 6:30pm in Singapore
+  const nextBefore = await publicNext();
+  await tab(app, 'team'); await app.click('[data-down="demo-0"]');
+  await says('N15 reordering in the evening confirms', app, 'Order updated from today.'); await settle(app);
+  await tab(app, 'roster');
+  check('N16 after 6pm a reorder keeps tomorrow\'s announced Primary, here and on the public page', nextBefore === 'Alice Tan' && (await dayRow(app, 17).locator('.lead .nm').innerText()).includes('Alice Tan') && (await publicNext()) === 'Alice Tan',
+    nextBefore + ' | ' + (await rowText(17)));
   await app.close();
 
   check('Z no errors in the browser console during the whole pass', errors.length === 0, [...new Set(errors)].join(' || '));
