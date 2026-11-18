@@ -46,7 +46,11 @@ export class SupabaseStore {
     if (error) throw new Error(error.message);
     return { needsConfirmation: !data.session };
   }
-  async signOut() { await this.sb.auth.signOut(); }
+  async signOut() {
+    const { error } = await this.sb.auth.signOut();
+    // Offline, supabase-js returns the network error before it forgets the session: forget it here, so signing out always works.
+    if (error) { try { localStorage.removeItem(this.sb.auth.storageKey); } catch (e) { /* storage blocked */ } }
+  }
   async load() {
     const uid = await this.userId();
     // Emails and leave notes aren't readable from the tables (see 003_private_data.sql). They come from
