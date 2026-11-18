@@ -12,8 +12,12 @@ const order = s => s.db.profiles.slice().sort((a, b) => a.rota_order - b.rota_or
 // What production shows: the database's own messages, and SupabaseStore's when the database skips or reverts a change quietly.
 const NOT_SAVED = /^Error: That change wasn’t saved\. You may not have permission, or it was already removed\. The page has been refreshed\.$/;
 const ONLY_ADMINS = /^Error: Only admins can make that change\. The page has been refreshed\.$/;
-const RLS = table => new RegExp('^Error: new row violates row-level security policy for table "' + table + '"$');
-const CHECK = (table, name) => new RegExp('^Error: new row for relation "' + table + '" violates check constraint "' + name + '"$');
+// Postgres's own refusals reach people in plain words (plainError in store.js): row level security refusing a new row
+// reads like a skipped change, and each check constraint has its sentence.
+const RLS = () => NOT_SAVED;
+const PLAIN = { name_length: 'Please enter a name of up to 60 characters.', holiday_name_length: 'Please enter a holiday name of up to 60 characters.',
+  note_length: 'A note can be at most 120 characters.', leave_dates_in_order: 'The end date is before the start date.' };
+const CHECK = (table, name) => new RegExp('^Error: ' + PLAIN[name].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$');
 
 test('the rotation order is saved in one step with no shared places', async () => {
   const s = new DemoStore();
@@ -107,7 +111,7 @@ test('people waiting for approval can\'t add leave or set a work email, and see 
   await assert.rejects(s.addLeave({ user_id: 'demo-2', start_date: t, end_date: t }), RLS('leaves'));
 });
 
-test('length limits and blank names are refused with the database\'s messages', async () => {
+test('length limits and blank names are refused as the database refuses them, in plain words', async () => {
   const s = new DemoStore();
   const t = todaySG();
   await s.signIn('ben@example.com');
@@ -200,4 +204,44 @@ test('restarting the rotation never loses the history if the connection drops pa
     assert.deepEqual(db.rota_checkpoints, [{ effective_date: '2026-11-02', member_order: ['c', 'a', 'b'], next_primary: 'c' }]);
     assert.equal(db.settings[0].rota_start, '2026-11-02');
   }
+});
+
+test('database refusals reach people in plain words, the same in both stores; other messages pass through', async () => {
+  const { plainError, SupabaseStore } = await import('../src/store.js');
+  const notSaved = 'That change wasn’t saved. You may not have permission, or it was already removed. The page has been refreshed.';
+  const cases = [
+    ['new row violates row-level security policy for table "leaves"', notSaved],
+    ['new row violates row-level security policy (USING expression) for table "holidays"', notSaved],
+    ['new row for relation "profiles" violates check constraint "name_length"', PLAIN.name_length],
+    ['new row for relation "holidays" violates check constraint "holiday_name_length"', PLAIN.holiday_name_length],
+    ['new row for relation "leaves" violates check constraint "note_length"', PLAIN.note_length],
+    ['new row for relation "leaves" violates check constraint "leave_dates_in_order"', PLAIN.leave_dates_in_order],
+    ['new row for relation "settings" violates check constraint "single_row"', 'That change wasn’t saved. Check what you entered and try again.'],
+    ['duplicate key value violates unique constraint "profiles_work_email_key"', 'That email already belongs to someone else on the roster.'],
+    ['duplicate key value violates unique constraint "leaves_invite_uid_key"', 'That’s already saved.'],
+    ['insert or update on table "leaves" violates foreign key constraint "leaves_user_id_fkey"', notSaved],
+    ['null value in column "name" of relation "holidays" violates not-null constraint', 'Please fill in every field.'],
+    ['invalid input syntax for type date: ""', 'Please enter a valid date.'],
+    // The database's own sentences for people are kept as they are, and anything unknown passes through.
+    ["Leave that has begun can't be deleted. End it early instead.", "Leave that has begun can't be deleted. End it early instead."],
+    ['You can only change your own work email.', 'You can only change your own work email.'],
+    ['Failed to fetch', 'Failed to fetch'],
+    ['permission denied for table profiles', 'permission denied for table profiles']
+  ];
+  for (const [raw, plain] of cases) assert.equal(plainError(raw), plain, raw);
+  // The same refusal reads the same from the database (through a stand-in Supabase client) and from demo mode.
+  const refuse = message => () => ({ from: () => {
+    const res = Promise.resolve({ data: null, error: { message } });
+    const chain = { insert: () => res, upsert: () => res, update: () => chain, delete: () => chain, eq: () => chain, select: () => res };
+    return chain;
+  } });
+  const t = todaySG();
+  const viaDb = new SupabaseStore(refuse('new row violates row-level security policy for table "leaves"'), 'u', 'k').addLeave({ user_id: 'demo-2', start_date: t, end_date: t });
+  const demo = new DemoStore(); await demo.signIn('ben@example.com');
+  const viaDemo = demo.addLeave({ user_id: 'demo-2', start_date: t, end_date: t });
+  const [a, b] = await Promise.allSettled([viaDb, viaDemo]);
+  assert.equal(a.reason.message, b.reason.message);
+  const nameDb = new SupabaseStore(refuse('new row for relation "profiles" violates check constraint "name_length"'), 'u', 'k').updateProfile('demo-1', { display_name: ' ' });
+  const [c, d] = await Promise.allSettled([nameDb, demo.updateProfile('demo-1', { display_name: ' ' })]);
+  assert.deepEqual([c.reason.message, d.reason.message], [PLAIN.name_length, PLAIN.name_length]);
 });

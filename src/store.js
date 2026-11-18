@@ -8,8 +8,34 @@ import { addDays, daysBetween, todaySG, onRota, publicCalendar } from './schedul
 const NOT_SAVED = 'That change wasn’t saved. You may not have permission, or it was already removed. The page has been refreshed.';
 const ONLY_ADMINS = 'Only admins can make that change. The page has been refreshed.';
 
+// Postgres's own words for a refused write, in plain words. Messages the database writes for people (the leave rules,
+// set_work_email, set_rota_order) are plain already and pass through, and so does anything not recognised here.
+const CONSTRAINTS = {
+  name_length: 'Please enter a name of up to 60 characters.',
+  holiday_name_length: 'Please enter a holiday name of up to 60 characters.',
+  note_length: 'A note can be at most 120 characters.',
+  leave_dates_in_order: 'The end date is before the start date.',
+  profiles_work_email_key: 'That email already belongs to someone else on the roster.',
+  holidays_pkey: 'That date already has a holiday.'
+};
+const RAW = [
+  [/row-level security policy/, () => NOT_SAVED],
+  [/violates check constraint "([^"]+)"/, m => CONSTRAINTS[m[1]] || 'That change wasn’t saved. Check what you entered and try again.'],
+  [/violates unique constraint "([^"]+)"/, m => CONSTRAINTS[m[1]] || 'That’s already saved.'],
+  [/violates foreign key constraint/, () => NOT_SAVED],
+  [/violates not-null constraint/, () => 'Please fill in every field.'],
+  [/^invalid input syntax for type date|^date\/time field value out of range/, () => 'Please enter a valid date.'],
+  [/^value too long for type/, () => 'That’s too long. Please shorten it.']
+];
+/** A database error message as people should read it, the same in both stores. */
+export function plainError(message) {
+  const text = String(message == null ? '' : message);
+  for (const [pattern, say] of RAW) { const m = pattern.exec(text); if (m) return say(m); }
+  return text;
+}
+
 function check({ data, error }) {
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(plainError(error.message));
   return data;
 }
 /** For writes ending in .select(): the database skips rows you aren't allowed to change without an error, so no rows back means it didn't happen. */
@@ -98,7 +124,7 @@ export class SupabaseStore {
     const { error } = await this.sb.rpc('set_rota_order', { ids });
     if (!error) return;
     // Databases without update 6: save one person at a time, as before.
-    if (error.code !== 'PGRST202') throw new Error(error.message);
+    if (error.code !== 'PGRST202') throw new Error(plainError(error.message));
     for (let k = 0; k < ids.length; k++) await this.updateProfile(ids[k], { rota_order: k });
   }
   async addHoliday(date, name) { check(await this.sb.from('holidays').upsert({ date, name })); }
@@ -121,13 +147,13 @@ export class SupabaseStore {
 const DEMO_KEY = 'duty-roster-demo';
 const DEMO_PEOPLE = ['Alice Tan', 'Ben Lim', 'Chloe Ng', 'Dev Kumar', 'Elena Goh'];
 
-// DemoStore refuses what the database refuses, in the words people would see in production: the database's own
-// messages (supabase/*.sql, Postgres for row level security and check constraints), and SupabaseStore's
-// NOT_SAVED / ONLY_ADMINS where the database skips or reverts a change quietly. The database checks in this order:
-// row level security on which rows an update or delete can reach, then triggers, then row level security on the
-// new row, then check constraints (in name order).
-const rlsRefused = table => new Error('new row violates row-level security policy for table "' + table + '"');
-const constraintRefused = (table, name) => new Error('new row for relation "' + table + '" violates check constraint "' + name + '"');
+// DemoStore refuses what the database refuses, with the words people would see in production: the database's own
+// (supabase/*.sql; Postgres's for row level security and check constraints, through plainError like SupabaseStore's),
+// and SupabaseStore's NOT_SAVED / ONLY_ADMINS where the database skips or reverts a change quietly. The database checks
+// in this order: row level security on which rows an update or delete can reach, then triggers, then row level
+// security on the new row, then check constraints (in name order).
+const rlsRefused = table => new Error(plainError('new row violates row-level security policy for table "' + table + '"'));
+const constraintRefused = (table, name) => new Error(plainError('new row for relation "' + table + '" violates check constraint "' + name + '"'));
 // SQL's trim() removes spaces only, and char_length() counts characters, not UTF-16 units.
 const sqlTrim = s => String(s == null ? '' : s).replace(/^ +| +$/g, '');
 const chars = s => [...String(s)].length;
