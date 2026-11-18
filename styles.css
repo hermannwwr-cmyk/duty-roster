@@ -584,8 +584,11 @@ label.field input, label.field select { min-width: 0; padding: .4rem .65rem; bor
    Empty, and so hidden, while all is well. */
 .offline { position: sticky; top: 48px; z-index: 4; background: var(--raised); box-shadow: 0 1px 0 var(--edge); }
 .offline:empty { display: none; }
-.offline .wrap { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .3rem .8rem; padding-block: .4rem; font-size: .88rem; }
+.offline .wrap { padding-block: .5rem; font-size: .88rem; line-height: 1.45; }
 .offline-text::before { content: ""; display: inline-block; width: .5rem; height: .5rem; margin-right: .5rem; border-radius: 50%; background: var(--steel); vertical-align: .05em; }
+/* Try again reads as a link in the sentence, and answers a finger-sized tap around it. */
+.offline .btn.link { position: relative; font-weight: 700; white-space: nowrap; }
+.offline .btn.link::before { content: ""; position: absolute; inset: -.6rem -.5rem; }
 @media (max-height: 500px) { .offline { position: static; } }
 /* "A new version is available" notice (src/live.js) */
 .update-bar { position: fixed; left: 50%; bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 20; display: flex; align-items: center; gap: .8rem; width: max-content; max-width: calc(100% - 32px);

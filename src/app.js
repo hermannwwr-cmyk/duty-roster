@@ -46,7 +46,7 @@ function plain(e) {
 }
 /** "10:42 am", or "Mon 16 Nov, 6:12 pm" when it wasn't today, in Singapore time. */
 function clockTime(ms) {
-  const time = new Date(ms).toLocaleTimeString('en-SG', { timeZone: 'Asia/Singapore', hour: 'numeric', minute: '2-digit' });
+  const time = new Date(ms).toLocaleTimeString('en-SG', { timeZone: 'Asia/Singapore', hour: 'numeric', minute: '2-digit' }).replace(/\s+(?=[ap]m)/i, ' ');
   const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Singapore' }).format(new Date(ms));
   return day === today() ? time : fmtDay(day) + ', ' + time;
 }
@@ -91,7 +91,10 @@ function putBack(values) {
     f.dispatchEvent(new Event('input', { bubbles: true }));   // so fields that follow it (the leave's end date) catch up
   });
 }
-const unsavedInput = () => [...root.querySelectorAll('#view input, #view select, #view textarea')].some(edited);
+// Forms whose change has just been saved: what is in them is on its way into the redraw, so it isn't unsaved input.
+const saved = new Set();
+const typedFields = () => [...root.querySelectorAll('#view input, #view select, #view textarea')].filter(f => edited(f) && !(f.form && saved.has(focusKey(f.form))));
+const unsavedInput = () => typedFields().length > 0;
 
 /* ---------- Saving changes ---------- */
 // The control a change came from: the submit button (e.submitter), or the tapped button, tick or field. Safari
@@ -150,14 +153,16 @@ async function act(fn, done) {
   let error = null;
   try {
     await fn();
-    // Saved: the form is cleared, so its values aren't kept as unsaved input by the redraw.
-    if (form) form.reset(); else if (field) field.defaultValue = field.value;
+    // Saved: the redraw starts the form afresh (a lone field shows what was saved).
+    if (job.form) saved.add(job.form); else if (field) field.defaultValue = field.value;
     if (done) toast(done);
   } catch (e) { error = plain(e); toast(error, !!(form || field)); }
   saving.delete(job);
   await refresh();
   await drawing;   // a newer refresh, started meanwhile, draws last
   unlock(job);
+  // Saved, but the page couldn't be redrawn (the connection dropped): clear the form anyway, so it isn't sent twice.
+  if (job.form && saved.delete(job.form) && state.offline) { const f = root.querySelector(job.form); if (f) f.reset(); }
   if (error) { if (job.values) putBack(job.values); formError(errorTarget(job), error); }
   restoreFocus(focus);
 }
@@ -199,7 +204,8 @@ async function reload() {
   try {
     const uid = await store.userId();
     if (run !== refreshes) return;
-    if (!uid) { state.data = null; state.offline = false; renderAuth(); return; }
+    // Signed out: the next person to sign in starts on the Roster at this month.
+    if (!uid) { Object.assign(state, { data: null, offline: false, tab: 'roster', month: today().slice(0, 7), earlier: false }); renderAuth(); return; }
     const data = await store.load();
     if (run !== refreshes) return;
     state.data = data; state.loadedAt = Date.now(); state.offline = false;
@@ -211,7 +217,7 @@ async function reload() {
     // Keep the header (and whatever has focus in it) unless who is signed in has changed, and keep anything typed and not saved yet.
     const view = root.querySelector('#view');
     if (view && view.dataset.user === userKey(me)) {
-      const typed = valuesOf([...root.querySelectorAll('#view input, #view select, #view textarea')].filter(edited));
+      const typed = valuesOf(typedFields());
       renderView();
       putBack(typed);
     } else renderApp();
@@ -259,7 +265,7 @@ function showOffline(e) {
   const text = (offline(e) ? 'Can’t connect.' : 'Can’t load the latest changes.') + ' Showing what was loaded at ' + clockTime(state.loadedAt) + '.';
   const words = bar.querySelector('.offline-text');
   if (words) { if (words.textContent !== text) words.textContent = text; return; }
-  bar.innerHTML = `<div class="wrap"><span class="offline-text">${esc(text)}</span><button class="btn small" type="button" id="retry">Try again</button></div>`;
+  bar.innerHTML = `<p class="wrap"><span class="offline-text">${esc(text)}</span> <button class="btn link" type="button" id="retry">Try again</button></p>`;
   bar.querySelector('#retry').onclick = () => retry(bar.querySelector('#retry'), 'Still can’t connect.');
 }
 /** Try again / Check again: busy while it loads, and says so when nothing changed. */
@@ -576,7 +582,7 @@ function renderLeave() {
   const leaveWhen = l => l.start_date === l.end_date ? 'on ' + fmtDay(l.start_date) : 'from ' + fmtDay(l.start_date) + ' to ' + fmtDay(l.end_date);
   view.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
     const l = theirs(b);
-    if (l && !window.confirm('Remove ' + name(l.user_id) + '’s leave ' + leaveWhen(l) + '? They’ll be back on the roster on those days.')) return;
+    if (l && !window.confirm('Remove ' + name(l.user_id) + '’s leave ' + leaveWhen(l) + '? They’ll be back on the roster ' + (l.start_date === l.end_date ? 'that day.' : 'on those days.'))) return;
     act(() => store.deleteLeave(Number(b.dataset.del)), 'Leave removed.');
   });
   view.querySelectorAll('[data-end]').forEach(b => b.onclick = () => {

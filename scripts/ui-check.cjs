@@ -1,6 +1,7 @@
 // A functional check of both pages in a real browser, in demo mode: it clicks through every action
 // (leave, team changes, holidays, settings, sign-up and approval, month and tab navigation, swiping,
-// a day when nobody is available, and outside office hours)
+// a day when nobody is available, and outside office hours; and in the signed-in app a dropped connection,
+// double taps and refused saves on a slow line, the questions before one-tap changes, and Remove access)
 // and checks what the roster and the public page show afterwards. Run it before publishing a change
 // to a page, script or styles.css:
 //
@@ -353,6 +354,209 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   app = await open('/index.html');
   check('H6 nobody today: the signed-in page says so too', (await app.locator('.role-head .role').innerText()) === 'On leave' && (await app.locator('#share-wa').innerText()).trim() === 'Tell the team on WhatsApp' && await app.locator('.lineup li.away').count() === await app.locator('.lineup li').count() && (await app.locator('.role-card').innerText()).includes('No one is available for duty.'));
   await app.close();
+
+  /* ---------- N. The signed-in app: this week first, the Primary's own button, the 6pm message, a dropped connection,
+     double taps, refused saves, questions before one-tap changes, and Remove access ---------- */
+  // A fresh browser with its own demo data. Its copy of src/store.js can be told to be slow (window.__delay ms) or to
+  // fail (window.__fail: method names), like a phone on a bad connection. The project files are not changed.
+  const FAULTS = `
+;for (const k of Object.getOwnPropertyNames(DemoStore.prototype)) {
+  if (['constructor', 'read', 'write', 'seed', 'emit', 'me', 'checkpoints', 'requireAdmin', 'leaveRule', 'onAuthChange'].includes(k)) continue;
+  const f = DemoStore.prototype[k];
+  DemoStore.prototype[k] = async function (...a) {
+    if (globalThis.__delay) await new Promise(r => setTimeout(r, globalThis.__delay));
+    if ((globalThis.__fail || []).includes(k)) throw new TypeError('Load failed');
+    return f.apply(this, a);
+  };
+}`;
+  const c2 = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  await c2.addInitScript(() => { try { localStorage.setItem('swipePeekSeen', '1'); } catch {} });
+  await c2.route(url => new URL(url).pathname === '/src/store.js', route => route.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(ROOT, 'src/store.js'), 'utf8') + FAULTS }));
+  const asked = []; let answer = true;
+  const openN = async (url, now = NOW) => {
+    const p = await c2.newPage();
+    p.on('console', m => { if (m.type() === 'error') errors.push('N ' + url + ': ' + m.text()); });
+    p.on('pageerror', e => errors.push('N ' + url + ': ' + e.message));
+    p.on('dialog', d => { asked.push(d.message()); answer ? d.accept() : d.dismiss(); });
+    await p.clock.install({ time: new Date(now) });
+    await p.goto(BASE + url); await p.clock.runFor(1200); await p.waitForTimeout(400);
+    return p;
+  };
+  const demo = p => p.evaluate(() => JSON.parse(localStorage.getItem('duty-roster-demo')));
+  const waText = async p => decodeURIComponent((await p.locator('#share-wa').getAttribute('href')).replace('https://wa.me/?text=', ''));
+  const five = ['Alice Tan', 'Ben Lim', 'Chloe Ng', 'Dev Kumar', 'Elena Goh'];
+  const dutiesFrom = first => five.slice(first).concat(five.slice(0, first)).map((name, i) => ({ role: i ? 'Secondary ' + i : 'Primary', name }));
+  let n = await openN('/calendar.html', '2026-10-30T01:30:00Z');
+  await n.evaluate(() => { const db = JSON.parse(localStorage.getItem('duty-roster-demo')); db.leaves = []; db.nextId = 1; db.session = null; localStorage.setItem('duty-roster-demo', JSON.stringify(db)); });
+  await n.close();
+
+  // This month opens at this week's Monday; the earlier days wait behind a button. Other months show in full.
+  n = await openN('/index.html'); await signIn(n, 'chloe');
+  const shownDays = () => n.locator('.days .day:visible .dnum').allTextContents();
+  const opening = await shownDays();
+  check('N1 roster: this month opens at this week (Mon 16), with "Show earlier days" above it', opening[0] === '16' && opening.length === 11 && (await n.locator('#earlier').innerText()) === 'Show earlier days'
+    && (await n.locator('#earlier').getAttribute('aria-expanded')) === 'false' && await n.locator('.days .day[hidden]').count() === 10, opening.join());
+  await n.click('#earlier'); await settle(n);
+  check('N1b roster: "Show earlier days" shows the 2nd to the 13th and becomes "Hide earlier days", keeping focus', (await shownDays())[0] === '2' && (await shownDays()).length === 21
+    && (await n.locator('#earlier').getAttribute('aria-expanded')) === 'true' && (await n.evaluate(() => document.activeElement.id)) === 'earlier');
+  await n.click('#next'); await settle(n);
+  check('N1c roster: another month shows in full, with no button', await n.locator('#earlier').count() === 0 && await n.locator('.days .day[hidden]').count() === 0 && (await shownDays())[0] === '1');
+  await n.click('#this'); await settle(n);
+  check('N1d roster: back on this month, the earlier days are folded again', (await shownDays())[0] === '16');
+  // Screen readers hear the line-up's roles in full; you are marked in white and steel, not cyan.
+  const tiles = await n.locator('.lineup li').evaluateAll(l => l.map(x => x.querySelector('.sr-only').textContent));
+  const notCyan = await n.evaluate(() => { const cyan = ['rgb(56, 189, 248)', 'rgb(125, 211, 252)']; const me = getComputedStyle(document.querySelector('.lineup li.me'));
+    return !cyan.some(c => me.boxShadow.includes(c) || getComputedStyle(document.querySelector('.lineup li.me .when')).color === c || getComputedStyle(document.querySelector('.days .then b.me')).color === c); });
+  check('N2 roster: the line-up reads "Primary: …", "Secondary 1: …", and your own tile and name are not cyan', tiles.join('|') === 'Primary: |Secondary 1: |Secondary 2: |Secondary 3: |Secondary 4: ' && notCyan, tiles.join('|'));
+  // A Secondary asks the Primary for an OTP; the message is today's.
+  check('N3 WhatsApp: a Secondary asks today\'s Primary for an OTP', (await n.locator('#share-wa').innerText()).trim() === 'Click for OTP on WhatsApp'
+    && await waText(n) === rosterMessage({ date: '2026-11-16', duties: dutiesFrom(0) }, BASE + '/calendar.html'));
+  // Fields are 16px, so an iPhone doesn't zoom in on them.
+  await tab(n, 'leave');
+  const sizes = await n.evaluate(() => [...document.querySelectorAll('#view input, #view select')].map(f => getComputedStyle(f).fontSize));
+  check('N4 forms: every field is 16px, and a member doesn\'t see the Outlook invite panel before an admin sets it up', sizes.length > 0 && sizes.every(s => s === '16px') && await n.locator('h2', { hasText: 'Outlook invites' }).count() === 0, sizes.join());
+  // A save refused by the rules keeps what was typed, with the reason next to the form.
+  await n.fill('#l-start', '2027-12-01'); await n.fill('#l-end', '2027-12-01'); await n.fill('#l-note', 'Family trip');
+  await n.click('#l-add');
+  await says('N5 leave refused: the toast gives the reason', n, 'Leave can be booked up to a year ahead.'); await settle(n);
+  check('N5b leave refused: the dates and note stay, with the reason under the form, read out at once', (await n.inputValue('#l-start')) === '2027-12-01' && (await n.inputValue('#l-note')) === 'Family trip'
+    && (await n.locator('#leave-form + .form-error').innerText()) === 'Leave can be booked up to a year ahead.' && (await n.locator('#leave-form + .form-error').getAttribute('role')) === 'alert');
+  // A double tap adds the leave once, on a phone that doesn't focus tapped buttons (Safari), on a slow connection.
+  await n.evaluate(() => { document.addEventListener('mousedown', e => { if (e.target.closest('button')) { e.preventDefault(); document.activeElement.blur(); } }, true); window.__delay = 500; });
+  await n.fill('#l-start', '2026-11-26'); await n.fill('#l-end', '2026-11-26'); await n.fill('#l-note', 'Annual leave');
+  await n.locator('#l-add').tap(); await n.waitForTimeout(150);
+  const lockedWhileSaving = await n.locator('#l-add').isDisabled() && await n.locator('#l-note').isDisabled();
+  await n.locator('#l-add').tap({ force: true }).catch(() => {});
+  await n.waitForTimeout(2500); await toast(n);
+  await n.evaluate(() => { window.__delay = 0; });
+  check('N6 double tap: the button and fields are disabled while saving, and the leave is added once', lockedWhileSaving && (await demo(n)).leaves.filter(l => l.start_date === '2026-11-26').length === 1
+    && (await n.inputValue('#l-note')) === '' && await n.locator('.form-error').count() === 0);
+  // The connection drops: the save fails with plain words, and what was typed stays.
+  await n.fill('#l-start', '2026-11-27'); await n.fill('#l-end', '2026-11-27'); await n.fill('#l-note', 'Dentist');
+  await n.evaluate(() => { window.__fail = ['addLeave', 'load']; });
+  await n.click('#l-add');
+  await says('N7 offline save: plain words, not "Failed to fetch"', n, 'Can’t connect. Check your internet connection and try again.'); await settle(n);
+  check('N7b offline save: the view stays, with the bar, and the typed leave stays', (await n.inputValue('#l-note')) === 'Dentist' && await n.locator('#leave-form').count() === 1
+    && /^Can’t connect\. Showing what was loaded at 9:30\sam\. Try again$/.test(await n.locator('#offline').innerText()), await n.locator('#offline').innerText());
+  // Saved, but the page can't be reloaded afterwards: the form is cleared all the same, so it can't be sent twice.
+  await n.evaluate(() => { window.__fail = ['load']; });
+  await n.click('#l-add'); await toast(n); await settle(n);
+  check('N8 saved but not reloaded: the leave is added once and the form is cleared', (await demo(n)).leaves.filter(l => l.start_date === '2026-11-27').length === 1 && (await n.inputValue('#l-note')) === '');
+  await n.click('#retry');
+  await says('N9 offline: Try again while still offline says so', n, 'Still can’t connect.');
+  await n.evaluate(() => { window.__fail = []; });
+  await n.click('#retry'); await settle(n);
+  check('N9b back online: Try again reloads and the bar goes', (await n.locator('#offline').innerText()) === '' && !(await n.locator('#offline').isVisible()) && await n.locator('[data-del]').count() === 2);
+  // The 5-minute refresh fails: the view stays as it was.
+  await tab(n, 'roster');
+  await n.evaluate(() => { window.__fail = ['load']; });
+  await n.clock.runFor(5 * 60 * 1000 + 1000); await settle(n);
+  check('N10 a failed background refresh keeps the roster on screen, with the bar', await n.locator('.role-card').count() === 1 && await n.locator('[data-tab]').count() === 3 && (await n.locator('#offline').innerText()).startsWith('Can’t connect.'));
+  await n.evaluate(() => { window.__fail = []; });
+  await n.close();
+  // A first load that fails: plain words, Try again and Sign out.
+  n = await c2.newPage();
+  n.on('console', m => { if (m.type() === 'error') errors.push('N: ' + m.text()); });
+  n.on('pageerror', e => errors.push('N: ' + e.message));
+  n.on('dialog', d => { asked.push(d.message()); answer ? d.accept() : d.dismiss(); });
+  await n.addInitScript(() => { window.__fail = ['load']; });
+  await n.clock.install({ time: new Date(NOW) }); await n.goto(BASE + '/index.html'); await n.clock.runFor(1200); await n.waitForTimeout(400);
+  const firstLoad = (await n.locator('#root').innerText()).replace(/\s+/g, ' ').trim();
+  await n.evaluate(() => { window.__fail = []; }); await n.click('#retry'); await settle(n);
+  check('N11 first load fails: plain words with Try again and Sign out, and Try again loads the app', firstLoad === 'Can’t load the roster Check your internet connection, then try again. Try again Sign out' && await n.locator('[data-tab]').count() === 3, firstLoad);
+  // Swipes aren't held up by a focused tick, or by a field typed in and cleared again.
+  await tab(n, 'leave');
+  await n.focus('#l-note'); await n.keyboard.type('x'); await n.keyboard.press('Backspace'); await n.evaluate(() => document.activeElement.blur());
+  await swipe(n, 300, 80); await settle(n);
+  const afterCleared = await n.locator('[data-tab=team]').getAttribute('aria-current');
+  await n.locator('[data-tab=leave]').click(); await settle(n);
+  await n.locator('#l-note').fill('half typed'); await n.evaluate(() => document.activeElement.blur());
+  await swipe(n, 300, 80); await settle(n);
+  const heldWhileTyped = await n.locator('[data-tab=leave]').getAttribute('aria-current');
+  check('N12 swipe: works after typing and clearing a field, and waits while something typed isn\'t saved', afterCleared === 'page' && heldWhileTyped === 'page');
+  await n.locator('#l-note').fill('');
+  await signOut(n);
+  // The switch between Sign in and Create account keeps focus on the switch.
+  await n.focus('[data-mode=signup]'); await n.keyboard.press('Enter'); await settle(n);
+  check('N13 sign-in: Create account keeps focus on the switch', (await n.evaluate(() => document.activeElement.dataset.mode)) === 'signup' && await n.locator('#f-name').count() === 1);
+  await n.click('[data-mode=signin]'); await settle(n);
+
+  // The Primary's own button tells the team instead of asking them for an OTP.
+  await signIn(n, 'alice');
+  check('N14 WhatsApp: today\'s Primary isn\'t asked for an OTP by their own button', (await n.locator('#share-wa').innerText()).trim() === 'Tell the team on WhatsApp'
+    && await waText(n) === rosterMessage({ date: '2026-11-16', duties: dutiesFrom(0) }, BASE + '/calendar.html', { ask: false }) && !(await waText(n)).includes('may we have OTP'));
+  // Questions before an admin changes someone else's leave or admin access, naming them. (The leave is added behind the
+  // page's back, and a tab opened more than a minute after the last load fetches it.)
+  await n.evaluate(() => { const db = JSON.parse(localStorage.getItem('duty-roster-demo'));
+    db.leaves.push({ id: 801, user_id: 'demo-1', start_date: '2026-11-13', end_date: '2026-11-17', note: '' }, { id: 802, user_id: 'demo-2', start_date: '2026-11-24', end_date: '2026-11-24', note: '' });
+    localStorage.setItem('duty-roster-demo', JSON.stringify(db)); });
+  await n.clock.runFor(61 * 1000);
+  await tab(n, 'leave');
+  check('N14b a tab opened when the data is more than a minute old fetches it again', await n.locator('[data-end="801"]').count() === 1);
+  answer = false; asked.length = 0;
+  await n.click('[data-end="801"]'); await settle(n);
+  const keptWhenNo = (await demo(n)).leaves.find(l => l.id === 801).end_date === '2026-11-17';
+  answer = true;
+  await n.click('[data-end="801"]');
+  await says('N15 End early on someone else\'s leave asks first, naming them, and the message names them', n, 'Leave ended. Ben Lim is back on the roster from today.'); await settle(n);
+  check('N15b End early: "No" leaves it as it was; the question names Ben', keptWhenNo && asked[0] === 'End Ben Lim’s leave early? They’ll be back on the roster from today.', asked.join(' | '));
+  asked.length = 0;
+  await n.click('[data-del="802"]');
+  await says('N16 removing someone else\'s leave asks first, naming them and the day', n, 'Leave removed.');
+  check('N16b the question', asked[0] === 'Remove Chloe Ng’s leave on Tue, 24 Nov? They’ll be back on the roster that day.', asked.join(' | '));
+  await tab(n, 'team');
+  answer = false; asked.length = 0;
+  await n.click('[data-admin="demo-1"]'); await settle(n);
+  check('N17 Admin tick: asks first, naming them; "No" puts the tick back and changes nothing', asked[0] === 'Make Ben Lim an admin? They’ll be able to change the team, everyone’s leave and the settings.'
+    && !(await n.locator('[data-admin="demo-1"]').isChecked()) && (await demo(n)).profiles.find(x => x.id === 'demo-1').is_admin === false, asked.join(' | '));
+  answer = true;
+  // A focused tick doesn't hold up swiping.
+  await n.focus('[data-active="demo-1"]'); await swipe(n, 80, 300); await settle(n);
+  check('N17b swipe: works while a tick has focus', (await n.locator('[data-tab=leave]').getAttribute('aria-current')) === 'page');
+  await tab(n, 'team');
+  // Refused work emails keep what was typed, with the reason beside the box.
+  await n.fill('[data-work="demo-1"]', 'ben.lim@company'); await n.locator('[data-work="demo-1"]').press('Enter');
+  await says('N18 Team tab: a mistyped work email is refused', n, 'Please enter a valid email address.'); await settle(n);
+  check('N18b the mistyped email stays, with the reason under the box', (await n.inputValue('[data-work="demo-1"]')) === 'ben.lim@company' && (await n.locator('[data-work="demo-1"] + .form-error').innerText()) === 'Please enter a valid email address.');
+  await n.fill('[data-work="demo-1"]', ''); await n.locator('[data-work="demo-1"]').press('Enter'); await toast(n); await settle(n);
+  // Remove access for someone who has left: out of the rotation from today, past days kept, and no delete button.
+  asked.length = 0;
+  await n.click('[data-revoke="demo-3"]');
+  await says('N19 Remove access: asks first, then confirms', n, 'Dev Kumar’s access was removed.'); await settle(n);
+  const dev = (await demo(n)).profiles.find(x => x.id === 'demo-3');
+  check('N19b Remove access: the question names Dev; Dev is neither approved nor active, and is listed under Removed with "Give access again", not under Waiting for approval',
+    asked[0] === 'Remove Dev Kumar’s access? They won’t see the roster or anyone’s leave, and they’re left out of the roster from today. Their past duties stay.'
+    && dev.approved === false && dev.active === false && dev.is_admin === false && await n.locator('[data-name="demo-3"], [data-remove="demo-3"], [data-approve="demo-3"]').count() === 0
+    && await n.locator('[data-restore="demo-3"]').count() === 1 && await n.locator('[data-revoke="demo-0"]').count() === 0, asked.join(' | '));
+  await tab(n, 'roster');
+  check('N19c roster: Dev is out from today and still on earlier days', !(await n.locator('.lineup').innerText()).includes('Dev') && (await dayRow(n, 12).innerText()).includes('Dev'));
+  await signOut(n); await signIn(n, 'dev');
+  check('N20 the removed person sees plain words and no roster', (await n.locator('.auth h2').innerText()) === 'Your access was removed' && (await n.locator('.auth p').innerText()) === 'Ask your admin if this is a mistake.' && await n.locator('.lineup, .days').count() === 0);
+  await n.click('#out'); await settle(n); await signIn(n, 'alice'); await tab(n, 'team');
+  await n.click('[data-restore="demo-3"]');
+  await says('N21 Give access again confirms', n, 'Dev Kumar can see the roster again. Tick Active to put them back on it.'); await settle(n);
+  check('N21b Dev is back in the rotation order, inactive, and the Removed list is gone', await n.locator('[data-name="demo-3"]').count() === 1 && !(await n.locator('[data-active="demo-3"]').isChecked()) && await n.locator('h2', { hasText: 'Removed' }).count() === 0);
+  await n.check('[data-active="demo-3"]'); await toast(n); await settle(n);
+  // A sign-up the admin removed (their profile is deleted) who signs in again.
+  await n.evaluate(() => { const db = JSON.parse(localStorage.getItem('duty-roster-demo')); db.session = 'demo-gone'; localStorage.setItem('duty-roster-demo', JSON.stringify(db)); });
+  await n.close();
+  n = await openN('/index.html');
+  check('N22 a removed sign-up sees plain words, not a database hint', (await n.locator('.auth').innerText()).replace(/\s+/g, ' ').trim() === 'Your account was removed Ask your admin if this is a mistake. Sign out', await n.locator('#root').innerText());
+  await n.click('#out'); await settle(n);
+  await n.close();
+  // After 6pm the card shows tomorrow, but the WhatsApp message is still about today, with the usual ask. (Dev came
+  // back at the end of the order.)
+  const today16 = ['Alice Tan', 'Ben Lim', 'Chloe Ng', 'Elena Goh', 'Dev Kumar'].map((name, i) => ({ role: i ? 'Secondary ' + i : 'Primary', name }));
+  n = await openN('/index.html', '2026-11-16T10:30:00Z'); await signIn(n, 'chloe');
+  check('N23 after 6pm: the card shows tomorrow and the button tells the team, but the message is today\'s, with the ask', (await n.locator('.role-head .eyebrow').innerText()).toLowerCase().includes('tue, 17 nov')
+    && (await n.locator('#share-wa').innerText()).trim() === 'Tell the team on WhatsApp' && await waText(n) === rosterMessage({ date: '2026-11-16', duties: today16 }, BASE + '/calendar.html'), await waText(n));
+  await n.close();
+  n = await openN('/index.html', '2026-11-16T00:30:00Z');
+  check('N24 before 9am: the message is today\'s, as before', await waText(n) === rosterMessage({ date: '2026-11-16', duties: today16 }, BASE + '/calendar.html'), await waText(n));
+  await n.close();
+  n = await openN('/index.html', '2026-11-21T03:00:00Z');
+  check('N25 at the weekend: the message is Monday\'s, as before', (await waText(n)).startsWith('2FA Login Request · Mon, 23 Nov'));
+  await n.close(); await c2.close();
 
   check('Z no errors in the browser console during the whole pass', errors.length === 0, [...new Set(errors)].join(' || '));
   const failed = results.filter(r => !r.ok);
