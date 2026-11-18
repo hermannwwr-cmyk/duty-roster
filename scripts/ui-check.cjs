@@ -489,6 +489,31 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   const wide = await n.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
   await n.setViewportSize({ width: 390, height: 844 }); await settle(n);
   check('N10e at 260px no name is cut short and nothing scrolls sideways', cut.length === 0 && !wide, cut.join(' | '));
+  // Data that came in while someone typed is drawn as soon as they stop, and a tap or click on a button still goes
+  // through the first time. (Leave is added behind the page's back, as from another phone; the tab's data is old, so
+  // switching to it reloads in the background while they type.)
+  const addBehind = (id, who, day) => n.evaluate(([id, who, day]) => { const db = JSON.parse(localStorage.getItem('duty-roster-demo'));
+    db.leaves.push({ id, user_id: who, start_date: day, end_date: day, note: '' }); localStorage.setItem('duty-roster-demo', JSON.stringify(db)); }, [id, who, day]);
+  const loadWhileTyping = async () => { await tab(n, 'roster'); await n.clock.runFor(61 * 1000); await n.evaluate(() => { window.__delay = 300; });
+    await n.click('[data-tab=leave]'); await n.focus('#l-note'); await n.keyboard.type('x'); await n.waitForTimeout(1200); await n.evaluate(() => { window.__delay = 0; }); await n.keyboard.press('Backspace'); };
+  const shows = day => n.locator('#view .item', { hasText: day }).count();
+  await addBehind(901, 'demo-1', '2026-12-01'); await loadWhileTyping();
+  const heldWhileIn = await shows('1 Dec') === 0;
+  await n.click('#l-start'); await settle(n);
+  const stillHeld = await shows('1 Dec') === 0 && (await n.evaluate(() => document.activeElement.id)) === 'l-start';
+  await n.evaluate(() => document.activeElement.blur()); await settle(n);
+  check('N10f leave added elsewhere while someone types waits, moving to another box keeps it waiting (and focus there), and leaving the boxes draws it',
+    heldWhileIn && stillHeld && await shows('1 Dec') === 1);
+  await addBehind(902, 'demo-4', '2026-12-02'); await addBehind(904, 'demo-2', '2026-12-04'); await loadWhileTyping();
+  const tapped = await n.locator('[data-del]').first().getAttribute('data-del');
+  await n.locator('[data-del]').first().tap();
+  await says('N10g with a draw waiting, the first tap on a button goes through (a phone that doesn\'t focus tapped buttons)', n, 'Leave removed.'); await settle(n);
+  check('N10h ...and the leave that came in meanwhile is on screen', !(await demo(n)).leaves.some(l => String(l.id) === tapped) && await shows('2 Dec') === 1 && await n.locator('[data-del="904"]').count() === 1);
+  await addBehind(903, 'demo-4', '2026-12-03'); await loadWhileTyping();
+  const box = await n.locator('[data-del="904"]').boundingBox();
+  await n.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await n.mouse.down(); await n.waitForTimeout(250); await n.mouse.up();
+  await says('N10i a slow mouse click (press, pause, release) on a button with a draw waiting still goes through', n, 'Leave removed.'); await settle(n);
+  check('N10j ...and the leave that came in meanwhile is on screen', !(await demo(n)).leaves.some(l => l.id === 904) && await shows('3 Dec') === 1);
   await n.close();
   // A first load that fails: plain words, Try again and Sign out.
   n = await c2.newPage();
@@ -534,16 +559,16 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   const keptWhenNo = (await demo(n)).leaves.find(l => l.id === 801).end_date === '2026-11-17';
   answer = true;
   await n.click('[data-end="801"]');
-  await says('N15 End early on someone else\'s leave asks first, naming them, and the message names them', n, 'Leave ended. Ben Lim is back on the roster from today.'); await settle(n);
-  check('N15b End early: "No" leaves it as it was; the question names Ben', keptWhenNo && asked[0] === 'End Ben Lim’s leave early? They’ll be back on the roster from today.', asked.join(' | '));
+  await says('N15 End early on someone else\'s leave asks first, naming them, and the message names them', n, 'Leave ended. Ben is back on the roster from today.'); await settle(n);
+  check('N15b End early: "No" leaves it as it was; the question names Ben', keptWhenNo && asked[0] === 'End Ben’s leave early? They’ll be back on the roster from today.', asked.join(' | '));
   asked.length = 0;
   await n.click('[data-del="802"]');
   await says('N16 removing someone else\'s leave asks first, naming them and the day', n, 'Leave removed.');
-  check('N16b the question', asked[0] === 'Remove Chloe Ng’s leave on Tue, 24 Nov? They’ll be back on the roster that day.', asked.join(' | '));
+  check('N16b the question', asked[0] === 'Remove Chloe’s leave on Tue, 24 Nov? They’ll be back on the roster that day.', asked.join(' | '));
   await tab(n, 'team');
   answer = false; asked.length = 0;
   await n.click('[data-admin="demo-1"]'); await settle(n);
-  check('N17 Admin tick: asks first, naming them; "No" puts the tick back and changes nothing', asked[0] === 'Make Ben Lim an admin? They’ll be able to change the team, everyone’s leave and the settings.'
+  check('N17 Admin tick: asks first, naming them; "No" puts the tick back and changes nothing', asked[0] === 'Make Ben an admin? They’ll be able to change the team, everyone’s leave and the settings.'
     && !(await n.locator('[data-admin="demo-1"]').isChecked()) && (await demo(n)).profiles.find(x => x.id === 'demo-1').is_admin === false, asked.join(' | '));
   answer = true;
   // A focused tick doesn't hold up swiping.
@@ -565,10 +590,10 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   // Remove access for someone who has left: out of the rotation from today, past days kept, and no delete button.
   asked.length = 0;
   await n.click('[data-revoke="demo-3"]');
-  await says('N19 Remove access: asks first, then confirms', n, 'Dev Kumar’s access was removed.'); await settle(n);
+  await says('N19 Remove access: asks first, then confirms', n, 'Dev’s access was removed.'); await settle(n);
   const dev = (await demo(n)).profiles.find(x => x.id === 'demo-3');
   check('N19b Remove access: the question names Dev; Dev is neither approved nor active, and is listed under Removed with "Give access again", not under Waiting for approval',
-    asked[0] === 'Remove Dev Kumar’s access? They won’t see the roster or anyone’s leave, and they’re left out of the roster from today. Their past duties stay.'
+    asked[0] === 'Remove Dev’s access? They won’t see the roster or anyone’s leave, and they’re left out of the roster from today. Their past duties stay.'
     && dev.approved === false && dev.active === false && dev.is_admin === false && await n.locator('[data-name="demo-3"], [data-remove="demo-3"], [data-approve="demo-3"]').count() === 0
     && await n.locator('[data-restore="demo-3"]').count() === 1 && await n.locator('[data-revoke="demo-0"]').count() === 0, asked.join(' | '));
   check('N19d after Remove access, focus is on their "Give access again"', await n.evaluate(() => document.activeElement.dataset.restore === 'demo-3'));
@@ -578,7 +603,7 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   check('N20 the removed person sees plain words and no roster', (await n.locator('.auth h2').innerText()) === 'Your access was removed' && (await n.locator('.auth p').innerText()) === 'Ask your admin if this is a mistake.' && await n.locator('.lineup, .days').count() === 0);
   await n.click('#out'); await settle(n); await signIn(n, 'alice'); await tab(n, 'team');
   await n.click('[data-restore="demo-3"]');
-  await says('N21 Give access again confirms', n, 'Dev Kumar can see the roster again. Tick Active to put them back on it.'); await settle(n);
+  await says('N21 Give access again confirms', n, 'Dev can see the roster again. Tick Active to put them back on it.'); await settle(n);
   check('N21b Dev is back in the rotation order, inactive, and the Removed list is gone', await n.locator('[data-name="demo-3"]').count() === 1 && !(await n.locator('[data-active="demo-3"]').isChecked()) && await n.locator('h2', { hasText: 'Removed' }).count() === 0);
   await n.check('[data-active="demo-3"]'); await toast(n); await settle(n);
   // A sign-up the admin removed (their profile is deleted) who signs in again.

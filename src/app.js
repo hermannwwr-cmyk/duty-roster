@@ -8,7 +8,7 @@ const root = document.getElementById('root');
 let store;
 try { store = await createStore(); }
 catch (e) {
-  root.innerHTML = '<div class="auth"><div class="panel"><h2>Can’t load the app</h2><p class="muted">Part of the app couldn’t be downloaded. Check your internet connection, then <button class="btn small" type="button" id="reload">reload the page</button></p></div></div>';
+  root.innerHTML = '<div class="auth"><div class="panel"><h2>Can’t load the app</h2><p class="muted">Part of the app couldn’t be downloaded. Check your internet connection, then <button class="btn small" type="button" id="reload">Reload the page</button>.</p></div></div>';
   document.getElementById('reload').onclick = () => location.reload();
   throw e;
 }
@@ -203,8 +203,9 @@ function scheduleFor(from, to) {
 // Only the latest refresh draws, so a slow load can't draw the roster over the sign-in screen after signing out.
 // `drawing` is the latest one, for anyone who needs to wait until the screen is up to date.
 // A background refresh (switching to a tab whose data is old, coming back online, the 5-minute one) doesn't redraw
-// under someone typing: that would close a phone's keyboard. It keeps the new data, and the next draw shows it.
-let refreshes = 0, drawing = Promise.resolve();
+// under someone typing: that would close a phone's keyboard. It keeps the new data (`pendingDraw`), and draws it as
+// soon as they stop (drawWhenIdle, below), or at the next save or tab switch.
+let refreshes = 0, drawing = Promise.resolve(), pendingDraw = false;
 const refresh = opts => (drawing = reload(opts));
 async function reload({ background = false } = {}) {
   const run = ++refreshes;
@@ -223,7 +224,7 @@ async function reload({ background = false } = {}) {
     if (me.approved === false) return accountScreen('Waiting for approval', 'Thanks for signing up, ' + esc(me.display_name) + '. An admin needs to approve your account before you can see the roster. Check back later.', 'Still waiting for approval.');
     // Keep the header (and whatever has focus in it) unless who is signed in has changed, and keep anything typed and not saved yet.
     const view = root.querySelector('#view');
-    if (background && view && typing()) { /* drawn later */ }
+    if (background && view && typing()) pendingDraw = true;   // drawn when they stop typing (drawWhenIdle)
     else if (view && view.dataset.user === userKey(me)) redraw();
     else renderApp();
     showOffline(null);
@@ -311,6 +312,17 @@ window.addEventListener('online', () => { if (state.offline) refresh({ backgroun
 // Background refreshes and swipes wait while there is typed input that isn't saved (a text field whose value differs
 // from what was drawn), or while someone is in a text field. A focused tick or list doesn't hold them up.
 const typing = () => unsavedInput() || typingIn(document.activeElement);
+// Data that came in while someone was typing is drawn once they stop: when focus leaves the box, but never between the
+// press and the release of a tap (redrawing then would swallow the tap), so after the click has gone through.
+let pressing = false, idleTimer;
+function drawWhenIdle(wait = 0) {
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => { if (pendingDraw && !pressing && state.data && root.querySelector('#view') && !typing()) redraw(); }, wait);
+}
+root.addEventListener('focusout', () => drawWhenIdle());
+document.addEventListener('pointerdown', () => { pressing = true; }, true);
+for (const type of ['pointerup', 'pointercancel']) document.addEventListener(type, () => { pressing = false; if (pendingDraw) drawWhenIdle(400); }, true);
+document.addEventListener('click', () => { if (pendingDraw) drawWhenIdle(); }, true);   // runs after the click's own handlers
 let lastDay = today();
 // Swipe left or right on a phone to change tab.
 swipeTabs(() => document.getElementById('view'), typing);
@@ -429,6 +441,7 @@ const STALE = 60 * 1000;
 function userKey(me) { return me.id + '|' + me.display_name + '|' + me.is_admin; }
 /** Redraws only the current section. Headings can take focus, as the fallback when a focused control disappears. */
 function renderView() {
+  pendingDraw = false;   // whatever came in while someone typed is on screen now
   ({ roster: renderRoster, leave: renderLeave, team: renderTeam })[state.tab]();
   root.querySelectorAll('#view h2').forEach(h => h.setAttribute('tabindex', '-1'));
   saving.forEach(lock);
@@ -514,7 +527,7 @@ function renderRoster() {
   const withMonths = d => { const mo = d.date.slice(0, 7), head = mo === listMonth ? '' : `<li class="month-break">${fromISO(d.date).toLocaleDateString('en-SG', { month: 'long' })}</li>`; listMonth = mo; return head + dayRow(d); };
 
   // One row per working day: the date, the Primary, then the backups in order, with your own role on the right.
-  // You are marked in white, underlined in steel: cyan means only the Primary and today.
+  // Your own name is white and bold (not underlined, not cyan: cyan means only the Primary and today).
   const dayRow = d => {
     const dt = fromISO(d.date);
     const li = kind => `<li class="day${kind}${d.date === t ? ' is-today' : ''}"${folded && d.date < weekStart ? ' hidden' : ''}>`;
@@ -571,6 +584,8 @@ function renderLeave() {
   const view = document.getElementById('view');
   const t = today();
   const name = id => (profiles.find(p => p.id === id) || {}).display_name || 'Unknown';
+  // Questions and messages use first names (the full name when two people share one).
+  const first = id => shortName(name(id), profiles.map(p => p.display_name));
   const upcoming = leaves.filter(l => l.end_date >= t);
   const mine = upcoming.filter(l => l.user_id === me.id);
   const leaveItem = l => `<div class="item"><div class="main"><span class="when">${fmtRange(l.start_date, l.end_date)}</span>
@@ -613,13 +628,13 @@ function renderLeave() {
   const leaveWhen = l => l.start_date === l.end_date ? 'on ' + fmtDay(l.start_date) : 'from ' + fmtDay(l.start_date) + ' to ' + fmtDay(l.end_date);
   view.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
     const l = theirs(b);
-    if (l && !window.confirm('Remove ' + name(l.user_id) + '’s leave ' + leaveWhen(l) + '? They’ll be back on the roster ' + (l.start_date === l.end_date ? 'that day.' : 'on those days.'))) return;
+    if (l && !window.confirm('Remove ' + first(l.user_id) + '’s leave ' + leaveWhen(l) + '? They’ll be back on the roster ' + (l.start_date === l.end_date ? 'that day.' : 'on those days.'))) return;
     act(() => store.deleteLeave(Number(b.dataset.del)), 'Leave removed.');
   });
   view.querySelectorAll('[data-end]').forEach(b => b.onclick = () => {
     const l = theirs(b);
-    if (l && !window.confirm('End ' + name(l.user_id) + '’s leave early? They’ll be back on the roster from today.')) return;
-    const ended = 'Leave ended. ' + (l ? name(l.user_id) + ' is back on the roster from today.' : 'You’re back on the roster from today.');
+    if (l && !window.confirm('End ' + first(l.user_id) + '’s leave early? They’ll be back on the roster from today.')) return;
+    const ended = 'Leave ended. ' + (l ? first(l.user_id) + ' is back on the roster from today.' : 'You’re back on the roster from today.');
     act(() => store.updateLeave(Number(b.dataset.end), { end_date: addDays(t, -1) }), ended);
   });
   // The end date can't be before the start (also when a typed start is put back after a redraw).
@@ -656,6 +671,8 @@ function renderTeam() {
   const admin = me.is_admin;
   const view = document.getElementById('view');
   const t = today();
+  // Questions and messages use first names (the full name when two people share one).
+  const first = name => shortName(name, profiles.map(p => p.display_name));
   const sorted = profiles.filter(p => p.approved !== false).sort(byRota);
   // New sign-ups wait for approval. People whose access was removed are neither approved nor active: they are listed
   // apart, without a delete button, because deleting someone who was ever on the rotation would rewrite past duties.
@@ -727,7 +744,7 @@ function renderTeam() {
   // Admins set anyone's work Outlook email; invites from it become that person's leave.
   view.querySelectorAll('[data-work]').forEach(inp => inp.onchange = () => {
     const who = profiles.find(p => p.id === inp.dataset.work), v = inp.value.trim();
-    act(() => store.setWorkEmail(inp.dataset.work, v), v ? 'Work email saved for ' + who.display_name + '.' : 'Work email removed for ' + who.display_name + '.');
+    act(() => store.setWorkEmail(inp.dataset.work, v), v ? 'Work email saved for ' + first(who.display_name) + '.' : 'Work email removed for ' + first(who.display_name) + '.');
   });
   view.querySelectorAll('[data-name]').forEach(inp => inp.onchange = () => {
     const v = inp.value.trim();
@@ -742,7 +759,7 @@ function renderTeam() {
     await recordRotaChange();
   }, 'Approved. They’re at the end of the rotation from today.'));
   view.querySelectorAll('[data-remove]').forEach(b => b.onclick = () => {
-    if (!window.confirm('Remove ' + b.dataset.who + '? Their profile is deleted and they won’t see the roster.')) return;
+    if (!window.confirm('Remove ' + first(b.dataset.who) + '? Their profile is deleted and they won’t see the roster.')) return;
     act(() => store.deleteProfile(b.dataset.remove), 'Removed.');
   });
   view.querySelectorAll('[data-active]').forEach(c => c.onchange = () => act(async () => {
@@ -753,12 +770,12 @@ function renderTeam() {
   // days keep their duties). Admin access goes too, as the database's admin rules don't look at approval.
   view.querySelectorAll('[data-revoke]').forEach(b => b.onclick = async () => {
     const who = profiles.find(p => p.id === b.dataset.revoke);
-    if (!who || !window.confirm('Remove ' + who.display_name + '’s access? They won’t see the roster or anyone’s leave, and they’re left out of the roster from today.'
+    if (!who || !window.confirm('Remove ' + first(who.display_name) + '’s access? They won’t see the roster or anyone’s leave, and they’re left out of the roster from today.'
       + (who.is_admin ? ' Their admin access goes too.' : '') + ' Their past duties stay.')) return;
     await act(async () => {
       await store.updateProfile(who.id, { approved: false, active: false, is_admin: false });
       await recordRotaChange();
-    }, who.display_name + '’s access was removed.');
+    }, first(who.display_name) + '’s access was removed.');
     // Focus follows them to the Removed list, where "Give access again" undoes it.
     const again = root.querySelector('[data-restore="' + CSS.escape(who.id) + '"]');
     if (again) again.focus();
@@ -766,15 +783,15 @@ function renderTeam() {
   // Back in the team, but not on the roster until Active is ticked (they join the end of the order).
   view.querySelectorAll('[data-restore]').forEach(b => b.onclick = () => {
     const who = profiles.find(p => p.id === b.dataset.restore);
-    act(() => store.updateProfile(who.id, { approved: true, rota_order: nextOrder }), who.display_name + ' can see the roster again. Tick Active to put them back on it.');
+    act(() => store.updateProfile(who.id, { approved: true, rota_order: nextOrder }), first(who.display_name) + ' can see the roster again. Tick Active to put them back on it.');
   });
   // Admin access lets someone change everyone's leave and the team, so the tick asks first.
   view.querySelectorAll('[data-admin]').forEach(c => c.onchange = () => {
     const who = profiles.find(p => p.id === c.dataset.admin);
-    const question = c.checked ? 'Make ' + who.display_name + ' an admin? They’ll be able to change the team, everyone’s leave and the settings.'
-      : 'Remove ' + who.display_name + '’s admin access? They’ll still see the roster and add their own leave.';
+    const question = c.checked ? 'Make ' + first(who.display_name) + ' an admin? They’ll be able to change the team, everyone’s leave and the settings.'
+      : 'Remove ' + first(who.display_name) + '’s admin access? They’ll still see the roster and add their own leave.';
     if (!window.confirm(question)) { c.checked = !c.checked; return; }
-    act(() => store.updateProfile(c.dataset.admin, { is_admin: c.checked }), c.checked ? who.display_name + ' is now an admin.' : who.display_name + ' is no longer an admin.');
+    act(() => store.updateProfile(c.dataset.admin, { is_admin: c.checked }), c.checked ? first(who.display_name) + ' is now an admin.' : first(who.display_name) + ' is no longer an admin.');
   });
   // The whole new order is saved in one step, so a failure can't leave two people in the same place (issue #9).
   const move = async (id, by) => {
@@ -802,8 +819,8 @@ function renderTeam() {
   };
   view.querySelectorAll('[data-assign]').forEach(sel => sel.onchange = () => {
     const who = profiles.find(p => p.id === sel.value);
-    if (!who || !window.confirm('Save ' + sel.dataset.from + ' as ' + who.display_name + '’s work email? Their invites from it will become their leave.')) { sel.value = ''; return; }
-    act(() => store.setWorkEmail(who.id, sel.dataset.from), 'Assigned. ' + who.display_name + '’s leave is added on the next sync.');
+    if (!who || !window.confirm('Save ' + sel.dataset.from + ' as ' + first(who.display_name) + '’s work email? Their invites from it will become their leave.')) { sel.value = ''; return; }
+    act(() => store.setWorkEmail(who.id, sel.dataset.from), 'Assigned. ' + first(who.display_name) + '’s leave is added on the next sync.');
   });
   view.querySelectorAll('[data-dismiss]').forEach(b => b.onclick = () => act(() => store.dismissInvite(b.dataset.dismiss), 'Dismissed.'));
   const pc = document.getElementById('pub-cal');

@@ -533,11 +533,11 @@ label.field input, label.field select { min-width: 0; padding: .4rem .65rem; bor
 .day .who { display: grid; gap: .25rem; min-width: 0; }
 .day .lead { display: flex; align-items: center; gap: .5rem; min-width: 0; }
 .day .lead .nm { font-size: .97rem; font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* You, in the roster rows: your name in white with a steel underline, as Primary and among the backups (the badge on the
-   right says your role). Not cyan: cyan means only the Primary and today. */
+/* You, in the roster rows: your name in white bold, as Primary and among the backups (the badge on the right says your
+   role). No underline, which would read as a link, and not cyan: cyan means only the Primary and today. */
 .day .then { color: var(--soft); font-size: .8rem; line-height: 1.45; }
-.day .then b.me, .day .lead .nm.me { color: #ffffff; font-weight: 700; text-decoration-line: underline; text-decoration-color: var(--steel); text-decoration-thickness: 2px; text-underline-offset: 3px; }
-.day .lead .nm.me { padding-bottom: .2rem; }
+.day .then b.me { color: #ffffff; font-weight: 800; }
+.day .lead .nm.me { color: #ffffff; font-weight: 800; }
 /* Small phones and zoomed text: names wrap rather than being cut short, and on the narrowest screens your role's badge
    goes under the names, so they have the row's width. */
 @media (max-width: 359.98px) { .day .lead .nm { white-space: normal; overflow-wrap: break-word; } }
