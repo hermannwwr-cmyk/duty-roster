@@ -143,9 +143,11 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   await signIn(app, 'alice');
   check('C0 admin: role today is Primary', (await app.locator('.role-head .role').innerText()) === 'Primary');
   await tab(app, 'leave');
+  const leaveAsked = []; app.on('dialog', d => leaveAsked.push(d.message()));
   await app.selectOption('#l-who', 'demo-1'); await app.fill('#l-start', '2026-11-13'); await app.fill('#l-end', '2026-11-17');
   await app.click('#leave-form button[type=submit]');
   await says('C1 admin: can record leave for someone else, starting in the past', app, 'Leave added. The roster has been updated.'); await settle(app);
+  check('C1b admin: leave that reaches into the past asks first, saying what changes', leaveAsked[0] === 'Add leave for Ben? This changes past duties on Fri, 13 Nov. Today’s Primary stays Alice.', JSON.stringify(leaveAsked));
   check('C2 leave list: marked "On leave now" with "End early"', await app.locator('.tag.leave', { hasText: 'On leave now' }).count() === 1 && await app.locator('[data-end]').count() === 1 && await app.locator('[data-del]').count() === 0);
   await tab(app, 'roster');
   check('C3 roster: today\'s line-up shows Ben on leave', (await app.locator('.lineup li.away .nm').innerText()).startsWith('Ben') && await app.locator('.lineup li:not(.away)').count() === 4);
