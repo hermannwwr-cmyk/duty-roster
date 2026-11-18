@@ -133,6 +133,8 @@ test('the share message lists roles and names only, and the WhatsApp link carrie
   const day = { date: '2026-10-21', duties: [{ role: 'Primary', name: 'Hermann Woon' }, { role: 'Secondary 1', name: 'Jia An' }] };
   const text = rosterMessage(day, 'https://example.org/calendar.html');
   assert.equal(text, '2FA Login Request · Wed, 21 Oct\nPrimary: Hermann Woon\nSecondary 1: Jia An\n\nHi Hermann Woon (Primary), may we have OTP login for ...\nCalendar: https://example.org/calendar.html');
+  // Shared by the Primary themselves: the same list, without asking them for an OTP.
+  assert.equal(rosterMessage(day, 'https://example.org/calendar.html', { ask: false }), '2FA Login Request · Wed, 21 Oct\nPrimary: Hermann Woon\nSecondary 1: Jia An\nCalendar: https://example.org/calendar.html');
   assert.equal(whatsappLink('A & B\nC'), 'https://wa.me/?text=A%20%26%20B%0AC');
   assert.match(rosterMessage({ date: '2026-10-21', duties: [] }), /No one is available/);
 });

@@ -82,8 +82,12 @@ a { color: var(--primary); }
 main.wrap { padding-block: 1rem 3rem; display: grid; gap: 1rem; }
 .panel { display: grid; gap: .9rem; min-width: 0; padding: 1.1rem 1.2rem; border-radius: 20px; background: var(--panel); box-shadow: 0 0 0 1px #ffffff12; }
 .row-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem; }
-.month { display: flex; align-items: center; gap: .4rem; }
+/* The Roster's month. On the narrowest screens (or zoomed text) "This month" goes on a line of its own and the month's
+   name may take two lines, rather than push the roster off the side. */
+.month { display: flex; justify-content: flex-end; align-items: center; gap: .4rem; min-width: 0; }
+.month-step { display: flex; flex: none; align-items: center; gap: .4rem; }
 .month strong { min-width: 8.5rem; text-align: center; }
+@media (max-width: 340px) { .month { flex-wrap: wrap; } .month-step { flex: 0 1 auto; min-width: 0; } .month strong { min-width: 0; } }
 
 /* Buttons and fields */
 .btn { border: 1px solid var(--edge); background: var(--raised); border-radius: 12px; padding: .5rem .95rem; font-weight: 600; }
@@ -97,7 +101,8 @@ main.wrap { padding-block: 1rem 3rem; display: grid; gap: 1rem; }
 .btn[aria-busy="true"] { opacity: .6; cursor: progress; }
 a.btn { display: inline-block; color: inherit; text-decoration: none; }
 label.field { display: grid; gap: .25rem; font-size: .9rem; font-weight: 600; color: var(--soft); }
-label.field input, label.field select { min-width: 0; padding: .5rem .65rem; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); font-weight: 400; }
+/* Fields are 16px: anything smaller makes an iPhone zoom in when you tap it. */
+label.field input, label.field select { min-width: 0; padding: .4rem .65rem; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); font-size: 1rem; font-weight: 400; }
 .form { display: flex; flex-wrap: wrap; gap: .8rem; align-items: end; }
 .form .grow { flex: 1 1 14rem; }
 .check { display: inline-flex; gap: .4rem; align-items: center; font-size: .93rem; }
@@ -239,9 +244,12 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .strip li { display: grid; justify-items: center; align-content: start; gap: .35rem; min-width: 0; padding: .55rem .15rem; border-radius: 14px; background: var(--raised); text-align: center; }
 .strip .when { font: 500 .66rem var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--soft); }
 .strip .nm { max-width: 100%; font-size: .78rem; font-weight: 600; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.strip .is-today, .strip .me { background: var(--accent-soft); box-shadow: inset 0 0 0 1.5px var(--accent); }
-.strip .is-today .when, .strip .p .when, .strip .me .when { color: var(--primary); font-weight: 700; }
-.strip .is-today .nm, .strip .me .nm { font-weight: 700; }
+.strip .is-today { background: var(--accent-soft); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.strip .is-today .when, .strip .p .when { color: var(--primary); font-weight: 700; }
+.strip .is-today .nm { font-weight: 700; }
+/* You, in the signed-in line-up: your name in white, underlined in steel, as in the roster rows. No outline, so your tile
+   never outranks the Primary's. Not cyan: cyan means only the Primary and today. */
+.strip .me .nm { padding-bottom: .2rem; color: #ffffff; font-weight: 800; text-decoration-line: underline; text-decoration-color: var(--steel); text-decoration-thickness: 2px; text-underline-offset: 3px; }
 .strip .away { background: var(--leave-soft); }
 .strip .away .when, .strip .away .nm { color: var(--leave); }
 .strip .none .nm { color: var(--danger); }
@@ -272,8 +280,9 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 /* The narrowest phones: a little tighter, so "Tomorrow" fits on one line. */
 @media (max-width: 360px) { .next-days { gap: .4rem; } .next-duty { padding-inline: .5rem; } .next-duty .when { gap: .3rem; letter-spacing: 0; } .next-duty .dot { width: .5rem; height: .5rem; } }
 .lineup { grid-template-columns: repeat(auto-fill, minmax(3.6rem, 1fr)); }
-.lineup .p .av { box-shadow: 0 0 0 2px var(--raised), 0 0 0 3.5px var(--accent); }
-.lineup .p.me .av { box-shadow: 0 0 0 2px var(--accent-soft), 0 0 0 3.5px var(--accent); }
+/* The Primary's tile is the one to find: a soft cyan behind it and a cyan ring around it. */
+.lineup .p { background: var(--accent-soft); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.lineup .p .av { box-shadow: 0 0 0 2px var(--accent-soft), 0 0 0 3.5px var(--accent); }
 /* Working days when everyone is away: its own card, in red. */
 .gaps { gap: .6rem; padding: .9rem; background: var(--danger-soft); box-shadow: 0 0 0 1px #e5484d66; }
 .gaps h3 { display: flex; align-items: center; gap: .5rem; padding: 0 .15rem; color: #ffb4ad; font-size: .92rem; }
@@ -524,9 +533,17 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .day .who { display: grid; gap: .25rem; min-width: 0; }
 .day .lead { display: flex; align-items: center; gap: .5rem; min-width: 0; }
 .day .lead .nm { font-size: .97rem; font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.you { color: var(--primary); font-weight: 700; }
+/* You, in the roster rows: your name in white bold, as Primary and among the backups (the badge on the right says your
+   role). No underline, which would read as a link, and not cyan: cyan means only the Primary and today. */
 .day .then { color: var(--soft); font-size: .8rem; line-height: 1.45; }
-.day .then b { color: var(--primary); font-weight: 700; }
+.day .then b.me { color: #ffffff; font-weight: 800; }
+.day .lead .nm.me { color: #ffffff; font-weight: 800; }
+/* Small phones and zoomed text: names wrap rather than being cut short, and on the narrowest screens your role's badge
+   goes under the names, so they have the row's width. */
+@media (max-width: 359.98px) { .day .lead .nm { white-space: normal; overflow-wrap: break-word; } }
+@media (max-width: 299.98px) { .day { grid-template-columns: 2.4rem minmax(0, 1fr); row-gap: .35rem; } .day .badge { grid-column: 2; justify-self: start; } }
+/* Days from another month, at the turn of a month, come under that month's name. */
+.month-break { padding: .8rem .6rem .2rem; color: var(--soft); font: 700 .72rem var(--mono); letter-spacing: .08em; text-transform: uppercase; }
 .day .tags { display: flex; flex-wrap: wrap; gap: .25rem .4rem; }
 .day.holiday, .day.holiday .dow, .day.holiday .then { color: var(--holiday); }
 .day.holiday .what { font-size: .97rem; font-weight: 700; }
@@ -536,6 +553,9 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 @media (min-width: 761px) { .day { grid-template-columns: 3rem minmax(0, 1fr) auto; gap: 1rem; padding-inline: .9rem; } .day .then { font-size: .88rem; } }
 /* On phones the roster rows run nearly edge to edge, so a day's backups stay on one line. */
 @media (max-width: 760px) { .roster-panel { padding: 1rem .6rem .6rem; } .roster-panel > .row-head, .roster-panel > .muted { padding-inline: .4rem; } }
+/* This month opens at this week; the earlier days wait behind this button. */
+.roster-panel > .earlier { justify-self: start; }
+@media (max-width: 760px) { .roster-panel > .earlier { margin-left: .4rem; } }
 
 /* Lists (Leave and Team tabs) */
 .list { display: grid; }
@@ -546,9 +566,18 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .tag { font-size: .75rem; font-weight: 700; padding: .05rem .5rem; border-radius: 999px; background: var(--accent-soft); color: var(--primary); }
 .tag.leave { background: var(--leave-soft); color: var(--leave); }
 .order { width: 2rem; font: 500 .85rem var(--mono); color: var(--soft); }
-.name-input, .assign { width: min(100%, 14rem); padding: .35rem .55rem; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); }
-.work-input { display: block; margin-top: .35rem; font-size: .88rem; }
+.name-input, .assign { width: min(100%, 14rem); padding: .25rem .55rem; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); font-size: 1rem; }
+.work-input { display: block; margin-top: .35rem; }
+/* A quiet text button under a person's boxes (Remove access): it asks first, so it needn't shout. */
+.btn.quiet { display: inline-flex; align-items: center; min-height: 2.25rem; padding: 0; border: 0; background: none; color: var(--soft); font-size: .85rem; text-decoration: underline; text-underline-offset: 3px; }
+.btn.quiet:hover { color: var(--ink); }
 .invite-hint { font-size: .82rem; }
+/* A long address (the public calendar's link) breaks anywhere rather than run off a narrow screen. */
+.url { overflow-wrap: anywhere; }
+/* Why a change was refused, next to its form or field. */
+.form-error { margin-top: -.3rem; font-weight: 600; }
+.item .form-error { margin-top: .3rem; }
+.details { font-size: .82rem; overflow-wrap: anywhere; }
 
 /* Sign in */
 .auth { max-width: 26rem; margin: 3rem auto; padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 1rem; }
@@ -562,6 +591,16 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 
 /* Messages */
 .toast { position: fixed; left: 50%; bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 10; max-width: calc(100% - 32px); padding: .65rem 1rem; border-radius: 12px; background: var(--ink); color: var(--bg); font-size: .95rem; font-weight: 600; }
+/* Can't connect, after a good load (app.js showOffline): a small note under the header that stays in view while you scroll.
+   Empty, and so hidden, while all is well. */
+.offline { position: sticky; top: 48px; z-index: 4; background: var(--raised); box-shadow: 0 1px 0 var(--edge); }
+.offline:empty { display: none; }
+.offline .wrap { padding-block: .5rem; font-size: .88rem; line-height: 1.45; }
+.offline-text::before { content: ""; display: inline-block; width: .5rem; height: .5rem; margin-right: .5rem; border-radius: 50%; background: var(--steel); vertical-align: .05em; }
+/* Try again reads as a link in the sentence, and answers a finger-sized tap around it. */
+.offline .btn.link { position: relative; font-weight: 700; white-space: nowrap; }
+.offline .btn.link::before { content: ""; position: absolute; inset: -.6rem -.5rem; }
+@media (max-height: 500px) { .offline { position: static; } }
 /* "A new version is available" notice (src/live.js) */
 .update-bar { position: fixed; left: 50%; bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 20; display: flex; align-items: center; gap: .8rem; width: max-content; max-width: calc(100% - 32px);
   padding: .6rem .7rem .6rem 1rem; border-radius: 14px; background: var(--raised); color: var(--ink); box-shadow: 0 0 0 1px var(--edge), 0 12px 32px #00000080; font-size: .95rem; }
