@@ -203,7 +203,7 @@ function lightsOff(now, asleep) {
 const SCENES = {
   morning: [now => atDesk('morning', now, { pose: 'typing', screen: 'code', steam: true }), 'Good morning! Coffee first, then the servers.'],
   // Duty runs 9am to 6pm, lunch included: the caption beside the Primary's face mustn't sound as if they're away.
-  lunch: [now => atDesk('lunch', now, { pose: 'eating', screen: 'lunch', lunch: true }), 'Lunch at the desk. OTPs still welcome.'],
+  lunch: [now => atDesk('lunch', now, { pose: 'eating', screen: 'lunch', lunch: true }), 'Lunch at the desk. Still happy to help.'],
   afternoon: [now => atDesk('afternoon', now, { pose: 'typing', screen: 'bars', steam: true }), 'Afternoon: deep in the dashboards.'],
   evening: [now => atDesk('evening', now, { pose: 'stretch', screen: 'shutdown' }), 'Wrapping up for the day.'],
   afterwork: [afterwork, 'Off duty, still on call.'],
@@ -213,14 +213,15 @@ const SCENES = {
   // A working day when everyone is away: nobody at the desk.
   nobody: [now => lightsOff(now, false), 'No one on duty today. The servers keep watch.'],
   // A working day outside office hours (before 9am or from 6pm): the window still follows the time of day.
-  // `back` says when the next duty day starts ('9am', '9am tomorrow', '9am Monday', '9am on Tue, 24 Nov'), so a
-  // Friday evening or the eve of a holiday doesn't promise 9am tomorrow.
-  closed: [now => lightsOff(now, false), ({ back }) => back ? `Office closed. Back at ${back}.` : 'Office closed.']
+  // `opens` says when the next duty day starts ('9am', '9am tomorrow', '9am Monday', '9am on Tue, 24 Nov'), so a
+  // Friday evening or the eve of a holiday doesn't promise 9am tomorrow. It is the office that opens, not a person
+  // who comes back: with nobody available that day, the caption says only that the office is closed.
+  closed: [now => lightsOff(now, false), ({ opens }) => opens ? `Office closed. Opens at ${opens}.` : 'Office closed.']
 };
 
 /**
  * The illustration and its caption for a part of the day (default: the part of the day `now` falls in, in
- * Singapore). `options.back` finishes the caption outside office hours: when the next duty day starts.
+ * Singapore). `options.opens` finishes the caption outside office hours: when the next duty day starts.
  */
 export function engineerScene(period, now = new Date(), options = {}) {
   if (!SCENES[period]) period = period ? 'morning' : periodAt(now);

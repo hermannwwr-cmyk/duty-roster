@@ -194,8 +194,9 @@ test('the room says when the office opens again, and its clock keeps Singapore t
   const { engineerScene, clockHands } = await import('../src/engineer.js');
   // Lunch is still duty time: nothing says the Primary is away.
   assert.doesNotMatch(engineerScene('lunch').caption + engineerScene('lunch').svg, /back at|away/i);
-  assert.equal(engineerScene('closed', new Date(), { back: '9am Monday' }).caption, 'Office closed. Back at 9am Monday.');
-  assert.match(engineerScene('closed', new Date(), { back: '9am on Tue, 24 Nov' }).svg, /aria-label="Office closed\. Back at 9am on Tue, 24 Nov\."/);
+  assert.equal(engineerScene('lunch').caption, 'Lunch at the desk. Still happy to help.');
+  assert.equal(engineerScene('closed', new Date(), { opens: '9am Monday' }).caption, 'Office closed. Opens at 9am Monday.');
+  assert.match(engineerScene('closed', new Date(), { opens: '9am on Tue, 24 Nov' }).svg, /aria-label="Office closed\. Opens at 9am on Tue, 24 Nov\."/);
   assert.equal(engineerScene('closed').caption, 'Office closed.');
   // The hands: minute hand straight up and hour hand at 3 for 3pm, whatever the viewer's timezone.
   assert.equal(clockHands(new Date('2026-11-16T15:00:00+08:00')), 'M154 34l0.0 -7.5M154 34l5.3 -0.0');

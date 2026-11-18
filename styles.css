@@ -154,8 +154,8 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 /* A long name is set smaller, so it stays on one or two lines beside the face. */
 .hero-name .name.long { font-size: 1.75rem; }
 .hero-name .name.longer { font-size: 1.45rem; line-height: 1.12; letter-spacing: -.015em; }
-/* fitNames() in calendar.js measures the name with its words kept whole, and sets it smaller if one doesn't fit. */
-.hero-name .name.measure { min-width: 0; overflow-wrap: normal; }
+/* fitWords() in calendar.js measures names with their words kept whole, and sets them smaller if one doesn't fit. */
+.measure { min-width: 0; overflow-wrap: normal !important; hyphens: manual !important; }
 .hero-name .hero-role { color: var(--soft); font-size: .9rem; font-weight: 600; }
 /* A working day with nobody available: a red label and a plain statement where the name would be. */
 .eyebrow.warn { color: var(--danger); }
@@ -163,7 +163,8 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .hero-name .hero-none { color: #ffffff; font-size: 1.4rem; font-weight: 800; line-height: 1.2; letter-spacing: -.01em; }
 /* A load that failed (calendar.js): a plain message in the card, or under the month's name in the Forecast, and Try again. */
 .load-fail .hero-body > .btn, .cal-fail .btn { justify-self: start; }
-.cal-fail { display: grid; gap: .75rem; justify-items: start; padding: .4rem .4rem .7rem; color: var(--soft); font-size: .93rem; }
+.cal-fail { display: grid; gap: .75rem; justify-items: start; padding: .4rem .4rem .7rem; font-size: .93rem; }
+.cal-fail p { color: var(--soft); }
 .cal-fail b { color: var(--ink); }
 
 /* The rail: the Secondaries share the card with the Primary. A line drops from the Primary's face (.stem), turns, and runs
@@ -279,8 +280,10 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
    so first names of seven or eight letters (Jonathan, Michelle, Kenneth) fit at 320px. */
 @media (max-width: 360px) { .next-days { gap: .4rem; } .next-duty { padding-inline: .5rem; } .next-duty .when { gap: .3rem; letter-spacing: 0; } .next-duty .dot { width: .5rem; height: .5rem; } }
 @media (max-width: 340px) { .next-duty .nm { font-size: .92rem; letter-spacing: -.02em; } }
-/* Narrower still (a phone with its text zoomed): the three days stack, each tile across the panel, at full size. */
-@media (max-width: 309.98px) { .next-days { grid-template-columns: minmax(0, 1fr); } .next-duty .nm { font-size: 1.05rem; letter-spacing: -.01em; } }
+/* At 340px and below, when a day or a name still doesn't fit its tile (a phone with its text zoomed, or a very long first
+   name), the three days stack, each tile across the panel, at full size (fitNames in calendar.js measures). */
+.next-days.stack { grid-template-columns: minmax(0, 1fr); }
+.next-days.stack .nm { font-size: 1.05rem; letter-spacing: -.01em; }
 .lineup { grid-template-columns: repeat(auto-fill, minmax(3.6rem, 1fr)); }
 .lineup .p .av { box-shadow: 0 0 0 2px var(--raised), 0 0 0 3.5px var(--accent); }
 .lineup .p.me .av { box-shadow: 0 0 0 2px var(--accent-soft), 0 0 0 3.5px var(--accent); }
@@ -312,13 +315,17 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
   .hero-name .name.longer { font-size: 1.3rem; }
 }
 /* The narrowest cards (a phone with its text zoomed: 260 to 310px screens). The button's words take two lines rather than
-   spill out of it, and so do roles that would touch their neighbours (fitNames in calendar.js marks them), with a little
-   space kept at each side. The caption still sits on the scene's floor, but when it needs more lines than the floor has, it
-   starts at the floor's edge and runs on below the scene instead of climbing over the room: row 1 is the scene down to its
-   floor (150 of its 196 units), row 2 the floor, and the caption sits at the foot of row 2, which grows with it. */
+   spill out of it. Two stops to a row, with the roles a size smaller, so each name and role has room under its face; a
+   name still too long is set smaller (fitNames in calendar.js), and hyphenated only if even that isn't enough. The caption
+   still sits on the scene's floor, but when it needs more lines than the floor has, it starts at the floor's edge and runs
+   on below the scene instead of climbing over the room: row 1 is the scene down to its floor (150 of its 196 units), row 2
+   the floor, and the caption sits at the foot of row 2, which grows with it. */
 @container card (max-width: 279.98px) {
   .hero-body > .btn.wa { line-height: 1.2; white-space: normal; text-wrap: balance; }
-  .relay.roles-2 .rl { max-width: calc(100% - .4rem); line-height: 1.25; white-space: normal; }
+  .relay { --cols: var(--ct); }
+  .relay li { --s: var(--st, 0); }
+  .relay .rl, .next-cover .relay .rl { font-size: .6rem; }
+  .relay .nm-short, .hero-name .name { hyphens: auto; }
   .hero-scene { display: grid; grid-template-rows: calc(100cqw * 150 / 358) auto; }
   .hero-scene > .engineer { grid-area: 1 / 1 / 3 / 2; align-self: start; }
   .hero-caption, .has-lead .hero-caption { position: relative; grid-area: 2 / 1; align-self: end; inset: auto; margin: 0 var(--pad) .3rem; }
@@ -465,6 +472,8 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 /* On phones "Today" (or "Next") goes under the date when the two don't fit side by side ("30 Nov" in December's grid, or
    375px), rather than being cut off; on the narrowest phones it always does. */
 @media (max-width: 760px) { .cell.is-today .num, .cell.is-next .num { flex-wrap: wrap; row-gap: 2px; } }
+/* Up to 440px the date and "Today" sit a little closer, so "16 TODAY" still fits side by side from 375px up. */
+@media (max-width: 440px) { .cell.is-today .num { gap: 2px; padding-right: 0; } .cell.is-today .d { padding-inline: 4px; } .today-tag { letter-spacing: 0; } }
 @media (max-width: 360px) { .today-tag { flex-basis: 100%; padding-left: 3px; } }
 .cell.holiday { align-items: center; gap: 6px; background: var(--holiday-soft); box-shadow: none; color: var(--holiday); text-align: center; }
 .cell.holiday .num { align-self: flex-start; color: var(--holiday); }
@@ -490,10 +499,11 @@ label.field input, label.field select { min-width: 0; padding: .5rem .65rem; bor
 .duty-list .first { display: none; }
 /* On phones the five weekdays fit across the screen with first names; wider screens show full names. */
 @media (max-width: 760px) { .duty-list .full { display: none; } .duty-list .first { display: inline; } }
-/* Phones up to 440px: names a little smaller and tighter, so first names of seven or eight letters (Jonathan, Michelle,
-   Kenneth) fit from 375px up; the narrowest phones also bring the dates and holiday names in, so five-letter names fit there. */
-@media (max-width: 440px) { .cell { font-size: .72rem; } .duty-list li { padding-inline: 3px; letter-spacing: -.02em; } }
-@media (max-width: 360px) { .cell .num, .cell .nobody { padding-inline: 3px; } .cell .hol { font-size: .56rem; letter-spacing: -.02em; } }
+/* The narrowest phones: a little tighter, so five-letter names still fit. */
+@media (max-width: 360px) { .cell { font-size: .72rem; } .cell .num, .duty-list li, .cell .nobody { padding-inline: 3px; } .cell .hol { font-size: .56rem; letter-spacing: -.02em; } }
+/* A month with a name that doesn't fit its day at the usual size (Jonathan, Michelle, Kenneth; fitForecast() in calendar.js
+   adds .long-names): on phones up to 440px its names are a little smaller and tighter, so they fit from 375px up. */
+@media (max-width: 440px) { .cal.long-names .cell { font-size: .72rem; } .cal.long-names .duty-list li { padding-inline: 3px; letter-spacing: -.02em; } }
 @media (min-width: 761px) {
   .cal-panel { gap: .9rem; padding: 1.1rem 1.2rem 1.2rem; }
   .cal-head, .legend { padding: 0; }
