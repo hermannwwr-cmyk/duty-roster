@@ -1,0 +1,151 @@
+-- DRAFT 012 for Round 2. NOT READY: don't run this on the live database, and don't copy it into supabase/
+-- as it is. See docs/round2/PLAN.md for what is still to do before the owner runs anything.
+--
+-- Where it came from: sections 1-4 are a draft by an independent reviewer that was tested on a local copy of
+-- the database (it ran twice as a non-superuser, every request the app makes still succeeded, and every
+-- unwanted write was refused). Section 5's sync function is that reviewer's version with the "moved invite"
+-- split from a second reviewer's tested prototype and the length limit (item 4) added. The combination has
+-- only been checked with docs/round2/localdb/sync-cases.sql. Safe to run twice (create or replace, drop
+-- policy if exists).
+
+-- 1. [Item 7] Members can change only the columns the app changes (no work_email/created_at/email/invite_uid writes).
+--    Assumes the project grants table-wide privileges to the API roles (run the grants query in PLAN.md first).
+revoke insert, update on public.profiles from anon, authenticated;
+grant update (display_name, rota_order, active, is_admin, approved) on public.profiles to authenticated;
+revoke insert, update on public.leaves from anon, authenticated;
+grant insert (user_id, start_date, end_date, note) on public.leaves to authenticated;
+grant update (start_date, end_date, note) on public.leaves to authenticated;
+
+-- 2. [Item 6] Own-row changes need an approved account (people whose access was removed can't touch anything).
+--    A reviewer thinks the "read leaves" policy may already block most of this in practice: confirm first.
+drop policy if exists "update own profile" on public.profiles;
+create policy "update own profile" on public.profiles for update to authenticated
+  using ((id = auth.uid() and public.is_member()) or public.is_admin())
+  with check ((id = auth.uid() and public.is_member()) or public.is_admin());
+drop policy if exists "change own leave" on public.leaves;
+create policy "change own leave" on public.leaves for update to authenticated
+  using ((user_id = auth.uid() and public.is_member()) or public.is_admin())
+  with check ((user_id = auth.uid() and public.is_member()) or public.is_admin());
+drop policy if exists "delete own leave" on public.leaves;
+create policy "delete own leave" on public.leaves for delete to authenticated
+  using ((user_id = auth.uid() and public.is_member()) or public.is_admin());
+
+-- 3. [Item 5] Settings (with the invite address) only for approved members. Publish the front-end change
+--    (SupabaseStore.load: .maybeSingle() on settings, with a fallback) BEFORE this runs, or people waiting
+--    for approval get "Can't reach the database".
+drop policy if exists "read settings" on public.settings;
+create policy "read settings" on public.settings for select to authenticated using (public.is_member() or public.is_admin());
+
+-- 4. [Item 7] Leave rules: ended leave can't be extended over past days (only the "least(...)" in the end-date
+--    check changed from 006_hardening.sql). Mirror it in DemoStore.leaveRule, with a test.
+create or replace function public.enforce_leave_rules()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare today date := public.sg_today();
+begin
+  if auth.uid() is null or public.is_admin() then return coalesce(new, old); end if;
+  if tg_op = 'INSERT' and new.start_date < today then
+    raise exception 'Leave can only be added from today onwards. Ask an admin to record past leave.';
+  elsif tg_op = 'UPDATE' then
+    if new.start_date <> old.start_date and least(new.start_date, old.start_date) < today then
+      raise exception 'The start of leave that has begun can''t be changed. Ask an admin.';
+    end if;
+    if new.end_date <> old.end_date and least(new.end_date, old.end_date) < today - 1 then
+      raise exception 'Leave can only be shortened to end yesterday at the earliest.';
+    end if;
+  elsif tg_op = 'DELETE' and old.start_date < today then
+    raise exception 'Leave that has begun can''t be deleted. End it early instead.';
+  end if;
+  if tg_op = 'INSERT' or (tg_op = 'UPDATE' and (new.start_date, new.end_date) is distinct from (old.start_date, old.end_date)) then
+    if new.end_date - new.start_date >= 180
+       and (tg_op = 'INSERT' or new.end_date - new.start_date > old.end_date - old.start_date) then
+      raise exception 'Leave can be at most 180 days at a time. Ask an admin to record longer leave.';
+    end if;
+    if new.start_date > today + 365 and (tg_op = 'INSERT' or new.start_date <> old.start_date) then
+      raise exception 'Leave can be booked up to a year ahead.';
+    end if;
+  end if;
+  return coalesce(new, old);
+end; $$;
+
+-- 5. [Items 1-4] The invite sync.
+--    Item 1: leave that has begun, whose invite now starts later, is split: the days already taken end yesterday
+--            and the new dates become a new leave (before, the old start was kept and the gap stayed covered).
+--    Item 2 (database backstop; the main fix is the sender check in scripts/leave-invites.gs): an invite's leave
+--            never moves to a different person, and a missing or null secret never passes.
+--    Item 3: a bad invite (a date like 31 November, an impossibly long id) is skipped and counted, instead of
+--            failing the whole batch and silently stopping every later sync.
+--    Item 4: the app's limits apply, shortened rather than refused (a refusal would skip the invite): an invite
+--            starting more than a year ahead waits until it is within a year, and leave is at most a year long
+--            (not 180 days: Singapore maternity plus shared parental leave can run to about 26 weeks).
+create or replace function public.sync_leave_invites(p_secret uuid, p_events json)
+returns json language plpgsql volatile security definer set search_path = public as $$
+declare
+  today date := public.sg_today();
+  e json; ev record; who uuid; old public.leaves%rowtype;
+  first_day date; last_day date;
+  added int := 0; moved int := 0; removed int := 0; unknown int := 0; skipped int := 0;
+  uids text[] := '{}';
+begin
+  if p_secret is null or p_secret is distinct from (select script_secret from public.invite_config where id = 1) then
+    raise exception 'Wrong script secret.';
+  end if;
+  for e in select value from json_array_elements(coalesce(p_events, '[]'::json)) loop
+    begin
+      select e->>'uid' as uid, lower(trim(e->>'organizer')) as organizer, left(e->>'title', 120) as title,
+             (e->>'start')::date as start_date, (e->>'end')::date as end_date into ev;
+      continue when ev.uid is null or length(ev.uid) > 1000 or ev.organizer is null
+        or ev.start_date is null or ev.end_date is null or ev.end_date < ev.start_date or ev.end_date < today;
+      first_day := greatest(ev.start_date, today);
+      continue when first_day > today + 365;            -- not listed yet: it is picked up once within a year
+      last_day := least(ev.end_date, first_day + 365);
+      uids := uids || ev.uid;
+      who := null;
+      select id into who from public.profiles
+        where approved and (lower(email) = ev.organizer or lower(work_email) = ev.organizer)
+        order by (lower(email) = ev.organizer) desc, created_at, id limit 1;
+      if who is null then
+        insert into public.unmatched_invites (uid, organizer, title, start_date, end_date)
+          values (ev.uid, ev.organizer, ev.title, ev.start_date, ev.end_date)
+          on conflict (uid) do update set organizer = excluded.organizer, title = excluded.title,
+            start_date = excluded.start_date, end_date = excluded.end_date;
+        unknown := unknown + 1;
+        continue;
+      end if;
+      delete from public.unmatched_invites where uid = ev.uid;
+      select * into old from public.leaves where invite_uid = ev.uid;
+      if not found then
+        insert into public.leaves (user_id, start_date, end_date, note, invite_uid)
+          values (who, first_day, last_day, 'From calendar invite', ev.uid);
+        added := added + 1;
+      elsif old.user_id <> who then
+        null;   -- stays with the person it was first added for
+      elsif old.start_date < today and (ev.start_date > today or old.end_date < today - 1) then
+        update public.leaves set end_date = least(old.end_date, today - 1), invite_uid = null where id = old.id;
+        insert into public.leaves (user_id, start_date, end_date, note, invite_uid)
+          values (who, first_day, last_day, 'From calendar invite', ev.uid);
+        moved := moved + 1;
+      elsif old.start_date < today then
+        if old.end_date <> greatest(last_day, today - 1) then
+          update public.leaves set end_date = greatest(last_day, today - 1) where id = old.id;
+          moved := moved + 1;
+        end if;
+      elsif (old.start_date, old.end_date) is distinct from (first_day, last_day) then
+        update public.leaves set start_date = first_day, end_date = last_day where id = old.id;
+        moved := moved + 1;
+      end if;
+    exception when others then
+      skipped := skipped + 1;
+    end;
+  end loop;
+  -- Invites no longer listed count as cancelled: leave that hasn't begun is removed; leave that has begun ends yesterday.
+  with gone as (
+    delete from public.leaves where invite_uid is not null and not (invite_uid = any(uids)) and start_date >= today returning 1
+  ) select removed + count(*) into removed from gone;
+  update public.leaves set end_date = today - 1
+    where invite_uid is not null and not (invite_uid = any(uids)) and start_date < today and end_date >= today;
+  delete from public.unmatched_invites where not (uid = any(uids));
+  update public.invite_config set last_sync = now() where id = 1;
+  return json_build_object('added', added, 'moved', moved, 'removed', removed, 'unmatched', unknown, 'skipped', skipped);
+end; $$;
+revoke execute on function public.sync_leave_invites(uuid, json) from public;
+grant execute on function public.sync_leave_invites(uuid, json) to anon;
