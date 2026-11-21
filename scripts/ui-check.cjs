@@ -923,6 +923,31 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   const overnight = (await demo(n)).leaves.find(l => l.id === 1) || {};
   check('N29 a page left open overnight with a half-typed note shows the new day: End early ends the leave yesterday, and the note is kept',
     morning.start === '2026-11-18' && morning.note === 'Half typed' && overnight.end_date === '2026-11-17', JSON.stringify({ morning, end: overnight.end_date }));
+  await n.close();
+  // A new version is published while the page is open: it loads by itself at a safe moment, never under someone typing.
+  const newer = async (p, url) => {
+    const html = (await (await fetch(BASE + url)).text()).replace(/\?v=\d{12}/g, '?v=209901010000');
+    await p.route(BASE + url, r => r.fulfill({ contentType: 'text/html; charset=utf-8', body: html }));
+    await p.evaluate(() => { window.__old = true; });
+  };
+  const isOld = p => p.evaluate(() => window.__old === true).catch(() => false);
+  n = await openN('/index.html', '2026-11-18T02:00:00Z');
+  if (await n.locator('[data-demo="alice@example.com"]').count()) await signIn(n, 'alice');   // still signed in from N29 otherwise
+  await n.click('[data-tab=leave]'); await settle(n);
+  await n.fill('#l-note', 'Half typed');
+  await newer(n, '/index.html');
+  await n.clock.runFor(5 * 60 * 1000 + 1000); await n.waitForTimeout(500); await n.clock.runFor(60 * 1000); await n.waitForTimeout(300);
+  const heldWhileTyping = await isOld(n) && (await n.locator('#l-note').inputValue()) === 'Half typed';
+  await n.fill('#l-note', ''); await n.locator('h2').first().click();
+  await n.clock.runFor(30 * 1000); await n.waitForTimeout(800);
+  const reloaded = !(await isOld(n).catch(() => false));
+  check('N30 a new version waits while someone is typing, then loads by itself once nothing is half-done, with no prompt',
+    heldWhileTyping && reloaded && await n.locator('.update-bar').count() === 0, JSON.stringify({ heldWhileTyping, reloaded }));
+  await n.close();
+  n = await openN('/calendar.html', '2026-11-18T02:00:00Z');
+  await newer(n, '/calendar.html');
+  await n.clock.runFor(5 * 60 * 1000 + 1000); await n.waitForTimeout(800);
+  check('N31 the public page loads a new version by itself when nobody is using it', !(await isOld(n).catch(() => false)));
   await n.close(); await c2.close();
 
   // (The browser reports the download that S1 to S3 drop on purpose; nothing else may show an error.)

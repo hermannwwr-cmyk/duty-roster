@@ -59,7 +59,7 @@ src/
   engineer.js              animated SVG "infra engineer" scene, picked by Singapore time
   faces.js                 drawn face SVG generated from a name (avatars on both pages)
   holidays-sg.js           Singapore public holidays 2026–2027 for demo mode
-  live.js                  keepFresh(): auto-refresh plus a "new version available" bar
+  live.js                  keepFresh(): auto-refresh, and a new version loaded by itself at a safe moment
   swipe.js                 swipe left or right on phones to change tabs, plus a one-time peek hint
 scripts/
   stamp.mjs                cache-busting version stamp (see §10)
@@ -255,7 +255,7 @@ Two classes with **identical methods**:
 - **Staying fresh (`live.js`):**
   - Re-fetch data when the tab becomes visible, every 5 minutes, and just after Singapore midnight. The app refreshes even while someone is typing, but never redraws under them: it keeps the new data and draws it once no field holds unsaved text (or on a save or tab switch). A new day is the exception: it is drawn at once, typing or not, because the screen's buttons carry the day's dates (what was typed is kept). One refresh runs at a time, but one that hasn't finished after 25 seconds (a stalled connection) is given up on, so the next can run.
   - Both pages also switch over by themselves at 9am and 6pm, and catch up at once when the browser comes back online.
-  - Also fetch the page's own HTML and compare the `?v=` stamp. If it differs, show a bar: "A new version of the app is available. [Reload]".
+  - Also fetch the page's own HTML and compare the `?v=` stamp. If it differs, load the new version by itself, with no prompt, at the first safe moment: the page is hidden, or nobody has tapped, typed or scrolled for 15 seconds; and nothing is half-done (in the app: no unsaved typing on any screen, no save on its way). Only if no safe moment comes within 3 minutes on screen, or a reload for that version already happened and the page is still old (a stale cached copy, remembered in `sessionStorage`), show a bar instead: "A new version of the app is available. [Reload]".
 - **Accessibility:**
   - Each page has a polite `aria-live` region (`#announce`): toasts, a new month in the Forecast and "Still can't connect." are read out through it.
   - After a redraw, keyboard focus returns to the same control (find it by id or data attribute), or to the section heading if the control is gone. Every submit button has an id for this.

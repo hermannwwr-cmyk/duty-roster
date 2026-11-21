@@ -417,7 +417,9 @@ keepFresh(async () => {
   if (t !== lastDay && state.month === lastDay.slice(0, 7)) state.month = t.slice(0, 7);
   lastDay = t;
   await refresh({ background: true });   // redraw() keeps focus where it was
-}, () => state.data !== null);
+}, () => state.data !== null,
+// A new version loads by itself only when nothing is half-done: no unsaved typing (on any screen, sign-in included) and no save on its way.
+() => !typing() && saving.size === 0 && ![...root.querySelectorAll('input:not([type=checkbox]):not([type=radio]), textarea')].some(i => i.value !== i.defaultValue));
 
 /* ---------- Sign in ---------- */
 function renderAuth() {
