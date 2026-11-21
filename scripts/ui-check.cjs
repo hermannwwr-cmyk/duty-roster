@@ -947,7 +947,19 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
   n = await openN('/calendar.html', '2026-11-18T02:00:00Z');
   await newer(n, '/calendar.html');
   await n.clock.runFor(5 * 60 * 1000 + 1000); await n.waitForTimeout(800);
-  check('N31 the public page loads a new version by itself when nobody is using it', !(await isOld(n).catch(() => false)));
+  check('N31 the public page loads a new version by itself, straight away', !(await isOld(n).catch(() => false)));
+  await n.close();
+  // Hidden pages do nothing: the 9am switch waits until the page is shown again, then happens at once.
+  n = await openN('/calendar.html', '2026-11-18T00:59:00Z');
+  const cardSays = async () => (await n.locator('#today').innerText()).replace(/outside office hours/i, 'Outside office hours');   // shown in capitals
+  const before9 = (await cardSays()).includes('Outside office hours');
+  const setHidden = h => n.evaluate(h => { Object.defineProperty(document, 'hidden', { value: h, configurable: true });
+    Object.defineProperty(document, 'visibilityState', { value: h ? 'hidden' : 'visible', configurable: true }); document.dispatchEvent(new Event('visibilitychange')); }, h);
+  await setHidden(true); await n.clock.runFor(3 * 60 * 1000); await n.waitForTimeout(400);
+  const waitedHidden = (await cardSays()).includes('Outside office hours');
+  await setHidden(false); await n.clock.runFor(1500); await n.waitForTimeout(600);
+  const caughtUp = !(await cardSays()).includes('Outside office hours');
+  check('N32 a hidden page skips the 9am switch, and catches up the moment it is shown', before9 && waitedHidden && caughtUp, JSON.stringify({ before9, waitedHidden, caughtUp }));
   await n.close(); await c2.close();
 
   // (The browser reports the download that S1 to S3 drop on purpose; nothing else may show an error.)

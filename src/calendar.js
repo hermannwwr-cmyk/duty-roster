@@ -569,7 +569,7 @@ function drawToday() {
 /** Every minute, on the minute: the wall clock's hands move, and the card keeps up with the time (the scene's part of
  *  the day, 9am and 6pm, midnight) from the days already loaded. */
 function everyMinute() {
-  setTimeout(() => { everyMinute(); if (todayState === 'drawn') drawToday(); }, 60000 - Date.now() % 60000 + 50);
+  setTimeout(() => { everyMinute(); if (todayState === 'drawn' && !document.hidden) drawToday(); }, 60000 - Date.now() % 60000 + 50);
 }
 
 /* Two tabs: today's 2FA Login card and the month calendar. The address remembers which (#calendar). */
@@ -601,8 +601,15 @@ loadToday().catch(() => {});
 show(cal.month).catch(() => {});
 everyMinute();
 // Switch the card over on time at 9am and 6pm with fresh duties, rather than at the next routine refresh.
-const atOfficeChange = () => setTimeout(() => { loadToday().catch(() => {}); atOfficeChange(); }, msUntilOfficeChange() + 2000);
+// While the page is hidden nothing runs: a switch it missed, and the clock, catch up the moment it is shown again.
+let officeMissed = false;
+const atOfficeChange = () => setTimeout(() => { if (document.hidden) officeMissed = true; else loadToday().catch(() => {}); atOfficeChange(); }, msUntilOfficeChange() + 2000);
 atOfficeChange();
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  if (officeMissed) { officeMissed = false; loadToday().catch(() => {}); }
+  else if (todayState === 'drawn') drawToday();
+});
 /** Fresh duties for the card and the month. If part of the page didn't download, only a reload can fix it (while online). */
 async function refreshAll() {
   if (storeBroken) { if (navigator.onLine !== false) location.reload(); return; }

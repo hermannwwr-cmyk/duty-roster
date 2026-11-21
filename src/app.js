@@ -408,8 +408,11 @@ swipeTabs(() => document.getElementById('view'), typing);
 
 // Switch the "Your role" card over on time at 9am and 6pm. A background refresh never redraws under someone typing
 // (reload holds the draw until they stop), so it doesn't wait for them: a half-typed note left overnight can't freeze the page.
-const atOfficeChange = () => setTimeout(() => { if (state.data) refresh({ background: true }); atOfficeChange(); }, msUntilOfficeChange() + 2000);
+// While the page is hidden it doesn't fetch: a switch it missed happens the moment the page is shown again.
+let officeMissed = false;
+const atOfficeChange = () => setTimeout(() => { if (state.data) { if (document.hidden) officeMissed = true; else refresh({ background: true }); } atOfficeChange(); }, msUntilOfficeChange() + 2000);
 atOfficeChange();
+document.addEventListener('visibilitychange', () => { if (!document.hidden && officeMissed && state.data) { officeMissed = false; refresh({ background: true }); } });
 
 keepFresh(async () => {
   // Follow the calendar into a new month if the page was showing the month that just ended.

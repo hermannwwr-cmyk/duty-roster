@@ -1,6 +1,6 @@
 // Keeps an open page up to date: fresh data when you come back to it, every few minutes while it's
 // open, and just after midnight Singapore time; and, after an update is published, the new version, loaded by
-// itself at a safe moment (hidden, or nobody using it, and nothing half-done).
+// itself as soon as nothing is half-done. Nothing here does any work while the page is hidden.
 
 const EVERY = 5 * 60 * 1000;   // refresh this often while the page is open and visible
 const MIN_GAP = 30 * 1000;     // coming back to the page refreshes only if the last refresh was longer ago
@@ -31,7 +31,6 @@ export function keepFresh(refresh, canRefresh = () => true, safeToReload = () =>
     checkForUpdate();
   };
   document.addEventListener('visibilitychange', () => { if (!document.hidden) run(false); });
-  for (const type of ['pointerdown', 'keydown', 'wheel', 'touchmove']) addEventListener(type, () => { lastUse = Date.now(); }, { capture: true, passive: true });
   setInterval(() => run(true), EVERY);
   const atMidnight = () => setTimeout(() => { run(true); atMidnight(); }, msUntilSgMidnight() + 5000);
   atMidnight();
@@ -39,17 +38,15 @@ export function keepFresh(refresh, canRefresh = () => true, safeToReload = () =>
 
 /* ---------- A new version ---------- */
 
-const IDLE = 15 * 1000;            // "nobody using it": no tap, key or scroll for this long
 const FALLBACK = 3 * 60 * 1000;    // still no safe moment after this long on screen: offer the old Reload bar
 const TRIED = 'reloadedFor';       // sessionStorage: the version a reload was for, so a stale copy can't loop
 const versionOf = html => (String(html).match(/\?v=(\d{12})/) || [])[1] || null;
-let safe = () => true, lastUse = 0, latest = null, waitingSince = 0, poll = null, barShown = false;
+let safe = () => true, latest = null, waitingSince = 0, poll = null, barShown = false;
 
 const tried = () => { try { return sessionStorage.getItem(TRIED); } catch (e) { return null; } };
-/** Reloads now if it's a safe moment: the page is hidden, or nobody has used it for a while; and nothing is half-done. */
+/** Reloads now if nothing is half-done (the owner wanted no waiting while someone looks at the page). */
 export function reloadWhenSafe() {
   if (!latest || !safe()) return false;
-  if (!document.hidden && Date.now() - lastUse < IDLE) return false;
   try { sessionStorage.setItem(TRIED, latest); } catch (e) {}
   location.reload();
   return true;
@@ -59,10 +56,11 @@ function waitForSafeMoment() {
   waitingSince = Date.now();
   document.addEventListener('visibilitychange', () => { reloadWhenSafe(); });
   poll = setInterval(() => {
+    if (document.hidden) return;   // catches up when shown (visibilitychange above)
     if (reloadWhenSafe()) return;
     // Someone has kept using the page the whole time: let them choose, with the bar.
     if (!document.hidden && Date.now() - waitingSince > FALLBACK) showBar();
-  }, 5000);
+  }, 1000);   // only while waiting for something half-done to finish: a second's check, no download
   reloadWhenSafe();
 }
 function showBar() {
@@ -77,7 +75,7 @@ function showBar() {
 
 /**
  * Compares this page's version stamp (npm run stamp) with the published page's. When they differ, the page
- * reloads by itself at the first safe moment (see reloadWhenSafe), so nothing typed or being saved is lost.
+ * reloads by itself straight away, or as soon as nothing is half-done, so nothing typed or being saved is lost.
  * If a reload for that version already happened and the page is still old (a stale cached copy), it offers
  * the Reload bar instead of reloading again.
  */
